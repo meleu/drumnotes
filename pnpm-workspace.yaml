@@ -1,0 +1,7 @@
+allowBuilds:
+  lefthook: true
+minimumReleaseAgeExclude:
+  - globals@17.8.0
+onlyBuiltDependencies:
+  - esbuild
+  - lefthook

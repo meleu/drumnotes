@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+
+# Hand-written prose — never machine-rewrapped.
+*.md
+docs/
+.claude/
