@@ -1,0 +1,13 @@
+/* Light theme only, plain CSS. Visual refinement is a later pass. */
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #111827;
+  background: #ffffff;
+}
+
+body {
+  margin: 0;
+}
