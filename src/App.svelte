@@ -1,10 +1,12 @@
 <script lang="ts">
   import Grid from './components/Grid.svelte';
   import Staff from './components/Staff.svelte';
+  import Transport from './components/Transport.svelte';
 </script>
 
 <main>
   <h1>drumnotes</h1>
+  <Transport />
   <!-- The grid is entirely above the staff; the two views never interleave. -->
   <Grid />
   <Staff />

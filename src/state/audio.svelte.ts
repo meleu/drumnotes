@@ -26,6 +26,11 @@ class AudioState {
     return this.#ready;
   }
 
+  /** The audio clock, the one clock playback is allowed to believe. */
+  get now(): number {
+    return this.#kit.now;
+  }
+
   /**
    * Sounds an instrument the moment it is written down. Waking the context is
    * deliberately not awaited: awaiting it would put a round trip between the
@@ -33,8 +38,23 @@ class AudioState {
    * as soon as it does.
    */
   audition(instrument: InstrumentId): void {
-    void this.#kit.resume();
+    this.wake();
     this.#kit.play(instrument);
+  }
+
+  /** Hands a hit to the hardware for a moment that has not arrived yet. */
+  schedule(instrument: InstrumentId, when: number): void {
+    this.#kit.play(instrument, when);
+  }
+
+  /** Drops what has been scheduled and not yet sounded. */
+  cancelPending(): void {
+    this.#kit.cancelPending();
+  }
+
+  /** Call from a user gesture; harmless afterwards. */
+  wake(): void {
+    void this.#kit.resume();
   }
 }
 

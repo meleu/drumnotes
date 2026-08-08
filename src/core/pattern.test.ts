@@ -9,6 +9,7 @@ import {
   defaultPattern,
   emptyPattern,
   gridBars,
+  instrumentsAt,
   toggleStep,
 } from './pattern.js';
 
@@ -119,5 +120,18 @@ describe('toggleStep', () => {
     expect(after.lanes.kick).toEqual(before.lanes.kick);
     expect(after.lanes.snare.filter(Boolean)).toHaveLength(1);
     expect(after.tempo).toBe(before.tempo);
+  });
+});
+
+describe('instrumentsAt', () => {
+  it('names everything written on a step, in row order', () => {
+    const pattern = defaultPattern();
+
+    expect(instrumentsAt(pattern, 0)).toEqual(['hihat', 'kick']);
+    expect(instrumentsAt(pattern, 4)).toEqual(['hihat', 'snare']);
+  });
+
+  it('names nothing on a silent step', () => {
+    expect(instrumentsAt(emptyPattern(), 3)).toEqual([]);
   });
 });

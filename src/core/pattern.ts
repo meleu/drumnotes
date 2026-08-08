@@ -162,6 +162,14 @@ export function isStepFilled(pattern: Pattern, instrument: InstrumentId, step: n
 }
 
 /**
+ * Everything written on one step, in the table's top-to-bottom order — what the
+ * player has to strike when the playhead arrives there.
+ */
+export function instrumentsAt(pattern: Pattern, step: number): InstrumentId[] {
+  return INSTRUMENTS.filter(({ id }) => isStepFilled(pattern, id, step)).map(({ id }) => id);
+}
+
+/**
  * Flips one cell, producing a new `Pattern`. Non-destructive array update, so
  * the input value — and every lane other than the one touched — is unchanged.
  */

@@ -348,16 +348,16 @@ playback, so a cell enabled just before the playhead reaches it sounds twice —
 
 ### Acceptance criteria
 
-- [ ] The step-window function is pure, in the core, and unit-tested for: an empty window, a
+- [x] The step-window function is pure, in the core, and unit-tested for: an empty window, a
       window containing several steps, a window straddling the loop point, and a step landing
       exactly on a window edge (scheduled exactly once, never twice)
-- [ ] No step is ever scheduled twice or skipped across consecutive windows (unit-tested over
+- [x] No step is ever scheduled twice or skipped across consecutive windows (unit-tested over
       a long simulated run)
-- [ ] Play loops indefinitely with no audible gap at the loop point
-- [ ] Stop halts playback and resets the position to step 0; the next Play starts from there
-- [ ] A cell enabled during playback sounds on the next pass, within roughly one step
-- [ ] Timing is driven by the audio clock; no `setTimeout` value determines when a hit sounds
-- [ ] Browser test: pressing Play changes the transport state and Stop returns it
+- [x] Play loops indefinitely with no audible gap at the loop point
+- [x] Stop halts playback and resets the position to step 0; the next Play starts from there
+- [x] A cell enabled during playback sounds on the next pass, within roughly one step
+- [x] Timing is driven by the audio clock; no `setTimeout` value determines when a hit sounds
+- [x] Browser test: pressing Play changes the transport state and Stop returns it
 
 ---
 
