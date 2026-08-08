@@ -8,6 +8,22 @@ import { BARS, defaultPattern } from '../../src/core/pattern.js';
 const staff = '.sheet svg';
 const noteheads = `${staff} .vf-notehead`;
 
+/**
+ * How many augmentation dots the staff is showing. The music font draws one as
+ * a glyph in the SMuFL codepoint below, so counting them is a structural
+ * question about the drawing, not a question about pixels.
+ */
+const AUGMENTATION_DOT = '\u{E1E7}';
+
+async function augmentationDots(page: Page): Promise<number> {
+  return await page
+    .locator(`${staff} g.vf-stavenote text`)
+    .evaluateAll(
+      (nodes, glyph) => nodes.filter((node) => node.textContent === glyph).length,
+      AUGMENTATION_DOT,
+    );
+}
+
 /** The vertical position of each drawn measure, deduped into systems. */
 async function systemCount(page: Page): Promise<number> {
   const staves = page.locator(`${staff} .vf-stave`);
@@ -102,6 +118,26 @@ test.describe('once the font has loaded', () => {
     await page.reload();
     await page.waitForSelector(noteheads);
 
+    expect(errors).toEqual([]);
+  });
+
+  test('draws an augmentation dot for a dotted value, and fills the measure', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+
+    expect(await augmentationDots(page)).toBe(0);
+
+    // The feet play nothing on beat 2 of the rock beat, so a kick on that
+    // beat's last sixteenth is preceded by three silent ones: a dotted-eighth
+    // rest, the shortest route from the default groove to a dotted value.
+    await page.locator('button[data-instrument="kick"][data-step="7"]').click();
+
+    await expect.poll(async () => await augmentationDots(page)).toBe(1);
+    // A dot VexFlow draws but does not count would leave the measure short and
+    // the voice rejected outright, so a clean console is half of this test.
     expect(errors).toEqual([]);
   });
 });

@@ -253,17 +253,17 @@ than reaching the user's eyes.
 
 ### Acceptance criteria
 
-- [ ] Every produced length is exactly a sixteenth, eighth, dotted eighth or quarter — no
+- [x] Every produced length is exactly a sixteenth, eighth, dotted eighth or quarter — no
       other value is reachable (unit-tested exhaustively over single-beat inputs)
-- [ ] No note or rest crosses a beat boundary or a barline; no ties are ever produced
-- [ ] A lone hit on the downbeat of an otherwise empty beat is a quarter, not four sixteenths
-- [ ] Three silent sixteenths before a hit yield one dotted-eighth rest
-- [ ] A measure with no hits in a voice yields exactly one whole rest, positioned on that
+- [x] No note or rest crosses a beat boundary or a barline; no ties are ever produced
+- [x] A lone hit on the downbeat of an otherwise empty beat is a quarter, not four sixteenths
+- [x] Three silent sixteenths before a hit yield one dotted-eighth rest
+- [x] A measure with no hits in a voice yields exactly one whole rest, positioned on that
       voice's rest line/space
-- [ ] Duration is capped by the gap **within the same voice** — a kick between two snares does
+- [x] Duration is capped by the gap **within the same voice** — a kick between two snares does
       not shorten the snare (unit-tested)
-- [ ] The case table covers each beat pattern shape and is data-driven, not one test per case
-- [ ] Every voice still sums to exactly one measure
+- [x] The case table covers each beat pattern shape and is data-driven, not one test per case
+- [x] Every voice still sums to exactly one measure
 
 ---
 

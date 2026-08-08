@@ -164,7 +164,11 @@ function toStaveNote(entry: Entry, voice: ScoreVoice): StaveNote {
   const rest = entry.kind === 'rest';
   const note = new StaveNote({
     keys: rest ? [entry.position] : entry.noteheads.map(keyOf),
-    duration: DURATION_CODES[entry.duration] + (rest ? 'r' : ''),
+    // Dots have to be spelled in the duration — that is what VexFlow counts the
+    // note's ticks from — *and* attached as modifiers below, which is what
+    // draws them. Spelling alone draws nothing; attaching alone leaves the note
+    // a third too short and the measure rejected as incomplete.
+    duration: DURATION_CODES[entry.duration] + 'd'.repeat(entry.dots) + (rest ? 'r' : ''),
     stemDirection: STEM_DIRECTIONS[voice.stem],
   });
   if (entry.dots > 0) {
