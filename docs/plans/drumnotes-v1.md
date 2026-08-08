@@ -311,18 +311,18 @@ the project's GPL choice load-bearing.
 
 ### Acceptance criteria
 
-- [ ] The three GMRockKit samples are downloaded from Hydrogen's distribution, committed to
+- [x] The three GMRockKit samples are downloaded from Hydrogen's distribution, committed to
       the repository and resolved as build assets — never fetched from a URL at runtime
-- [ ] The download source and the exact kit version are recorded, so the samples can be
+- [x] The download source and the exact kit version are recorded, so the samples can be
       re-obtained or updated later
-- [ ] Each sample is decoded exactly once; repeated hits reuse the buffer through fresh source
+- [x] Each sample is decoded exactly once; repeated hits reuse the buffer through fresh source
       nodes
-- [ ] Enabling a cell plays that instrument; clearing a cell plays nothing
-- [ ] Audition fires immediately, without going through a scheduler
-- [ ] The AudioContext is resumed on the first user gesture; audio works on a mobile browser
+- [x] Enabling a cell plays that instrument; clearing a cell plays nothing
+- [x] Audition fires immediately, without going through a scheduler
+- [x] The AudioContext is resumed on the first user gesture; audio works on a mobile browser
       on the first press
-- [ ] Controls that require audio are disabled until decoding completes
-- [ ] The notice file records the samples' origin, authors and licence; the README states the
+- [x] Controls that require audio are disabled until decoding completes
+- [x] The notice file records the samples' origin, authors and licence; the README states the
       project is GPL because of them
 
 ---

@@ -48,7 +48,9 @@ export interface Instrument {
  * in the space above the top line, snare in the third space, bass drum in the
  * first space. The top line itself stays free for a future ride cymbal.
  *
- * Later phases hang each instrument's sample here.
+ * Sounds are deliberately absent: a sample is a bundled asset with a build-time
+ * URL, so the table pairing an instrument with its sample lives in the audio
+ * adapter and this one stays pure.
  */
 export const INSTRUMENTS: readonly Instrument[] = [
   { id: 'hihat', name: 'Hi-hat', voice: 'hands', position: 'g/5', notehead: 'cross' },

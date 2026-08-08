@@ -1,8 +1,19 @@
 <script lang="ts">
+  import type { InstrumentId } from '../core/pattern.js';
   import { INSTRUMENTS, STEPS_PER_BAR, gridBars, isStepFilled } from '../core/pattern.js';
+  import { audioState } from '../state/audio.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
 
   const bars = gridBars();
+
+  /*
+   * Writing a hit down plays it; rubbing one out is silent. Every cell makes
+   * sound, so the whole grid waits for the samples rather than letting an early
+   * tap land mutely.
+   */
+  function toggle(instrument: InstrumentId, step: number): void {
+    if (patternState.toggle(instrument, step)) audioState.audition(instrument);
+  }
 </script>
 
 <div class="grid">
@@ -24,7 +35,8 @@
             aria-label="{instrument.name}, step {step.index + 1}"
             data-instrument={instrument.id}
             data-step={step.index}
-            onclick={() => patternState.toggle(instrument.id, step.index)}
+            disabled={!audioState.ready}
+            onclick={() => toggle(instrument.id, step.index)}
           ></button>
         {/each}
       {/each}
@@ -90,5 +102,11 @@
   .cell[aria-pressed='true'] {
     border-color: #1d4ed8;
     background: #2563eb;
+  }
+
+  /* The samples are still decoding: the grid is readable, not yet playable. */
+  .cell:disabled {
+    cursor: progress;
+    opacity: 0.55;
   }
 </style>

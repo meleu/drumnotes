@@ -1,5 +1,5 @@
 import type { InstrumentId, Pattern } from '../core/pattern.js';
-import { toggleStep } from '../core/pattern.js';
+import { isStepFilled, toggleStep } from '../core/pattern.js';
 import { loadPattern, savePattern } from '../adapters/storage.js';
 
 /**
@@ -18,8 +18,12 @@ class PatternState {
     return this.#pattern;
   }
 
-  toggle(instrument: InstrumentId, step: number): void {
-    this.#replace(toggleStep(this.#pattern, instrument, step));
+  /** Flips one cell and reports whether it is now written, so a caller can
+   * sound what was just added without asking the pattern a second time. */
+  toggle(instrument: InstrumentId, step: number): boolean {
+    const next = toggleStep(this.#pattern, instrument, step);
+    this.#replace(next);
+    return isStepFilled(next, instrument, step);
   }
 
   #replace(pattern: Pattern): void {
