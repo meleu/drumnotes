@@ -1,8 +1,15 @@
 <script lang="ts">
-  import { BARS } from '../core/pattern.js';
+  import { BARS, barOfStep } from '../core/pattern.js';
   import { toScore } from '../core/score.js';
-  import { loadNotationFont, renderScoreSvg, staffLayoutFor } from '../adapters/notation.js';
+  import {
+    loadNotationFont,
+    measureBoxes,
+    renderScoreSvg,
+    staffLayoutFor,
+    staffSize,
+  } from '../adapters/notation.js';
   import { patternState } from '../state/pattern.svelte.js';
+  import { transportState } from '../state/transport.svelte.js';
 
   let frame = $state<HTMLElement | undefined>(undefined);
   let sheet = $state<HTMLDivElement | undefined>(undefined);
@@ -11,6 +18,19 @@
 
   /* Every musical decision is already made by the time the score gets here. */
   const score = $derived(toScore(patternState.current));
+  const layout = $derived(staffLayoutFor(width, BARS));
+
+  /*
+   * The measure being read out right now, as a patch of the drawing. Shaded by
+   * an overlay rather than by the drawing itself, so the export — which shares
+   * that drawing and must carry no playhead — is unaffected, and so a step
+   * change repaints one rectangle instead of re-engraving the staff.
+   */
+  const shading = $derived.by(() => {
+    const step = transportState.playhead;
+    if (step === null || width === 0) return undefined;
+    return measureBoxes(score, layout)[barOfStep(step)];
+  });
 
   /*
    * Nothing is drawn until the music font has loaded: glyphs measured against a
@@ -59,13 +79,28 @@
   $effect(() => {
     if (!sheet || width === 0) return;
 
-    renderScoreSvg(sheet, score, staffLayoutFor(width, BARS));
+    renderScoreSvg(sheet, score, layout);
   });
 </script>
 
 <section class="staff" bind:this={frame} aria-label="Notation">
   {#if fontReady}
-    <div class="sheet" bind:this={sheet}></div>
+    <div class="page">
+      {#if shading}
+        {@const page = staffSize(score, layout)}
+        <!-- Same box and same coordinates as the drawing it sits under, so the
+             rectangle lands on the measure however the page is scaled. -->
+        <svg
+          class="playhead"
+          viewBox="0 0 {page.width} {page.height}"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <rect x={shading.x} y={shading.y} width={shading.width} height={shading.height} />
+        </svg>
+      {/if}
+      <div class="sheet" bind:this={sheet}></div>
+    </div>
   {/if}
 </section>
 
@@ -76,6 +111,10 @@
     margin-top: 1.5rem;
   }
 
+  .page {
+    position: relative;
+  }
+
   /*
    * The drawing carries a viewBox, so overriding the rendered size scales it
    * rather than clipping it. This is what lets a phone show a whole measure.
@@ -84,5 +123,29 @@
     display: block;
     width: 100%;
     height: auto;
+  }
+
+  /*
+   * Positioned too, and after the shading in document order — that is what puts
+   * the notes on top of it. Two absolutely positioned elements would paint in
+   * DOM order as well, but the sheet has to stay in flow to give `.page` its
+   * height, and an in-flow box would otherwise paint *below* a positioned one.
+   */
+  .sheet {
+    position: relative;
+  }
+
+  .playhead {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  /* Faint, and behind the ink: the bar being read is obvious at a glance and
+     every notehead in it stays as legible as the ones around it. */
+  .playhead rect {
+    fill: #fef3c7;
   }
 </style>

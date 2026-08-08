@@ -8,6 +8,7 @@ import {
   MIN_TEMPO,
   STEPS_PER_BAR,
   TOTAL_STEPS,
+  barOfStep,
   clampTempo,
   defaultPattern,
   emptyPattern,
@@ -177,5 +178,14 @@ describe('instrumentsAt', () => {
 
   it('names nothing on a silent step', () => {
     expect(instrumentsAt(emptyPattern(), 3)).toEqual([]);
+  });
+});
+
+describe('barOfStep', () => {
+  it('puts every step of a bar in that bar', () => {
+    expect(barOfStep(0)).toBe(0);
+    expect(barOfStep(STEPS_PER_BAR - 1)).toBe(0);
+    expect(barOfStep(STEPS_PER_BAR)).toBe(1);
+    expect(barOfStep(TOTAL_STEPS - 1)).toBe(BARS - 1);
   });
 });

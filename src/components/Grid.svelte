@@ -3,6 +3,7 @@
   import { INSTRUMENTS, STEPS_PER_BAR, gridBars, isStepFilled } from '../core/pattern.js';
   import { audioState } from '../state/audio.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
+  import { transportState } from '../state/transport.svelte.js';
 
   const bars = gridBars();
 
@@ -21,7 +22,12 @@
     <section class="bar" style:--steps={STEPS_PER_BAR} aria-label="Bar {bar.index + 1}">
       <span class="corner" aria-hidden="true"></span>
       {#each bar.steps as step (step.index)}
-        <span class="count" class:beat={step.isBeatStart} aria-hidden="true">{step.label}</span>
+        <span
+          class="count"
+          class:beat={step.isBeatStart}
+          class:playing={transportState.playhead === step.index}
+          aria-hidden="true">{step.label}</span
+        >
       {/each}
 
       {#each INSTRUMENTS as instrument (instrument.id)}
@@ -31,6 +37,7 @@
             type="button"
             class="cell"
             class:beat={step.isBeatStart}
+            class:playing={transportState.playhead === step.index}
             aria-pressed={isStepFilled(patternState.current, instrument.id, step.index)}
             aria-label="{instrument.name}, step {step.index + 1}"
             data-instrument={instrument.id}
@@ -97,6 +104,22 @@
   .cell.beat {
     border-left: 3px solid #9ca3af;
     background: #eef2f7;
+  }
+
+  /*
+   * The playhead lights the whole column it is passing through. It is written
+   * above the filled-cell rule on purpose: a written hit keeps its own colour
+   * as the playhead goes by, and the ring — which reads on a filled cell and an
+   * empty one alike — is what marks the column either way.
+   */
+  .cell.playing {
+    background: #fef3c7;
+    box-shadow: inset 0 0 0 2px #f59e0b;
+  }
+
+  .count.playing {
+    color: #b45309;
+    font-weight: 700;
   }
 
   .cell[aria-pressed='true'] {

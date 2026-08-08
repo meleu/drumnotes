@@ -1,7 +1,14 @@
 import { describe, expect, test } from 'vitest';
 
 import { STEPS_PER_BEAT, TOTAL_STEPS } from './pattern.js';
-import { loopDuration, positionAt, retune, stepDuration, stepsInWindow } from './schedule.js';
+import {
+  loopDuration,
+  positionAt,
+  retune,
+  stepAt,
+  stepDuration,
+  stepsInWindow,
+} from './schedule.js';
 
 /** 120 BPM makes a sixteenth exactly an eighth of a second — arithmetic by eye. */
 const LOOP = { tempo: 120, origin: 0 };
@@ -86,6 +93,32 @@ describe('positionAt', () => {
     expect(positionAt(LOOP, 0)).toBeCloseTo(0);
     expect(positionAt(LOOP, 2 * STEP)).toBeCloseTo(2);
     expect(positionAt(LOOP, (TOTAL_STEPS + 1) * STEP)).toBeCloseTo(TOTAL_STEPS + 1);
+  });
+});
+
+describe('stepAt', () => {
+  test('holds a step for its whole length, from the moment it sounds', () => {
+    expect(stepAt(LOOP, 0)).toBe(0);
+    expect(stepAt(LOOP, STEP * 0.99)).toBe(0);
+    expect(stepAt(LOOP, STEP)).toBe(1);
+  });
+
+  test('wraps round with the loop', () => {
+    expect(stepAt(LOOP, (TOTAL_STEPS - 1) * STEP)).toBe(TOTAL_STEPS - 1);
+    expect(stepAt(LOOP, TOTAL_STEPS * STEP)).toBe(0);
+    expect(stepAt(LOOP, (TOTAL_STEPS + 3) * STEP)).toBe(3);
+  });
+
+  test('names the step whose hits a moment falls among', () => {
+    /* The eye and the ear are shown the same thing: whatever step the scheduler
+     * gave this moment to is the step lit at this moment. */
+    const [hit] = stepsInWindow(LOOP, 7 * STEP, 8 * STEP);
+
+    expect(stepAt(LOOP, hit!.time)).toBe(hit!.step);
+  });
+
+  test('reads a moment before the loop began as the pass that has not started', () => {
+    expect(stepAt(LOOP, -STEP)).toBe(TOTAL_STEPS - 1);
   });
 });
 

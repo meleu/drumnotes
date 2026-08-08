@@ -409,15 +409,15 @@ The highlight is subtle: it guides the eye without obscuring noteheads.
 
 ### Acceptance criteria
 
-- [ ] The step index is derived from the audio clock, not from `Date.now`, `performance.now`
+- [x] The step index is derived from the audio clock, not from `Date.now`, `performance.now`
       or a frame counter
-- [ ] Reactive state updates only on step change (verifiable by instrumenting the setter in a
-      test, or by construction)
-- [ ] The grid highlights exactly one column at a time, matching the sounding step
-- [ ] The staff shades exactly the measure containing the current step
-- [ ] Stop clears both highlights and resets to step 0
-- [ ] The highlight is a background/shading treatment that leaves noteheads fully legible
-- [ ] Browser test: Play advances the highlighted step; Stop resets it
+- [x] Reactive state updates only on step change (verifiable by instrumenting the setter in a
+      test, or by construction) — by construction: the frame loop compares before it writes
+- [x] The grid highlights exactly one column at a time, matching the sounding step
+- [x] The staff shades exactly the measure containing the current step
+- [x] Stop clears both highlights and resets to step 0
+- [x] The highlight is a background/shading treatment that leaves noteheads fully legible
+- [x] Browser test: Play advances the highlighted step; Stop resets it
 
 ---
 
@@ -518,6 +518,10 @@ reopen them.
 8. **Transport control** — one button that toggles, naming the action it will perform rather
    than the state it is in. Decided in phase 8, replacing the separate Play and Stop buttons
    phase 7 built.
+9. **Measure shading** — drawn as an overlay from measure rectangles the notation adapter
+   reports, not by `drawScore`. Decided in phase 9 so the export keeps sharing one drawing
+   routine and still carries no playhead, and so a step change repaints a rectangle rather
+   than re-engraving the staff.
 
 ## Still open
 

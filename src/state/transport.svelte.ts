@@ -1,6 +1,6 @@
 import { DEFAULT_TEMPO, instrumentsAt } from '../core/pattern.js';
 import type { Loop } from '../core/schedule.js';
-import { retune, stepsInWindow } from '../core/schedule.js';
+import { retune, stepAt, stepsInWindow } from '../core/schedule.js';
 import { audioState } from './audio.svelte.js';
 import { patternState } from './pattern.svelte.js';
 
@@ -24,7 +24,9 @@ const LEAD_IN_SECONDS = 0.06;
 
 class TransportState {
   #playing = $state(false);
+  #step = $state(0);
   #timer: ReturnType<typeof setInterval> | undefined;
+  #frame: number | undefined;
   /** The tempo being played and the audio-clock time step 0 sounded at. */
   #loop: Loop = { tempo: DEFAULT_TEMPO, origin: 0 };
   /**
@@ -36,6 +38,14 @@ class TransportState {
 
   get playing(): boolean {
     return this.#playing;
+  }
+
+  /**
+   * The step sounding right now, or `null` when stopped — there is no playhead
+   * to show then, which is what clears every highlight at once.
+   */
+  get playhead(): number | null {
+    return this.#playing ? this.#step : null;
   }
 
   /** Starts the loop from the top. Pressing it while playing does nothing. */
@@ -50,6 +60,7 @@ class TransportState {
 
     this.#schedule();
     this.#timer = setInterval(() => this.#schedule(), TICK_MS);
+    this.#follow();
   }
 
   /**
@@ -61,8 +72,11 @@ class TransportState {
 
     clearInterval(this.#timer);
     this.#timer = undefined;
+    if (this.#frame !== undefined) cancelAnimationFrame(this.#frame);
+    this.#frame = undefined;
     audioState.cancelPending();
     this.#playing = false;
+    this.#step = 0;
   }
 
   /**
@@ -86,6 +100,26 @@ class TransportState {
       }
     }
     this.#scheduledThrough = until;
+  }
+
+  /**
+   * The playhead. Each frame asks the audio clock — the very clock the hits
+   * were handed to — where the loop has got to, and converts it with the same
+   * arithmetic that placed them. A wall clock or a count of frames would answer
+   * the question the eye asked rather than the one the ear did, and the two
+   * would slowly part company; this cannot.
+   */
+  #follow(): void {
+    this.#frame = requestAnimationFrame(() => {
+      /* Play is pressed a moment before the loop's origin, so that lead-in
+       * reads as standing on step 0 rather than as the tail of a pass that
+       * never happened. */
+      const step = stepAt(this.#loop, Math.max(audioState.now, this.#loop.origin));
+      // A step lasts many frames, so most frames have nothing to report; the
+      // state is written only when the answer actually changes.
+      if (step !== this.#step) this.#step = step;
+      this.#follow();
+    });
   }
 }
 

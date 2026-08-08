@@ -157,6 +157,14 @@ export function gridBars(): readonly GridBar[] {
   }));
 }
 
+/**
+ * Which bar a step belongs to — the bridge from a playing step to the measure
+ * of notation it is being read out of.
+ */
+export function barOfStep(step: number): number {
+  return Math.floor(step / STEPS_PER_BAR);
+}
+
 export function isStepFilled(pattern: Pattern, instrument: InstrumentId, step: number): boolean {
   return pattern.lanes[instrument][step] ?? false;
 }

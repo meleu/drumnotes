@@ -104,21 +104,76 @@ export function staffSize(score: Score, layout: StaffLayout): { width: number; h
  * and the layout differ.
  */
 export function drawScore(context: RenderContext, score: Score, layout: StaffLayout): void {
-  const perSystem = Math.max(1, Math.trunc(layout.measuresPerSystem));
+  const placed = placeMeasures(score.measures.length, layout);
 
-  for (let start = 0; start < score.measures.length; start += perSystem) {
-    const system = score.measures.slice(start, start + perSystem);
-    const y = MARGIN_TOP + (start / perSystem) * SYSTEM_HEIGHT;
+  for (const [index, measure] of score.measures.entries()) {
+    const { x, y, width, clef, timeSignature } = placed[index]!;
+    drawMeasure(context, measure, x, y, width, { clef, timeSignature });
+  }
+}
+
+interface Placement extends MeasureFurniture {
+  /** Where this measure's stave is drawn. */
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+}
+
+/**
+ * Where every measure lands on the page — the single answer both the drawing
+ * and anything overlaid on it work from, so the two cannot disagree about which
+ * patch of page belongs to which bar.
+ */
+function placeMeasures(count: number, layout: StaffLayout): Placement[] {
+  const perSystem = Math.max(1, Math.trunc(layout.measuresPerSystem));
+  const placed: Placement[] = [];
+
+  for (let start = 0; start < count; start += perSystem) {
+    const system = start / perSystem;
+    const y = MARGIN_TOP + system * SYSTEM_HEIGHT;
     let x = MARGIN_X;
 
-    for (const [position, width] of measureWidths(system.length, start === 0, layout).entries()) {
-      drawMeasure(context, system[position]!, x, y, width, {
+    const widths = measureWidths(Math.min(perSystem, count - start), system === 0, layout);
+    for (const [position, width] of widths.entries()) {
+      placed.push({
+        x,
+        y,
+        width,
         clef: position === 0,
-        timeSignature: start === 0 && position === 0,
+        timeSignature: system === 0 && position === 0,
       });
       x += width;
     }
   }
+  return placed;
+}
+
+/** A rectangle of the drawing, in the drawing's own coordinates. */
+export interface MeasureBox {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * The patch of page each measure occupies: its stave's width, and vertically
+ * the whole band its system owns — the room VexFlow reserves above the lines
+ * for high noteheads and up-stems, the lines themselves, and the room below
+ * them for down-stems. Consecutive systems' bands tile rather than overlap, so
+ * shading one measure never tints the bar underneath it.
+ *
+ * Returned rather than drawn, because shading a measure is something the screen
+ * does and the export must not; keeping it out of `drawScore` is what lets the
+ * two stay the same drawing.
+ */
+export function measureBoxes(score: Score, layout: StaffLayout): MeasureBox[] {
+  return placeMeasures(score.measures.length, layout).map(({ x, y, width }) => ({
+    x,
+    y,
+    width,
+    height: SYSTEM_HEIGHT,
+  }));
 }
 
 /**
@@ -226,6 +281,18 @@ export function renderScoreSvg(host: HTMLDivElement, score: Score, layout: Staff
   const renderer = new Renderer(host, Renderer.Backends.SVG);
   renderer.resize(width, height);
   drawScore(renderer.getContext(), score, layout);
+
+  /*
+   * VexFlow writes the logical size out as an inline style as well as an
+   * attribute, and an inline style beats any stylesheet — which pins the
+   * drawing at a width the container may not have, and leaves a phone showing
+   * the left two thirds of a bar. The viewBox is what carries the geometry, so
+   * the inline sizing is dropped and how the drawing is fitted to the page is
+   * left to CSS, where it belongs.
+   */
+  const svg = host.firstElementChild as SVGSVGElement | null;
+  svg?.style.removeProperty('width');
+  svg?.style.removeProperty('height');
 }
 
 /** The narrowest a sixteenth stays legible at, in points. */

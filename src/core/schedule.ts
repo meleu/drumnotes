@@ -61,6 +61,16 @@ export function positionAt(loop: Loop, time: number): number {
 }
 
 /**
+ * Which step is sounding at a moment — the same arithmetic that decided when
+ * each hit would sound, read the other way round. Sharing it is what keeps the
+ * playhead from drifting against the kit: both answers come from one clock and
+ * one formula, so they cannot disagree.
+ */
+export function stepAt(loop: Loop, time: number): number {
+  return wrap(Math.floor(positionAt(loop, time)));
+}
+
+/**
  * The same loop at a new tempo, still standing in the same place at `at`.
  *
  * A loop is anchored by the moment its first step sounded, so simply writing a
