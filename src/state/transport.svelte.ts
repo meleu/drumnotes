@@ -1,5 +1,6 @@
-import { instrumentsAt } from '../core/pattern.js';
-import { stepsInWindow } from '../core/schedule.js';
+import { DEFAULT_TEMPO, instrumentsAt } from '../core/pattern.js';
+import type { Loop } from '../core/schedule.js';
+import { retune, stepsInWindow } from '../core/schedule.js';
 import { audioState } from './audio.svelte.js';
 import { patternState } from './pattern.svelte.js';
 
@@ -24,8 +25,8 @@ const LEAD_IN_SECONDS = 0.06;
 class TransportState {
   #playing = $state(false);
   #timer: ReturnType<typeof setInterval> | undefined;
-  /** Audio-clock time of step 0 of the first pass. */
-  #origin = 0;
+  /** The tempo being played and the audio-clock time step 0 sounded at. */
+  #loop: Loop = { tempo: DEFAULT_TEMPO, origin: 0 };
   /**
    * The time through which hits have already been handed over. Each pass opens
    * its window exactly where the last one closed, so consecutive windows tile
@@ -42,8 +43,9 @@ class TransportState {
     if (this.#playing) return;
 
     audioState.wake();
-    this.#origin = audioState.now + LEAD_IN_SECONDS;
-    this.#scheduledThrough = this.#origin;
+    const origin = audioState.now + LEAD_IN_SECONDS;
+    this.#loop = { tempo: patternState.current.tempo, origin };
+    this.#scheduledThrough = origin;
     this.#playing = true;
 
     this.#schedule();
@@ -66,15 +68,19 @@ class TransportState {
   /**
    * The pattern and tempo are read afresh every pass, which is exactly how an
    * edit becomes audible: within one window, on the next pass, without ever
-   * retracting a hit already handed over.
+   * retracting a hit already handed over. A tempo change pivots the loop about
+   * the edge of the last window handed over, so the groove carries on from
+   * where it had got to instead of jumping.
    */
   #schedule(): void {
     const pattern = patternState.current;
     const until = audioState.now + LOOKAHEAD_SECONDS;
     if (until <= this.#scheduledThrough) return;
 
-    const loop = { tempo: pattern.tempo, origin: this.#origin };
-    for (const { step, time } of stepsInWindow(loop, this.#scheduledThrough, until)) {
+    if (pattern.tempo !== this.#loop.tempo) {
+      this.#loop = retune(this.#loop, pattern.tempo, this.#scheduledThrough);
+    }
+    for (const { step, time } of stepsInWindow(this.#loop, this.#scheduledThrough, until)) {
       for (const instrument of instrumentsAt(pattern, step)) {
         audioState.schedule(instrument, time);
       }

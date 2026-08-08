@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { STEPS_PER_BEAT, TOTAL_STEPS } from './pattern.js';
-import { loopDuration, stepDuration, stepsInWindow } from './schedule.js';
+import { loopDuration, positionAt, retune, stepDuration, stepsInWindow } from './schedule.js';
 
 /** 120 BPM makes a sixteenth exactly an eighth of a second — arithmetic by eye. */
 const LOOP = { tempo: 120, origin: 0 };
@@ -78,5 +78,43 @@ describe('stepsInWindow', () => {
     expect(played.slice(0, expected.length)).toEqual(expected);
     expect(played.length).toBeGreaterThanOrEqual(expected.length);
     expect(step).toBeGreaterThan(0);
+  });
+});
+
+describe('positionAt', () => {
+  test('counts steps from the origin, climbing on past the loop point', () => {
+    expect(positionAt(LOOP, 0)).toBeCloseTo(0);
+    expect(positionAt(LOOP, 2 * STEP)).toBeCloseTo(2);
+    expect(positionAt(LOOP, (TOTAL_STEPS + 1) * STEP)).toBeCloseTo(TOTAL_STEPS + 1);
+  });
+});
+
+describe('retune', () => {
+  test('holds the same place in the pattern at the moment of the change', () => {
+    const at = 5 * STEP;
+    const faster = retune(LOOP, 180, at);
+
+    expect(faster.tempo).toBe(180);
+    expect(positionAt(faster, at)).toBeCloseTo(positionAt(LOOP, at));
+  });
+
+  test('runs at the new tempo from there on', () => {
+    const at = 5 * STEP;
+    const faster = retune(LOOP, 240, at);
+    const step = stepDuration(240);
+
+    expect(stepsInWindow(faster, at, at + 2 * step).map((hit) => hit.time)).toEqual([
+      at,
+      at + step,
+    ]);
+  });
+
+  test('neither repeats nor skips a step across the change', () => {
+    const at = 5 * STEP;
+    const before = stepsInWindow(LOOP, 0, at).map((hit) => hit.step);
+    const faster = retune(LOOP, 200, at);
+    const after = stepsInWindow(faster, at, at + 3 * stepDuration(200)).map((hit) => hit.step);
+
+    expect([...before, ...after]).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 });

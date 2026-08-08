@@ -378,17 +378,17 @@ typed-in out-of-range value is corrected rather than trusted.
 
 ### Acceptance criteria
 
-- [ ] The current BPM is displayed as an editable number
-- [ ] Decrease and increase buttons step the tempo and are usable repeatedly by tap
-- [ ] Both buttons and typed input go through the same core clamp to 40–240; typing 999
+- [x] The current BPM is displayed as an editable number
+- [x] Decrease and increase buttons step the tempo and are usable repeatedly by tap
+- [x] Both buttons and typed input go through the same core clamp to 40–240; typing 999
       results in 240, not 999
-- [ ] The decrease/increase buttons are disabled at the ends of the range
-- [ ] Changing the tempo during playback audibly changes the rate without stopping or
+- [x] The decrease/increase buttons are disabled at the ends of the range
+- [x] Changing the tempo during playback audibly changes the rate without stopping or
       glitching
-- [ ] Tempo persists across a reload
-- [ ] A stored out-of-range tempo falls back to the default (already covered by the phase 2
+- [x] Tempo persists across a reload
+- [x] A stored out-of-range tempo falls back to the default (already covered by the phase 2
       codec tests)
-- [ ] Browser test: change the tempo, reload, the value is retained
+- [x] Browser test: change the tempo, reload, the value is retained
 
 ---
 

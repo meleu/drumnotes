@@ -1,5 +1,5 @@
 import type { InstrumentId, Pattern } from '../core/pattern.js';
-import { isStepFilled, toggleStep } from '../core/pattern.js';
+import { isStepFilled, toggleStep, withTempo } from '../core/pattern.js';
 import { loadPattern, savePattern } from '../adapters/storage.js';
 
 /**
@@ -24,6 +24,15 @@ class PatternState {
     const next = toggleStep(this.#pattern, instrument, step);
     this.#replace(next);
     return isStepFilled(next, instrument, step);
+  }
+
+  /**
+   * Moves the tempo, through the core's clamp — so what a caller asks for and
+   * what ends up playing may differ, and a caller showing the number back has
+   * to read it from here rather than trust what it sent.
+   */
+  setTempo(tempo: number): void {
+    this.#replace(withTempo(this.#pattern, tempo));
   }
 
   #replace(pattern: Pattern): void {

@@ -4,13 +4,18 @@ import {
   BARS,
   DEFAULT_TEMPO,
   INSTRUMENTS,
+  MAX_TEMPO,
+  MIN_TEMPO,
   STEPS_PER_BAR,
+  TEMPO_STEP,
   TOTAL_STEPS,
+  clampTempo,
   defaultPattern,
   emptyPattern,
   gridBars,
   instrumentsAt,
   toggleStep,
+  withTempo,
 } from './pattern.js';
 
 /** The steps a lane sounds on, as a bar-relative list, asserted per bar. */
@@ -120,6 +125,50 @@ describe('toggleStep', () => {
     expect(after.lanes.kick).toEqual(before.lanes.kick);
     expect(after.lanes.snare.filter(Boolean)).toHaveLength(1);
     expect(after.tempo).toBe(before.tempo);
+  });
+});
+
+describe('clampTempo', () => {
+  it('leaves a playable tempo alone', () => {
+    expect(clampTempo(120)).toBe(120);
+    expect(clampTempo(MIN_TEMPO)).toBe(MIN_TEMPO);
+    expect(clampTempo(MAX_TEMPO)).toBe(MAX_TEMPO);
+  });
+
+  it('pulls an out-of-range tempo back to the nearest end', () => {
+    expect(clampTempo(999)).toBe(MAX_TEMPO);
+    expect(clampTempo(1)).toBe(MIN_TEMPO);
+    expect(clampTempo(-30)).toBe(MIN_TEMPO);
+  });
+
+  it('answers with a whole number of beats per minute', () => {
+    expect(clampTempo(120.4)).toBe(120);
+    expect(clampTempo(120.6)).toBe(121);
+  });
+
+  it('falls back to the default rather than passing on a non-number', () => {
+    expect(clampTempo(Number.NaN)).toBe(DEFAULT_TEMPO);
+    expect(clampTempo(Number.POSITIVE_INFINITY)).toBe(DEFAULT_TEMPO);
+  });
+
+  it('steps by an amount that reaches both ends of the range', () => {
+    expect((MAX_TEMPO - MIN_TEMPO) % TEMPO_STEP).toBe(0);
+  });
+});
+
+describe('withTempo', () => {
+  it('sets the tempo through the clamp', () => {
+    expect(withTempo(emptyPattern(), 120).tempo).toBe(120);
+    expect(withTempo(emptyPattern(), 999).tempo).toBe(MAX_TEMPO);
+  });
+
+  it('returns a new pattern, leaving the input and its lanes untouched', () => {
+    const before = defaultPattern();
+    const after = withTempo(before, 140);
+
+    expect(after).not.toBe(before);
+    expect(before.tempo).toBe(DEFAULT_TEMPO);
+    expect(after.lanes).toBe(before.lanes);
   });
 });
 

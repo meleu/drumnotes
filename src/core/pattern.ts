@@ -18,6 +18,9 @@ export const DEFAULT_TEMPO = 90;
 /** The playable tempo range. Enforced here, never only in an input's attributes. */
 export const MIN_TEMPO = 40;
 export const MAX_TEMPO = 240;
+/** How far one press of a tempo button moves the tempo. Divides the range, so
+ * pressing repeatedly arrives exactly on each end rather than short of it. */
+export const TEMPO_STEP = 5;
 
 export type InstrumentId = 'hihat' | 'snare' | 'kick';
 
@@ -167,6 +170,23 @@ export function isStepFilled(pattern: Pattern, instrument: InstrumentId, step: n
  */
 export function instrumentsAt(pattern: Pattern, step: number): InstrumentId[] {
   return INSTRUMENTS.filter(({ id }) => isStepFilled(pattern, id, step)).map(({ id }) => id);
+}
+
+/**
+ * The nearest playable tempo to the one asked for. Every route in — a button,
+ * a typed number, a stored payload — comes through here, so nothing downstream
+ * ever has to wonder whether a tempo is playable. Total by design: a number
+ * that is no number at all resolves to the default rather than escaping as a
+ * `NaN` that would silently poison every duration derived from it.
+ */
+export function clampTempo(tempo: number): number {
+  if (!Number.isFinite(tempo)) return DEFAULT_TEMPO;
+  return Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, Math.round(tempo)));
+}
+
+/** The same groove at another tempo, clamped. Lanes are shared, not copied. */
+export function withTempo(pattern: Pattern, tempo: number): Pattern {
+  return { ...pattern, tempo: clampTempo(tempo) };
 }
 
 /**
