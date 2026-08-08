@@ -2,7 +2,7 @@
  * The notation adapter: the only module that knows VexFlow exists.
  *
  * It makes no musical decisions. Everything it draws — note values, chords,
- * stems, staff positions, and later beam groups — is already settled in the
+ * stems, staff positions, which notes share a beam — is already settled in the
  * `Score` it is handed. Its job is placement on a page: how wide a measure is,
  * how many fit on a system, where the clef goes.
  *
@@ -12,7 +12,17 @@
 
 import bravuraUrl from '@vexflow-fonts/bravura/bravura.woff2?url';
 import type { RenderContext } from 'vexflow/core';
-import { Dot, Font, Formatter, Renderer, Stave, StaveNote, VexFlow, Voice } from 'vexflow/core';
+import {
+  Beam,
+  Dot,
+  Font,
+  Formatter,
+  Renderer,
+  Stave,
+  StaveNote,
+  VexFlow,
+  Voice,
+} from 'vexflow/core';
 
 import type { Duration, Entry, Score, ScoreVoice } from '../core/score.js';
 import { BEATS_PER_BAR, STEPS_PER_BEAT } from '../core/pattern.js';
@@ -146,18 +156,41 @@ function drawMeasure(
 
   // Both voices are formatted together so their notes line up vertically, then
   // drawn separately so each keeps its own stem direction.
-  const voices = measure.voices.map(toVexVoice);
+  const drawn = measure.voices.map(toVexVoice);
+  const voices = drawn.map(({ voice }) => voice);
   const room = stave.getNoteEndX() - stave.getNoteStartX() - NOTE_PADDING;
   new Formatter().joinVoices(voices).format(voices, Math.max(1, room));
-  for (const voice of voices) voice.draw(context, stave);
+
+  // Beams last: they are drawn from the notes' final positions, which only
+  // exist once the voice has been formatted against this stave.
+  for (const { voice, beams } of drawn) {
+    voice.draw(context, stave);
+    for (const beam of beams) beam.setContext(context).draw();
+  }
 }
 
-function toVexVoice(voice: ScoreVoice): Voice {
-  // STRICT: the core guarantees each voice fills its measure exactly, so a
-  // mismatch is a bug worth failing loudly rather than drawing crookedly.
-  return new Voice({ numBeats: BEATS_PER_BAR, beatValue: 4 })
-    .setMode(Voice.Mode.STRICT)
-    .addTickables(voice.entries.map((entry) => toStaveNote(entry, voice)));
+/** A voice ready to draw: its notes as one tickable run, plus their beams. */
+interface DrawnVoice {
+  readonly voice: Voice;
+  readonly beams: readonly Beam[];
+}
+
+function toVexVoice(voice: ScoreVoice): DrawnVoice {
+  const notes = voice.entries.map((entry) => toStaveNote(entry, voice));
+
+  return {
+    // STRICT: the core guarantees each voice fills its measure exactly, so a
+    // mismatch is a bug worth failing loudly rather than drawing crookedly.
+    voice: new Voice({ numBeats: BEATS_PER_BAR, beatValue: 4 })
+      .setMode(Voice.Mode.STRICT)
+      .addTickables(notes),
+    /*
+     * Which notes belong together is already settled in the IR — the adapter
+     * has no say in it and no rule of its own to apply. Constructing the beam
+     * here, before formatting, is also what takes the flags off its notes.
+     */
+    beams: voice.beamGroups.map((group) => new Beam(group.map((index) => notes[index]!))),
+  };
 }
 
 function toStaveNote(entry: Entry, voice: ScoreVoice): StaveNote {

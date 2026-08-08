@@ -64,7 +64,7 @@ export interface ScoreVoice {
   readonly entries: readonly Entry[];
   /**
    * Beams as lists of indices into `entries`. Grouping is decided here, never
-   * by the renderer. Empty until the beaming phase.
+   * by the renderer, which reads this list and draws exactly what it says.
    */
   readonly beamGroups: readonly (readonly number[])[];
 }
@@ -136,24 +136,39 @@ export function toScore(pattern: Pattern): Score {
       voices: VOICES.map((voice) => ({
         id: voice.id,
         stem: voice.stem,
-        entries: voiceEntries(pattern, index, voice.id, voice.restPosition),
-        beamGroups: [],
+        ...voiceContent(pattern, index, voice.id, voice.restPosition),
       })),
     })),
   };
 }
 
 /**
+ * Which values a beam can join. Quarters and the whole rest carry no flag to
+ * replace, so there is nothing for a beam to do to them; a dot changes a note's
+ * length but not the flag it is drawn with, so dotted values beam like their
+ * undotted counterparts.
+ */
+const BEAMABLE: ReadonlySet<Duration> = new Set<Duration>(['eighth', 'sixteenth']);
+
+/** Beams replace flags, and only notes carry flags — a rest is never beamed. */
+function isBeamable(entry: Entry): boolean {
+  return entry.kind === 'note' && BEAMABLE.has(entry.duration);
+}
+
+/** What a voice contributes to a measure: what is written, and what is joined. */
+type VoiceContent = Pick<ScoreVoice, 'entries' | 'beamGroups'>;
+
+/**
  * One voice's measure, filled end to end: every step is either a hit or a rest,
  * so each voice accounts for the whole measure on its own and neither depends
  * on what the other is playing.
  */
-function voiceEntries(
+function voiceContent(
   pattern: Pattern,
   measure: number,
   voice: VoiceId,
   restPosition: StaffPosition,
-): readonly Entry[] {
+): VoiceContent {
   const instruments = INSTRUMENTS_LOW_TO_HIGH.filter((instrument) => instrument.voice === voice);
 
   const firstStep = measure * STEPS_PER_BAR;
@@ -167,17 +182,24 @@ function voiceEntries(
   // quarter rests — the conventional spelling for an empty measure. It carries
   // this voice's rest position, so it does not land on the renderer's default.
   if (steps.every((noteheads) => noteheads.length === 0)) {
-    return [
-      { kind: 'rest', startStep: firstStep, duration: 'whole', dots: 0, position: restPosition },
-    ];
+    return {
+      entries: [
+        { kind: 'rest', startStep: firstStep, duration: 'whole', dots: 0, position: restPosition },
+      ],
+      beamGroups: [],
+    };
   }
 
   const entries: Entry[] = [];
+  const beamGroups: number[][] = [];
 
   // One beat at a time, so nothing can be written across a beat boundary — and
-  // since beats tile the measure, nothing can cross the barline either.
+  // since beats tile the measure, nothing can cross the barline either. Beams
+  // are gathered inside the same loop, which is what keeps a beam from spanning
+  // a beat: a group can only ever hold what one pass put into it.
   for (let beatStart = 0; beatStart < STEPS_PER_BAR; beatStart += STEPS_PER_BEAT) {
     const beatEnd = beatStart + STEPS_PER_BEAT;
+    const beatFirstEntry = entries.length;
 
     for (let stepInBar = beatStart; stepInBar < beatEnd;) {
       // Notes and silence obey the same rule: hold until whatever this voice
@@ -196,9 +218,17 @@ function voiceEntries(
       );
       stepInBar = next;
     }
+
+    // A beam is a way of writing two or more flags as one line; a lone flagged
+    // note has nothing to be joined to, so it keeps its flag and no group is
+    // recorded for the beat at all.
+    const group = entries
+      .slice(beatFirstEntry)
+      .flatMap((entry, offset) => (isBeamable(entry) ? [beatFirstEntry + offset] : []));
+    if (group.length > 1) beamGroups.push(group);
   }
 
-  return entries;
+  return { entries, beamGroups };
 }
 
 function isHit(pattern: Pattern, instrument: InstrumentId, step: number): boolean {

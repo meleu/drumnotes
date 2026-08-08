@@ -1,12 +1,45 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-import { BARS, defaultPattern } from '../../src/core/pattern.js';
+import { STORAGE_KEY } from '../../src/adapters/storage.js';
+import { serialisePattern } from '../../src/core/codec.js';
+import type { InstrumentId, Pattern } from '../../src/core/pattern.js';
+import {
+  BARS,
+  BEATS_PER_BAR,
+  TOTAL_STEPS,
+  defaultPattern,
+  emptyPattern,
+  toggleStep,
+} from '../../src/core/pattern.js';
 
 // Browser tests assert on DOM structure and counts, never on pixels.
 
 const staff = '.sheet svg';
 const noteheads = `${staff} .vf-notehead`;
+/** VexFlow groups each beam and each flag it draws under its own class. */
+const beams = `${staff} .vf-beam`;
+const flags = `${staff} .vf-flag`;
+
+/** A pattern built from absolute step indices. */
+function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
+  return Object.entries(hits).reduce(
+    (pattern, [id, steps]) =>
+      steps.reduce((next, step) => toggleStep(next, id as InstrumentId, step), pattern),
+    emptyPattern(),
+  );
+}
+
+/** Loads the app on a given pattern, without clicking it in cell by cell. */
+async function load(page: Page, pattern: Pattern): Promise<void> {
+  await page.goto('/');
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(pattern)],
+  );
+  await page.reload();
+  await page.waitForSelector(staff);
+}
 
 /**
  * How many augmentation dots the staff is showing. The music font draws one as
@@ -119,6 +152,23 @@ test.describe('once the font has loaded', () => {
     await page.waitForSelector(noteheads);
 
     expect(errors).toEqual([]);
+  });
+
+  test('beams a straight sixteenth hi-hat line instead of flagging it', async ({ page }) => {
+    await load(page, patternWith({ hihat: [...Array(TOTAL_STEPS).keys()] }));
+
+    // One beam per beat, and nothing left carrying a flag of its own.
+    await expect(page.locator(beams)).toHaveCount(BARS * BEATS_PER_BAR);
+    await expect(page.locator(flags)).toHaveCount(0);
+  });
+
+  test('leaves a lone flagged note its flag', async ({ page }) => {
+    // A single hi-hat on the second sixteenth is written `16r 8.` — one flagged
+    // note, with nothing to beam it to.
+    await load(page, patternWith({ hihat: [1] }));
+
+    await expect(page.locator(flags)).toHaveCount(1);
+    await expect(page.locator(beams)).toHaveCount(0);
   });
 
   test('draws an augmentation dot for a dotted value, and fills the measure', async ({ page }) => {

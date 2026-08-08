@@ -265,6 +265,117 @@ describe('durations', () => {
   });
 });
 
+describe('beaming', () => {
+  /**
+   * Every shape a beat can take, against the groups it has to produce — the
+   * same sixteen subsets the duration table covers, read the other way round.
+   * Indices are into the voice's entries, and beat 1's entries start at 0, so
+   * they read here as positions within the beat.
+   *
+   * The sentinel snare that keeps the measure from being silent lands on the
+   * last sixteenth of beat 4, where it is written `8.r 16` — a lone sixteenth,
+   * which is never a group. So whatever appears below is beat 1's doing alone.
+   */
+  const SENTINEL = STEPS_PER_BAR - 1;
+  const beamCases: readonly (readonly [
+    hits: readonly number[],
+    spelling: string,
+    groups: readonly (readonly number[])[],
+  ])[] = [
+    [[], 'qr', []], //                     nothing to beam
+    [[0], 'q', []], //                     a quarter carries no flag
+    [[1], '16r 8.', []], //                one flagged note is not a group
+    [[2], '8r 8', []],
+    [[3], '8.r 16', []],
+    [[0, 1], '16 8.', [[0, 1]]],
+    [[0, 2], '8 8', [[0, 1]]],
+    [[0, 3], '8. 16', [[0, 1]]],
+    [[1, 2], '16r 16 8', [[1, 2]]], //     the leading rest stays outside
+    [[1, 3], '16r 8 16', [[1, 2]]],
+    [[2, 3], '8r 16 16', [[1, 2]]],
+    [[0, 1, 2], '16 16 8', [[0, 1, 2]]],
+    [[0, 1, 3], '16 8 16', [[0, 1, 2]]],
+    [[0, 2, 3], '8 16 16', [[0, 1, 2]]],
+    [[1, 2, 3], '16r 16 16 16', [[1, 2, 3]]],
+    [[0, 1, 2, 3], '16 16 16 16', [[0, 1, 2, 3]]],
+  ];
+
+  it.each(beamCases)('beams a beat holding %j, written %s, as %j', (hits, _spelling, groups) => {
+    const voice = firstMeasureVoice(patternWith({ snare: [...hits, SENTINEL] }), 'hands');
+
+    expect(voice.beamGroups).toEqual(groups);
+  });
+
+  it('beams each beat of a straight sixteenth line on its own', () => {
+    const hihat = [...Array(STEPS_PER_BAR).keys()];
+    const voice = firstMeasureVoice(patternWith({ hihat }), 'hands');
+
+    expect(voice.beamGroups).toEqual([
+      [0, 1, 2, 3],
+      [4, 5, 6, 7],
+      [8, 9, 10, 11],
+      [12, 13, 14, 15],
+    ]);
+  });
+
+  /** Every group of every voice of every measure, with where it came from. */
+  function allGroups(): { where: string; voice: ScoreVoice; group: readonly number[] }[] {
+    return Object.entries(SAMPLE_PATTERNS).flatMap(([name, pattern]) =>
+      toScore(pattern).measures.flatMap((measure) =>
+        measure.voices.flatMap((voice) =>
+          voice.beamGroups.map((group) => ({
+            where: `${name}/${measure.index}/${voice.id}`,
+            voice,
+            group,
+          })),
+        ),
+      ),
+    );
+  }
+
+  /** The only things a beam can join: flagged notes, dots or no dots. */
+  const BEAMABLE_SPELLINGS = ['16', '8', '8.'];
+
+  it('joins nothing but flagged notes — never a rest, never a quarter', () => {
+    const spelled = new Set(
+      allGroups().flatMap(({ voice, group }) => group.map((index) => spell(voice.entries[index]!))),
+    );
+
+    expect([...spelled].sort()).toEqual([...BEAMABLE_SPELLINGS].sort());
+  });
+
+  it('keeps every group inside a single beat, in order, at most one per beat', () => {
+    for (const { where, voice, group } of allGroups()) {
+      const beats = group.map((index) =>
+        Math.floor(voice.entries[index]!.startStep / STEPS_PER_BEAT),
+      );
+
+      // One beat for the whole group — so no beam reaches over a beat boundary,
+      // and since beats tile the measure, none reaches over a barline either.
+      expect(`${where}: ${beats.join(',')}`).toBe(
+        `${where}: ${beats.map(() => beats[0]).join(',')}`,
+      );
+      expect(`${where}: ${group.join(',')}`).toBe(
+        `${where}: ${[...new Set(group)].sort((a, b) => a - b).join(',')}`,
+      );
+      expect(`${where}: ${group.length > 1}`).toBe(`${where}: true`);
+    }
+
+    for (const [name, pattern] of Object.entries(SAMPLE_PATTERNS)) {
+      for (const measure of toScore(pattern).measures) {
+        for (const voice of measure.voices) {
+          const where = `${name}/${measure.index}/${voice.id}`;
+          const beats = voice.beamGroups.map((group) =>
+            Math.floor(voice.entries[group[0]!]!.startStep / STEPS_PER_BEAT),
+          );
+
+          expect(`${where}: ${beats.join(',')}`).toBe(`${where}: ${[...new Set(beats)].join(',')}`);
+        }
+      }
+    }
+  });
+});
+
 describe('entrySteps', () => {
   it('measures each undotted value against the beat', () => {
     const rest = { kind: 'rest', startStep: 0, dots: 0, position: 'd/5' } as const;

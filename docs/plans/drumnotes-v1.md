@@ -279,14 +279,14 @@ renderer constructs beams from that list and never decides grouping itself.
 
 ### Acceptance criteria
 
-- [ ] Beam groups appear in the IR as lists of entry indices, one group per beat at most
+- [x] Beam groups appear in the IR as lists of entry indices, one group per beat at most
       (unit-tested)
-- [ ] A beat with a single eighth or sixteenth produces no group
-- [ ] A beat containing a quarter note produces no group containing it
-- [ ] Beams never span a beat boundary or a barline
-- [ ] Rests are never included in a beam group
-- [ ] The rendered SVG shows beams rather than flags for a straight sixteenth hi-hat line
-- [ ] The notation adapter contains no grouping logic
+- [x] A beat with a single eighth or sixteenth produces no group
+- [x] A beat containing a quarter note produces no group containing it
+- [x] Beams never span a beat boundary or a barline
+- [x] Rests are never included in a beam group
+- [x] The rendered SVG shows beams rather than flags for a straight sixteenth hi-hat line
+- [x] The notation adapter contains no grouping logic
 
 ---
 
