@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { BARS, STEPS_PER_BAR, TOTAL_STEPS } from '../../src/core/pattern.js';
+import { BARS, STEPS_PER_BAR, TOTAL_STEPS, defaultPattern } from '../../src/core/pattern.js';
 
 // Browser tests assert on DOM structure and counts, never on pixels.
 test.beforeEach(async ({ page }) => {
@@ -27,7 +27,8 @@ test('labels the columns with the counting, once per bar', async ({ page }) => {
 });
 
 test('toggling a cell flips its aria-pressed value', async ({ page }) => {
-  const cell = page.locator('button[data-instrument="snare"][data-step="4"]');
+  const silent = defaultPattern().lanes.snare.indexOf(false);
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
 
   await expect(cell).toHaveAttribute('aria-pressed', 'false');
 

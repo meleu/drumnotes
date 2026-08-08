@@ -15,6 +15,9 @@ export const BEATS_PER_BAR = STEPS_PER_BAR / STEPS_PER_BEAT;
 export const TOTAL_STEPS = BARS * STEPS_PER_BAR;
 
 export const DEFAULT_TEMPO = 90;
+/** The playable tempo range. Enforced here, never only in an input's attributes. */
+export const MIN_TEMPO = 40;
+export const MAX_TEMPO = 240;
 
 export type InstrumentId = 'hihat' | 'snare' | 'kick';
 
@@ -42,12 +45,43 @@ export interface Pattern {
   readonly lanes: Lanes;
 }
 
-export function emptyPattern(): Pattern {
+/** A groove written once as bar-relative steps, then repeated across the bars. */
+type Groove = Readonly<Partial<Record<InstrumentId, readonly number[]>>>;
+
+function patternFrom(groove: Groove): Pattern {
   const lanes = {} as Record<InstrumentId, readonly boolean[]>;
   for (const { id } of INSTRUMENTS) {
-    lanes[id] = new Array<boolean>(TOTAL_STEPS).fill(false);
+    const lane = new Array<boolean>(TOTAL_STEPS).fill(false);
+    for (let bar = 0; bar < BARS; bar += 1) {
+      for (const step of groove[id] ?? []) {
+        lane[bar * STEPS_PER_BAR + step] = true;
+      }
+    }
+    lanes[id] = lane;
   }
   return { tempo: DEFAULT_TEMPO, lanes };
+}
+
+const STEPS_PER_EIGHTH = STEPS_PER_BEAT / 2;
+
+/** Bar-relative step of a one-based beat, optionally offset within it. */
+function beatStep(beat: number, offset = 0): number {
+  return (beat - 1) * STEPS_PER_BEAT + offset;
+}
+
+/** Straight eighth-note rock beat: the groove a first-time visitor lands on. */
+const ROCK_BEAT: Groove = {
+  hihat: Array.from({ length: STEPS_PER_BAR / STEPS_PER_EIGHTH }, (_, i) => i * STEPS_PER_EIGHTH),
+  snare: [beatStep(2), beatStep(4)],
+  kick: [beatStep(1), beatStep(3, STEPS_PER_EIGHTH)],
+};
+
+export function emptyPattern(): Pattern {
+  return patternFrom({});
+}
+
+export function defaultPattern(): Pattern {
+  return patternFrom(ROCK_BEAT);
 }
 
 /** The counting a drummer reads off the grid: `1 e + a`, once per beat. */

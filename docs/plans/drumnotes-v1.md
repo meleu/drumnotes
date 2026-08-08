@@ -164,16 +164,16 @@ on beats 2 and 4, kick on beat 1 and the "and" of 3, at 90 BPM.
 
 ### Acceptance criteria
 
-- [ ] Codec round-trips a pattern to a string and back to an equal value (unit-tested)
-- [ ] Parsing returns the default pattern for: invalid JSON, a missing or unknown version,
+- [x] Codec round-trips a pattern to a string and back to an equal value (unit-tested)
+- [x] Parsing returns the default pattern for: invalid JSON, a missing or unknown version,
       wrong lane lengths, unknown instrument ids, a non-numeric or out-of-range tempo — each
       case unit-tested, none of them throwing
-- [ ] The stored payload carries an explicit schema version field
-- [ ] Every pattern change writes to local storage
-- [ ] First load with empty storage shows the default rock beat — hi-hat on every eighth,
+- [x] The stored payload carries an explicit schema version field
+- [x] Every pattern change writes to local storage
+- [x] First load with empty storage shows the default rock beat — hi-hat on every eighth,
       snare on 2 and 4, kick on 1 and the "and" of 3 — at 90 BPM
-- [ ] Browser test: toggle a cell, reload, the change is still there
-- [ ] Browser test: seed storage with corrupt data, load, the app renders the default pattern
+- [x] Browser test: toggle a cell, reload, the change is still there
+- [x] Browser test: seed storage with corrupt data, load, the app renders the default pattern
 
 ---
 

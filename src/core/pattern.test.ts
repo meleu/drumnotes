@@ -6,10 +6,20 @@ import {
   INSTRUMENTS,
   STEPS_PER_BAR,
   TOTAL_STEPS,
+  defaultPattern,
   emptyPattern,
   gridBars,
   toggleStep,
 } from './pattern.js';
+
+/** The steps a lane sounds on, as a bar-relative list, asserted per bar. */
+function hitsPerBar(lane: readonly boolean[]): number[][] {
+  return Array.from({ length: BARS }, (_, bar) =>
+    lane
+      .slice(bar * STEPS_PER_BAR, (bar + 1) * STEPS_PER_BAR)
+      .flatMap((filled, step) => (filled ? [step] : [])),
+  );
+}
 
 describe('emptyPattern', () => {
   it('has one silent lane per instrument, spanning every step in the pattern', () => {
@@ -28,6 +38,28 @@ describe('emptyPattern', () => {
 
   it('starts at the default tempo', () => {
     expect(emptyPattern().tempo).toBe(DEFAULT_TEMPO);
+  });
+});
+
+describe('defaultPattern', () => {
+  it('is a straight eighth-note rock beat, the same in every bar', () => {
+    const { lanes } = defaultPattern();
+
+    // Hi-hat on every eighth; snare on 2 and 4; kick on 1 and the "and" of 3.
+    expect(hitsPerBar(lanes.hihat)).toEqual(
+      Array.from({ length: BARS }, () => [0, 2, 4, 6, 8, 10, 12, 14]),
+    );
+    expect(hitsPerBar(lanes.snare)).toEqual(Array.from({ length: BARS }, () => [4, 12]));
+    expect(hitsPerBar(lanes.kick)).toEqual(Array.from({ length: BARS }, () => [0, 10]));
+  });
+
+  it('plays at the default tempo and spans the whole pattern', () => {
+    const pattern = defaultPattern();
+
+    expect(pattern.tempo).toBe(DEFAULT_TEMPO);
+    for (const { id } of INSTRUMENTS) {
+      expect(pattern.lanes[id]).toHaveLength(TOTAL_STEPS);
+    }
   });
 });
 
