@@ -7,7 +7,6 @@ import {
   DEFAULT_TEMPO,
   MAX_TEMPO,
   MIN_TEMPO,
-  TEMPO_STEP,
   TOTAL_STEPS,
   emptyPattern,
   toggleStep,
@@ -16,9 +15,7 @@ import { stepDuration } from '../../src/core/schedule.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
 
 const field = 'input[aria-label="Tempo in beats per minute"]';
-const slower = 'button[aria-label="Slower"]';
-const faster = 'button[aria-label="Faster"]';
-const play = 'button:has-text("Play")';
+const transport = '.transport';
 
 /** Types a tempo and commits it, as a keyboard user would. */
 async function type(page: Page, bpm: string): Promise<void> {
@@ -32,17 +29,6 @@ test('shows the current tempo as an editable number', async ({ page }) => {
   await expect(page.locator(field)).toHaveValue(String(DEFAULT_TEMPO));
 });
 
-test('steps the tempo by tapping, repeatedly', async ({ page }) => {
-  await page.goto('/');
-
-  await page.locator(faster).click();
-  await page.locator(faster).click();
-  await expect(page.locator(field)).toHaveValue(String(DEFAULT_TEMPO + 2 * TEMPO_STEP));
-
-  await page.locator(slower).click();
-  await expect(page.locator(field)).toHaveValue(String(DEFAULT_TEMPO + TEMPO_STEP));
-});
-
 test('corrects a typed tempo outside the range instead of trusting it', async ({ page }) => {
   await page.goto('/');
 
@@ -53,16 +39,13 @@ test('corrects a typed tempo outside the range instead of trusting it', async ({
   await expect(page.locator(field)).toHaveValue(String(MIN_TEMPO));
 });
 
-test('stops stepping at the ends of the range', async ({ page }) => {
+test('advertises the range to the browser as well as enforcing it', async ({ page }) => {
+  // The attributes are a hint to the spinner and the phone keypad; the core
+  // clamp above is what actually holds the tempo in range.
   await page.goto('/');
 
-  await type(page, String(MAX_TEMPO));
-  await expect(page.locator(faster)).toBeDisabled();
-  await expect(page.locator(slower)).toBeEnabled();
-
-  await type(page, String(MIN_TEMPO));
-  await expect(page.locator(slower)).toBeDisabled();
-  await expect(page.locator(faster)).toBeEnabled();
+  await expect(page.locator(field)).toHaveAttribute('min', String(MIN_TEMPO));
+  await expect(page.locator(field)).toHaveAttribute('max', String(MAX_TEMPO));
 });
 
 test('the tempo survives a reload', async ({ page }) => {
@@ -92,15 +75,15 @@ test('changes the rate mid-playback without stopping', async ({ page }) => {
     ],
   );
   await page.reload();
-  await expect(page.locator(play)).toBeEnabled();
+  await expect(page.locator(transport)).toBeEnabled();
 
-  await page.locator(play).click();
+  await page.locator(transport).click();
   await expect.poll(async () => (await audioLog(page)).starts.length).toBeGreaterThan(1);
 
   await type(page, String(MAX_TEMPO));
 
   // Still playing, and now handing over hits a full step apart at the new tempo.
-  await expect(page.locator('.transport')).toHaveAttribute('data-state', 'playing');
+  await expect(page.locator(transport)).toHaveAttribute('data-state', 'playing');
   const before = (await audioLog(page)).starts.length;
   await expect
     .poll(async () => (await audioLog(page)).starts.length)

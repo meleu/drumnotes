@@ -367,9 +367,8 @@ playback, so a cell enabled just before the playhead reaches it sounds twice —
 
 ### What to build
 
-A tempo control: a number input showing the current BPM, flanked by decrease and increase
-buttons for one-tap adjustment on a phone. Changing it while stopped or while playing both
-work — a change applies from the next scheduling window, like a pattern edit. Tempo lives on
+A tempo control: a number input showing the current BPM. Changing it while stopped or while
+playing both work — a change applies from the next scheduling window, like a pattern edit. Tempo lives on
 the `Pattern`, so it is already covered by the phase 2 codec and is saved and restored with
 the groove.
 
@@ -379,10 +378,10 @@ typed-in out-of-range value is corrected rather than trusted.
 ### Acceptance criteria
 
 - [x] The current BPM is displayed as an editable number
-- [x] Decrease and increase buttons step the tempo and are usable repeatedly by tap
-- [x] Both buttons and typed input go through the same core clamp to 40–240; typing 999
-      results in 240, not 999
-- [x] The decrease/increase buttons are disabled at the ends of the range
+- [x] The typed input goes through the core clamp to 40–240; typing 999 results in 240, not
+      999
+- [x] The input advertises the range to the browser as well, but the attributes are a hint
+      and never the enforcement
 - [x] Changing the tempo during playback audibly changes the rate without stopping or
       glitching
 - [x] Tempo persists across a reload
@@ -506,7 +505,9 @@ reopen them.
 2. **Layout breakpoints** — the grid and the staff each pick their own, from their own
    content's minimum legible width. No shared constant.
 3. **Tempo** — default 90 BPM, clamped to 40–240 in the core.
-4. **Tempo control** — a number input with decrease and increase buttons.
+4. **Tempo control** — a number input with decrease and increase buttons. **Revised in phase
+   8**: the buttons were built and then removed at the user's request. The input alone is the
+   tempo control; its spinner covers one-at-a-time adjustment.
 5. **Default rock beat** — hi-hat on every eighth, snare on beats 2 and 4, kick on beat 1 and
    the "and" of 3.
 6. **VexFlow font-free entry point** — verified as the first action of phase 3. If it does not
@@ -514,6 +515,9 @@ reopen them.
    point or pinning another version.
 7. **Sample sourcing** — phase 6 downloads the GMRockKit samples from Hydrogen's distribution
    and commits them, recording the source and kit version.
+8. **Transport control** — one button that toggles, naming the action it will perform rather
+   than the state it is in. Decided in phase 8, replacing the separate Play and Stop buttons
+   phase 7 built.
 
 ## Still open
 

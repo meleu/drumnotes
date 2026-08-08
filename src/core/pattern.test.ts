@@ -7,7 +7,6 @@ import {
   MAX_TEMPO,
   MIN_TEMPO,
   STEPS_PER_BAR,
-  TEMPO_STEP,
   TOTAL_STEPS,
   clampTempo,
   defaultPattern,
@@ -149,10 +148,6 @@ describe('clampTempo', () => {
   it('falls back to the default rather than passing on a non-number', () => {
     expect(clampTempo(Number.NaN)).toBe(DEFAULT_TEMPO);
     expect(clampTempo(Number.POSITIVE_INFINITY)).toBe(DEFAULT_TEMPO);
-  });
-
-  it('steps by an amount that reaches both ends of the range', () => {
-    expect((MAX_TEMPO - MIN_TEMPO) % TEMPO_STEP).toBe(0);
   });
 });
 

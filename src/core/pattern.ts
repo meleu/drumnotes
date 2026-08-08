@@ -18,9 +18,6 @@ export const DEFAULT_TEMPO = 90;
 /** The playable tempo range. Enforced here, never only in an input's attributes. */
 export const MIN_TEMPO = 40;
 export const MAX_TEMPO = 240;
-/** How far one press of a tempo button moves the tempo. Divides the range, so
- * pressing repeatedly arrives exactly on each end rather than short of it. */
-export const TEMPO_STEP = 5;
 
 export type InstrumentId = 'hihat' | 'snare' | 'kick';
 
