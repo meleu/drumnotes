@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@vexflow-fonts/bravura':
+        specifier: ^1.0.2
+        version: 1.0.2
       vexflow:
         specifier: ^5.0.0
         version: 5.0.0
@@ -364,6 +367,9 @@ packages:
   '@typescript-eslint/visitor-keys@8.66.0':
     resolution: {integrity: sha512-dkKR8q+lKciskj1Y3vthHktl+3cMLWGyVUP23bRiPZ5O9BRT++4EqDDV+TVeIKBL1VXVEqrJlz8MYbcnvJcAlg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@vexflow-fonts/bravura@1.0.2':
+    resolution: {integrity: sha512-n3KC5hpv1CEoZCbMJ43WeUq71cIIycOUlWe2RU5OOIIKrQ9V8n0KV8v/oX/MDHokTXvUyTo4vJ2dsoMyMBeg4w==}
 
   '@vitest/coverage-v8@4.1.10':
     resolution: {integrity: sha512-IM49HmthevbgAO4anp1hwtoT9wYe59w0LR00gr+eagHE+ZJ5lK4sLPeO0ubgoJcwLk6dehU3R24N+FbEEKDc8g==}
@@ -1459,6 +1465,8 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.66.0
       eslint-visitor-keys: 5.0.1
+
+  '@vexflow-fonts/bravura@1.0.2': {}
 
   '@vitest/coverage-v8@4.1.10(vitest@4.1.10)':
     dependencies:

@@ -207,28 +207,28 @@ re-renders it.
 
 ### Acceptance criteria
 
-- [ ] The VexFlow font-free entry point and its font package are verified to work before any
+- [x] The VexFlow font-free entry point and its font package are verified to work before any
       other work in this phase begins; if they do not, the phase halts and reports rather than
       substituting an alternative
-- [ ] The core module producing the IR imports no Svelte, no DOM and no VexFlow
-- [ ] A hi-hat and snare on the same step produce one chord entry with two noteheads, not two
+- [x] The core module producing the IR imports no Svelte, no DOM and no VexFlow
+- [x] A hi-hat and snare on the same step produce one chord entry with two noteheads, not two
       entries
-- [ ] Hands entries are stems-up, feet stems-down; a bass drum hit never affects the hands
+- [x] Hands entries are stems-up, feet stems-down; a bass drum hit never affects the hands
       voice's entries and vice versa (unit-tested)
-- [ ] Both voices fill exactly one measure's worth of steps, always (unit-tested across
+- [x] Both voices fill exactly one measure's worth of steps, always (unit-tested across
       several patterns)
-- [ ] Hand rests carry the fourth-line position, foot rests the first-space position
-- [ ] Hi-hat renders as an X notehead above the top line; snare in the third space; kick in
+- [x] Hand rests carry the fourth-line position, foot rests the first-space position
+- [x] Hi-hat renders as an X notehead above the top line; snare in the third space; kick in
       the first space
-- [ ] Percussion clef on each system, 4/4 on the first bar only
-- [ ] No staff element exists in the DOM before the font-load promise resolves
-- [ ] Below the breakpoint the SVG lays out one measure per system; above it, both measures
+- [x] Percussion clef on each system, 4/4 on the first bar only
+- [x] No staff element exists in the DOM before the font-load promise resolves
+- [x] Below the breakpoint the SVG lays out one measure per system; above it, both measures
       on one
-- [ ] The grid is entirely above the staff in document order and on screen
-- [ ] Toggling a cell changes the rendered notation
-- [ ] Browser test: the staff appears only after fonts resolve, and toggling a cell changes
+- [x] The grid is entirely above the staff in document order and on screen
+- [x] Toggling a cell changes the rendered notation
+- [x] Browser test: the staff appears only after fonts resolve, and toggling a cell changes
       the notehead count in the SVG
-- [ ] The music font's licence is recorded in the notice file
+- [x] The music font's licence is recorded in the notice file
 
 ---
 

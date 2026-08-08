@@ -23,6 +23,7 @@
     "verify": "pnpm run format:check && pnpm run lint && pnpm run check && pnpm run test:unit"
   },
   "dependencies": {
+    "@vexflow-fonts/bravura": "^1.0.2",
     "vexflow": "^5.0.0"
   },
   "devDependencies": {

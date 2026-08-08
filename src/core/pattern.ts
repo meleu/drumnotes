@@ -21,20 +21,57 @@ export const MAX_TEMPO = 240;
 
 export type InstrumentId = 'hihat' | 'snare' | 'kick';
 
+/**
+ * Where a symbol sits on the staff, as scientific pitch. A position, not a
+ * sound: this is notation vocabulary, not a note anyone plays.
+ */
+export type StaffPosition = string;
+
+/** Percussive Arts Society noteheads: a cross for cymbals, a plain head otherwise. */
+export type NoteheadType = 'normal' | 'cross';
+
+/** Which of the two voices an instrument is written in — hands up, feet down. */
+export type VoiceId = 'hands' | 'feet';
+
 export interface Instrument {
   readonly id: InstrumentId;
   readonly name: string;
+  readonly voice: VoiceId;
+  readonly position: StaffPosition;
+  readonly notehead: NoteheadType;
 }
 
 /**
  * The single instrument table. Order is top-to-bottom, matching each
  * instrument's height on the staff, so the grid and the notation read as one
- * instrument. Later phases hang staff position, notehead and sample here.
+ * instrument. Positions follow the Percussive Arts Society key: closed hi-hat
+ * in the space above the top line, snare in the third space, bass drum in the
+ * first space. The top line itself stays free for a future ride cymbal.
+ *
+ * Later phases hang each instrument's sample here.
  */
 export const INSTRUMENTS: readonly Instrument[] = [
-  { id: 'hihat', name: 'Hi-hat' },
-  { id: 'snare', name: 'Snare' },
-  { id: 'kick', name: 'Kick' },
+  { id: 'hihat', name: 'Hi-hat', voice: 'hands', position: 'g/5', notehead: 'cross' },
+  { id: 'snare', name: 'Snare', voice: 'hands', position: 'c/5', notehead: 'normal' },
+  { id: 'kick', name: 'Kick', voice: 'feet', position: 'f/4', notehead: 'normal' },
+];
+
+export interface VoiceStyle {
+  readonly id: VoiceId;
+  readonly stem: 'up' | 'down';
+  /**
+   * Where this voice's rests are written. Each voice rests at its own height so
+   * the two never collide, and so a reader can tell at a glance whose silence
+   * it is — which is why rests carry a position rather than taking the
+   * renderer's default.
+   */
+  readonly restPosition: StaffPosition;
+}
+
+/** The two voices, in the order they are written into a measure. */
+export const VOICES: readonly VoiceStyle[] = [
+  { id: 'hands', stem: 'up', restPosition: 'd/5' },
+  { id: 'feet', stem: 'down', restPosition: 'f/4' },
 ];
 
 /** One flat lane per instrument, covering every step in the whole pattern. */
