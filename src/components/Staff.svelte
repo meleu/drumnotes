@@ -16,27 +16,21 @@
   let fontReady = $state(false);
   let width = $state(0);
 
-  /* Every musical decision is already made by the time the score gets here. */
+  /* Every musical decision is already made by the time it gets here. */
   const score = $derived(toScore(patternState.current));
   const layout = $derived(staffLayoutFor(width, BARS));
 
-  /*
-   * The measure being read out right now, as a patch of the drawing. Shaded by
-   * an overlay rather than by the drawing itself, so the export — which shares
-   * that drawing and must carry no playhead — is unaffected, and so a step
-   * change repaints one rectangle instead of re-engraving the staff.
-   */
+  /* The measure being read, as a patch of the drawing. An overlay rather than
+     part of the drawing, so the export (which shares it) carries no playhead,
+     and a step change repaints one rectangle instead of re-engraving. */
   const shading = $derived.by(() => {
     const step = transportState.playhead;
     if (step === null || width === 0) return undefined;
     return measureBoxes(score, layout)[barOfStep(step)];
   });
 
-  /*
-   * Nothing is drawn until the music font has loaded: glyphs measured against a
-   * missing font lay out at the wrong widths, and that wrong layout is what a
-   * reader would see before the right one replaced it.
-   */
+  /* Nothing drawn until the font loads: glyphs measured against a missing font
+     lay out at the wrong widths, and the reader would see it. */
   $effect(() => {
     let live = true;
     void loadNotationFont().then(() => {
@@ -47,20 +41,14 @@
     };
   });
 
-  /*
-   * The staff wraps at its own content's minimum legible width, measured off
-   * the element rather than agreed with the grid through a shared breakpoint —
-   * the two are free to switch at different widths.
-   */
+  /* Wraps at its own content's minimum legible width, measured off the element
+     rather than shared with the grid as a breakpoint. */
   $effect(() => {
     if (!frame) return;
 
-    /*
-     * The measurement is deferred to the next frame rather than taken inside
-     * the callback: drawing changes the staff's height, which can add or remove
-     * the page's scrollbar and so change this element's width again. Writing
-     * synchronously makes that a loop the browser reports as an error.
-     */
+    /* Deferred to the next frame: drawing changes the staff's height, which can
+       add or remove the scrollbar and so change this width again. Writing
+       synchronously makes that a loop the browser reports as an error. */
     let pending = 0;
     const observer = new ResizeObserver(([entry]) => {
       const measured = entry?.contentRect.width ?? 0;
@@ -88,8 +76,8 @@
     <div class="page">
       {#if shading}
         {@const page = staffSize(score, layout)}
-        <!-- Same box and same coordinates as the drawing it sits under, so the
-             rectangle lands on the measure however the page is scaled. -->
+        <!-- Same box and coordinates as the drawing under it, so the rectangle
+             lands on the measure however the page is scaled. -->
         <svg
           class="playhead"
           viewBox="0 0 {page.width} {page.height}"
@@ -106,7 +94,7 @@
 
 <style>
   .staff {
-    /* Holds the staff's room before it is drawn, so the page does not jump. */
+    /* Holds room before the staff is drawn, so the page does not jump. */
     min-height: 10rem;
     margin-top: 1.5rem;
   }
@@ -115,22 +103,17 @@
     position: relative;
   }
 
-  /*
-   * The drawing carries a viewBox, so overriding the rendered size scales it
-   * rather than clipping it. This is what lets a phone show a whole measure.
-   */
+  /* The drawing carries a viewBox, so overriding the rendered size scales
+     rather than clips — which is what lets a phone show a whole measure. */
   .sheet :global(svg) {
     display: block;
     width: 100%;
     height: auto;
   }
 
-  /*
-   * Positioned too, and after the shading in document order — that is what puts
-   * the notes on top of it. Two absolutely positioned elements would paint in
-   * DOM order as well, but the sheet has to stay in flow to give `.page` its
-   * height, and an in-flow box would otherwise paint *below* a positioned one.
-   */
+  /* Positioned, and after the shading in document order: that is what puts the
+     notes on top. The sheet must stay in flow to give `.page` its height, and
+     an in-flow box would otherwise paint *below* a positioned one. */
   .sheet {
     position: relative;
   }
@@ -143,8 +126,7 @@
     pointer-events: none;
   }
 
-  /* Faint, and behind the ink: the bar being read is obvious at a glance and
-     every notehead in it stays as legible as the ones around it. */
+  /* Faint, behind the ink: the bar is obvious, its noteheads stay legible. */
   .playhead rect {
     fill: #fef3c7;
   }

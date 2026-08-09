@@ -1,30 +1,19 @@
 /**
- * The pure half of exporting: what the exported image is called, and how big it
- * is drawn. No canvas, no notation library — the browser-facing half lives in
- * `adapters/export.ts`.
+ * The pure half of exporting: filename and drawing size. No canvas, no notation
+ * lib — the browser-facing half is in `adapters/export.ts`.
  */
 
-/**
- * The logical width every export is drawn at, in points — the same width from a
- * phone as from a desktop, so two people sharing their grooves are sharing
- * comparable pictures rather than pictures of their screens.
- */
+/** Logical export width in points. Same from a phone as from a desktop, so
+ *  shared grooves are comparable pictures, not pictures of screens. */
 export const EXPORT_WIDTH = 1200;
 
-/**
- * How much bigger the pixels are than the points. Drawing at 2× and letting the
- * image carry the extra resolution is what keeps a notehead crisp when the PNG
- * is opened at full size or dropped into a document.
- */
+/** Pixels per point. Drawing at 2× keeps a notehead crisp at full size. */
 export const EXPORT_SCALE = 2;
 
 /**
- * What the browser offers to save the image as. Dated, because the file lands
- * in a downloads folder next to every other one, and the day it was written is
- * the thing that tells two takes of the same groove apart.
- *
- * The local day, not the UTC one: the name has to match the calendar the person
- * exporting it is looking at.
+ * What the browser offers to save the image as. Dated, since the file lands
+ * among every other download and the day tells two takes apart. Local day, not
+ * UTC: it has to match the exporter's own calendar.
  */
 export function exportFilename(now: Date): string {
   const parts = [now.getFullYear(), now.getMonth() + 1, now.getDate()];

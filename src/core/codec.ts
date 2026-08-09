@@ -1,16 +1,14 @@
 /**
- * The persistence codec: a `Pattern` to a versioned payload and back. Pure —
- * it knows nothing about local storage, only about strings.
+ * Persistence codec: `Pattern` ↔ versioned payload. Pure — strings, not storage.
  *
- * Parsing never throws. Anything unreadable, mis-shaped or written by a schema
- * this build does not know resolves to the default pattern, so a drummer whose
- * saved data has rotted still lands on a working groove.
+ * Parsing never throws: anything unreadable, mis-shaped or of an unknown schema
+ * resolves to the default pattern, so rotted data still lands on a groove.
  */
 
 import type { InstrumentId, Lanes, Pattern } from './pattern.js';
 import { INSTRUMENTS, MAX_TEMPO, MIN_TEMPO, TOTAL_STEPS, defaultPattern } from './pattern.js';
 
-/** Bumped whenever the payload shape changes; older payloads are then discarded. */
+/** Bump on payload shape change; older payloads are discarded. */
 export const SCHEMA_VERSION = 1;
 
 interface StoredPattern {
@@ -63,10 +61,8 @@ function isInRange(tempo: number): boolean {
   return tempo >= MIN_TEMPO && tempo <= MAX_TEMPO;
 }
 
-/**
- * Accepts exactly one lane per known instrument and nothing else: an unknown
- * id, a missing lane or a lane of the wrong length rejects the whole payload.
- */
+/** Exactly one lane per known instrument: an unknown id, a missing lane or a
+ *  wrong length rejects the whole payload. */
 function readLanes(value: unknown): Lanes | undefined {
   if (!isRecord(value)) return undefined;
 

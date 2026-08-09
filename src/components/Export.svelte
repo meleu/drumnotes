@@ -4,16 +4,13 @@
   import { toScore } from '../core/score.js';
   import { patternState } from '../state/pattern.svelte.js';
 
-  /*
-   * Asked once, and used to decide whether the control exists at all rather
-   * than whether it is enabled: a disabled button invites a reader to look for
-   * the condition that would enable it, and here there is none.
-   */
+  /* Asked once, and decides whether the control exists rather than whether it
+     is enabled: nothing would ever enable it. */
   const copyable = canCopyImage();
 
   const score = $derived(toScore(patternState.current));
 
-  /** How long "Copied" stays up. Long enough to read, short enough to trust. */
+  /** How long "Copied" stays up. */
   const CONFIRMATION_MS = 1500;
   let confirming = $state(false);
   let clearConfirmation: ReturnType<typeof setTimeout> | undefined;
@@ -24,11 +21,8 @@
     clearConfirmation = setTimeout(() => (confirming = false), CONFIRMATION_MS);
   }
 
-  /*
-   * The drawing is started but deliberately not awaited before the clipboard is
-   * asked: the browser only honours a write that belongs to the click, and
-   * awaiting first would spend it.
-   */
+  /* Drawing started but deliberately not awaited: a clipboard write is only
+     honoured inside the click, and awaiting first would spend it. */
   function copy(): void {
     copyImage(renderScorePng(score)).then(confirm, (error: unknown) => {
       console.error('The notation could not be copied.', error);

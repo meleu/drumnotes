@@ -1,15 +1,14 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-// This spec runs against a preview of the production build, because that is the
-// only place the service worker exists. Everything it asserts is about what the
-// browser can still do once the network is taken away.
+// Runs against a preview of the production build, the only place the service
+// worker exists. Asserts what the browser can still do without a network.
 
 const staff = '.sheet svg';
 const transport = '.transport';
 const cell = 'button[data-instrument="kick"]';
 
-/** Every path this origin has put in a cache, whatever the cache is called. */
+/** Every path this origin has cached, under any cache name. */
 async function cached(page: Page): Promise<string[]> {
   return await page.evaluate(async () => {
     const names = await caches.keys();
@@ -24,10 +23,9 @@ async function cached(page: Page): Promise<string[]> {
 }
 
 /**
- * Waits until the app is fully up: the staff is drawn, which needs the music
- * font, and the transport is enabled, which needs every sample decoded. Both
- * are load-bearing here — they are how this spec tells that the font and the
- * samples came back, without reaching for a network log.
+ * Waits until the app is fully up: staff drawn (needs the font) and transport
+ * enabled (needs every sample decoded). Both load-bearing — that is how this
+ * spec sees the font and samples came back, without a network log.
  */
 async function ready(page: Page): Promise<void> {
   await page.waitForSelector(staff);
@@ -35,16 +33,16 @@ async function ready(page: Page): Promise<void> {
   await expect(page.locator(transport)).toBeEnabled();
 }
 
-/** One online visit, waited out until the worker has everything it needs. */
+/** One online visit, waited out until the worker has everything. */
 async function warm(page: Page): Promise<void> {
-  // Relative, so it lands on whatever directory the build is served from
-  // rather than on the origin's root.
+  // Relative, so it lands on the directory the build is served from, not the
+  // origin's root.
   await page.goto('./');
   await ready(page);
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
-  // The whole point of the strategy: one online visit populates the cache, so
-  // the wait here is for the worker to catch up, not for a second visit.
+  // The point of the strategy: one online visit fills the cache, so this waits
+  // for the worker to catch up, not for a second visit.
   await expect
     .poll(async () => {
       const paths = await cached(page);
@@ -78,8 +76,8 @@ test('serves the app, its samples and its font from cache on a second load offli
 });
 
 test('drops caches left by an earlier version of the worker', async ({ page }) => {
-  // Seeded before the app's own scripts run, so it is already there when the
-  // worker activates and looks around.
+  // Seeded before the app's scripts run, so it is there when the worker
+  // activates and looks around.
   await page.addInitScript(async () => {
     const stale = await caches.open('drumnotes-stale');
     await stale.put('/previous-build.js', new Response('gone'));
@@ -94,15 +92,13 @@ test('drops caches left by an earlier version of the worker', async ({ page }) =
 test('picks up a redeployed entry document rather than pinning the first one', async ({ page }) => {
   await warm(page);
 
-  // The document is the one file that is not immutable: it is what names the
-  // current build's hashed assets, so a stale copy pins the whole app to an old
-  // deploy. Poisoning the cached copy stands in for a deploy — whatever the
-  // page shows next is whatever the worker preferred.
+  // The document is the one mutable file: it names the build's hashed assets,
+  // so a stale copy pins the app to an old deploy. Poisoning the cached copy
+  // stands in for a deploy — what the page shows next is what the worker chose.
   const poison = async () =>
     await page.evaluate(async (html) => {
       const cache = await caches.open((await caches.keys())[0]!);
-      // The entry is cached under the directory the app is served from, which
-      // is the one the page is sitting on.
+      // Cached under the directory the app is served from — this page's own.
       await cache.put(
         location.pathname,
         new Response(html, { headers: { 'content-type': 'text/html' } }),
@@ -113,8 +109,8 @@ test('picks up a redeployed entry document rather than pinning the first one', a
   await page.reload();
   await expect(page).toHaveTitle('drumnotes');
 
-  // And the fresh copy replaced the poisoned one, so the next load offline gets
-  // the new deploy rather than the one before it.
+  // The fresh copy replaced the poisoned one, so the next offline load gets the
+  // new deploy.
   await page.waitForFunction(async () => {
     const cached = await caches.match(location.pathname, { ignoreVary: true });
     return (await cached?.text())?.includes('<title>drumnotes</title>') === true;

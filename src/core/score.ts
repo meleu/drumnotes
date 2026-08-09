@@ -1,30 +1,25 @@
 /**
- * The `Score` intermediate representation, and the translation from a
- * `Pattern` into it.
+ * The `Score` IR, and the translation from a `Pattern` into it.
  *
- * This is where every musical decision is made — what note value a hit gets,
- * which voice it belongs to, where it sits on the staff, what is beamed
- * together — and it is plain data, so all of it is unit-testable in a node
- * environment. Nothing here imports Svelte, the DOM or the notation library;
- * the renderer downstream makes no musical decisions of its own.
+ * Every musical decision — note values, voices, staff positions, beaming — is
+ * made here, as plain data. No Svelte, DOM or notation lib; the renderer
+ * downstream decides nothing musical.
  *
- * The rhythm rule is one sentence, applied to notes and to silence alike: a
- * symbol lasts until whatever its own voice plays next, or until the beat it
- * started on runs out, whichever comes first.
+ * The rhythm rule, for notes and silence alike: a symbol lasts until its own
+ * voice plays next, or until its beat runs out, whichever comes first.
  */
 
 import type { Instrument, NoteheadType, Pattern, StaffPosition, VoiceId } from './pattern.js';
 import { BARS, INSTRUMENTS, STEPS_PER_BAR, STEPS_PER_BEAT, VOICES, isHit } from './pattern.js';
 
 /**
- * The note values reachable on this grid. The beat ceiling — nothing outlasts a
- * quarter, crosses a beat or crosses a barline — keeps the list this short and
- * makes ties impossible. `whole` is the exception, and only ever as the rest
- * standing for a completely silent measure.
+ * Note values reachable on this grid. The beat ceiling — nothing outlasts a
+ * quarter or crosses a beat — keeps the list short and makes ties impossible.
+ * `whole` only ever spells a completely silent measure's rest.
  */
 export type Duration = 'whole' | 'quarter' | 'eighth' | 'sixteenth';
 
-/** How many sixteenth steps each undotted value lasts, derived from the constants. */
+/** Steps per undotted value, derived from the constants. */
 const STEPS_PER_DURATION: Readonly<Record<Duration, number>> = {
   whole: STEPS_PER_BAR,
   quarter: STEPS_PER_BEAT,
@@ -32,21 +27,17 @@ const STEPS_PER_DURATION: Readonly<Record<Duration, number>> = {
   sixteenth: STEPS_PER_BEAT / 4,
 };
 
-/** One head of a stroke: where it sits, and what shape it is drawn with. */
+/** One head of a stroke: where it sits, what shape it is drawn with. */
 export interface Notehead {
   readonly position: StaffPosition;
   readonly type: NoteheadType;
 }
 
-/**
- * What one voice strikes on one step, low to high. A hi-hat and a snare struck
- * together are a single stroke, which is why they come out on one stem: the
- * voice plays one thing there, not two.
- */
+/** What one voice strikes on one step, low to high — one stroke, one stem. */
 type Stroke = readonly Notehead[];
 
 interface BaseEntry {
-  /** Absolute step index into the pattern's lanes — the entry's identity. */
+  /** Absolute step index into the lanes — the entry's identity. */
   readonly startStep: number;
   readonly duration: Duration;
   readonly dots: number;
@@ -54,7 +45,7 @@ interface BaseEntry {
 
 export interface NoteEntry extends BaseEntry {
   readonly kind: 'note';
-  /** Simultaneous hits in one voice are one chord on one stem, low to high. */
+  /** Simultaneous hits in one voice: one chord on one stem, low to high. */
   readonly noteheads: readonly Notehead[];
 }
 
@@ -69,16 +60,14 @@ export interface ScoreVoice {
   readonly id: VoiceId;
   readonly stem: 'up' | 'down';
   readonly entries: readonly Entry[];
-  /**
-   * Beams as lists of indices into `entries`. Grouping is decided here, never
-   * by the renderer, which reads this list and draws exactly what it says.
-   */
+  /** Beams as indices into `entries`. Grouping decided here; the renderer draws
+   *  exactly what this says. */
   readonly beamGroups: readonly (readonly number[])[];
 }
 
 export interface Measure {
   readonly index: number;
-  /** Always both voices, in `VOICES` order: hands first, then feet. */
+  /** Always both voices, in `VOICES` order. */
   readonly voices: readonly ScoreVoice[];
 }
 
@@ -86,13 +75,13 @@ export interface Score {
   readonly measures: readonly Measure[];
 }
 
-/** A note value, as the pair the IR carries it: a base duration and its dots. */
+/** A note value: base duration plus dots. */
 interface NoteValue {
   readonly duration: Duration;
   readonly dots: number;
 }
 
-/** How many steps a value occupies. Each dot adds half of what came before it. */
+/** Steps a value occupies. Each dot adds half of what came before. */
 function valueSteps({ duration, dots }: NoteValue): number {
   let steps = STEPS_PER_DURATION[duration];
   let dotted = steps;
@@ -103,18 +92,15 @@ function valueSteps({ duration, dots }: NoteValue): number {
   return steps;
 }
 
-/** How many steps an entry occupies, dots included. */
 export function entrySteps(entry: Entry): number {
   return valueSteps(entry);
 }
 
 /**
- * Every value that fits inside a beat, keyed by its length in steps. The beat
- * ceiling is what keeps this table total and unambiguous: no length within a
- * beat has two spellings, and none is unspellable, so nothing ever needs a tie.
- *
- * Built from the vocabulary rather than written out, so the table follows the
- * constants if the grid's resolution ever changes.
+ * Every value fitting inside a beat, keyed by length in steps. The beat ceiling
+ * keeps this total and unambiguous — one spelling per length, none unspellable,
+ * so nothing ever needs a tie. Built from the vocabulary so it follows the
+ * constants if the grid's resolution changes.
  */
 const VALUES_BY_STEPS: ReadonlyMap<number, NoteValue> = new Map(
   (['quarter', 'eighth', 'sixteenth'] as const)
@@ -129,11 +115,7 @@ function valueSpanning(steps: number): NoteValue {
   return value;
 }
 
-/**
- * Instruments bottom-to-top. The table is written top-to-bottom to match the
- * grid's row order, and a chord's heads have to read low to high, so the one
- * ordering is derived from the other rather than duplicated.
- */
+/** Derived from the top-to-bottom table, since a chord reads low to high. */
 const INSTRUMENTS_LOW_TO_HIGH = [...INSTRUMENTS].reverse();
 
 export function toScore(pattern: Pattern): Score {
@@ -150,25 +132,21 @@ export function toScore(pattern: Pattern): Score {
 }
 
 /**
- * Which values a beam can join. Quarters and the whole rest carry no flag to
- * replace, so there is nothing for a beam to do to them; a dot changes a note's
- * length but not the flag it is drawn with, so dotted values beam like their
- * undotted counterparts.
+ * What a beam can join. Quarters and the whole rest carry no flag to replace; a
+ * dot changes length but not the flag, so dotted values beam like undotted.
  */
 const BEAMABLE: ReadonlySet<Duration> = new Set<Duration>(['eighth', 'sixteenth']);
 
-/** Beams replace flags, and only notes carry flags — a rest is never beamed. */
+/** Beams replace flags, and only notes carry flags. */
 function isBeamable(entry: Entry): boolean {
   return entry.kind === 'note' && BEAMABLE.has(entry.duration);
 }
 
-/** What a voice contributes to a measure: what is written, and what is joined. */
 type VoiceContent = Pick<ScoreVoice, 'entries' | 'beamGroups'>;
 
 /**
- * One voice's measure, filled end to end: every step is either a hit or a rest,
- * so each voice accounts for the whole measure on its own and neither depends
- * on what the other is playing.
+ * One voice's measure, filled end to end: every step is a hit or a rest, so each
+ * voice accounts for the whole measure independently of the other.
  */
 function voiceContent(
   pattern: Pattern,
@@ -179,15 +157,14 @@ function voiceContent(
   const instruments = INSTRUMENTS_LOW_TO_HIGH.filter((instrument) => instrument.voice === voice);
 
   const firstStep = measure * STEPS_PER_BAR;
-  // Each step of the measure holds this voice's stroke there, or nothing at all:
-  // silence is the absence of a stroke, never a stroke of nothing.
+  // Each step holds this voice's stroke there, or nothing: silence is the
+  // absence of a stroke, never a stroke of nothing.
   const strokes = Array.from({ length: STEPS_PER_BAR }, (_, stepInBar) =>
     strokeAt(pattern, instruments, firstStep + stepInBar),
   );
 
-  // A voice that never plays is written as one whole rest rather than four
-  // quarter rests — the conventional spelling for an empty measure. It carries
-  // this voice's rest position, so it does not land on the renderer's default.
+  // Conventional spelling for an empty measure: one whole rest, not four
+  // quarters — at this voice's rest position, not the renderer's default.
   if (strokes.every((stroke) => stroke === undefined)) {
     return {
       entries: [
@@ -200,17 +177,16 @@ function voiceContent(
   const entries: Entry[] = [];
   const beamGroups: number[][] = [];
 
-  // One beat at a time, so nothing can be written across a beat boundary — and
-  // since beats tile the measure, nothing can cross the barline either. Beams
-  // are gathered inside the same loop, which is what keeps a beam from spanning
-  // a beat: a group can only ever hold what one pass put into it.
+  // One beat at a time, so nothing crosses a beat boundary — and since beats
+  // tile the measure, nothing crosses the barline. Beams gathered in the same
+  // pass, which is what keeps a beam inside one beat.
   for (let beatStart = 0; beatStart < STEPS_PER_BAR; beatStart += STEPS_PER_BEAT) {
     const beatEnd = beatStart + STEPS_PER_BEAT;
     const beatFirstEntry = entries.length;
 
     for (let stepInBar = beatStart; stepInBar < beatEnd;) {
-      // Notes and silence obey the same rule: hold until this voice's next
-      // stroke, or until the beat runs out, whichever comes first.
+      // Notes and silence alike: hold until this voice's next stroke, or until
+      // the beat runs out.
       let next = stepInBar + 1;
       while (next < beatEnd && strokes[next] === undefined) next += 1;
 
@@ -226,9 +202,8 @@ function voiceContent(
       stepInBar = next;
     }
 
-    // A beam is a way of writing two or more flags as one line; a lone flagged
-    // note has nothing to be joined to, so it keeps its flag and no group is
-    // recorded for the beat at all.
+    // A lone flagged note has nothing to join, so it keeps its flag and no group
+    // is recorded.
     const group = entries
       .slice(beatFirstEntry)
       .flatMap((entry, offset) => (isBeamable(entry) ? [beatFirstEntry + offset] : []));
@@ -238,10 +213,7 @@ function voiceContent(
   return { entries, beamGroups };
 }
 
-/**
- * What this voice strikes on one step, or nothing where it does not play there.
- * Heads come out low to high, which is the order a chord has to be written in.
- */
+/** What this voice strikes on one step, low to high, or nothing. */
 function strokeAt(
   pattern: Pattern,
   instruments: readonly Instrument[],

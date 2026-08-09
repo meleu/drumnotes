@@ -6,17 +6,14 @@ import { serialisePattern } from '../../src/core/codec.js';
 import { BARS, INSTRUMENTS, STEPS_PER_BAR, defaultPattern } from '../../src/core/pattern.js';
 import { loopDuration, stepDuration } from '../../src/core/schedule.js';
 
-/*
- * A middling tempo: fast enough that a whole bar goes by inside a test, slow
- * enough that a step lasts several polls and the playhead can be watched
- * rather than merely inferred.
- */
+/* Middling: fast enough that a bar passes inside a test, slow enough that a
+   step lasts several polls and the playhead can be watched, not inferred. */
 const TEMPO = 120;
 const STEP_MS = stepDuration(TEMPO) * 1000;
 const BAR_MS = STEP_MS * STEPS_PER_BAR;
 const LOOP_MS = loopDuration(TEMPO) * 1000;
 
-/** Polls on a fixed heartbeat, so a bar cannot slip by between two samples. */
+/** Fixed heartbeat, so a bar cannot slip between two samples. */
 const WATCHING = { intervals: [STEP_MS / 2] };
 
 const transport = '.transport';
@@ -35,7 +32,7 @@ async function load(page: Page): Promise<void> {
   await page.waitForSelector('.sheet svg');
 }
 
-/** Which step the grid is lighting, or null when nothing is lit. */
+/** The step the grid is lighting, or null. */
 async function litStep(page: Page): Promise<number | null> {
   const cells = page.locator(lit);
   if ((await cells.count()) === 0) return null;
@@ -53,8 +50,7 @@ test('lights exactly one column, and advances it', async ({ page }) => {
   await load(page);
   await page.locator(transport).click();
 
-  // One column, whole and only: every instrument row of one step, and nothing
-  // of any other.
+  // One whole column and only that: every row of one step, nothing of another.
   await expect(page.locator(lit)).toHaveCount(INSTRUMENTS.length);
 
   const first = await litStep(page);
@@ -72,8 +68,8 @@ test('shades the one measure the playhead is reading, and moves on with it', asy
 
   await expect(page.locator(shading)).toHaveCount(1);
 
-  // Both bars are on one system at this width, so the shading moving to the
-  // second measure is a change of x — the same thing a reader's eye does.
+  // Both bars share a system at this width, so moving to the second measure is
+  // a change of x — what a reader's eye does.
   const seen = new Set<string>();
   await expect
     .poll(
@@ -91,7 +87,7 @@ test('clears both highlights on stop, and starts the next pass from the top', as
   await load(page);
 
   await page.locator(transport).click();
-  // Well past the downbeat, so a rewind is what returns the light to step 0.
+  // Well past the downbeat, so only a rewind returns the light to step 0.
   await expect.poll(async () => await litStep(page), WATCHING).toBeGreaterThan(0);
 
   await page.locator(transport).click();

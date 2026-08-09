@@ -1,13 +1,10 @@
 /**
- * The notation adapter: the only module that knows VexFlow exists.
+ * The only module that knows VexFlow exists. Makes no musical decisions: note
+ * values, chords, stems, positions and beams are all settled in the `Score`.
+ * Its job is placement on a page — measure widths, systems, clefs.
  *
- * It makes no musical decisions. Everything it draws — note values, chords,
- * stems, staff positions, which notes share a beam — is already settled in the
- * `Score` it is handed. Its job is placement on a page: how wide a measure is,
- * how many fit on a system, where the clef goes.
- *
- * One drawing routine takes a rendering context, so the screen and the PNG
- * export can differ in nothing but the context they pass in.
+ * One drawing routine, parameterised by rendering context, so screen and PNG
+ * export differ in nothing else.
  */
 
 import bravuraUrl from '@vexflow-fonts/bravura/bravura.woff2?url';
@@ -28,20 +25,18 @@ import type { Duration, Entry, Score, ScoreVoice } from '../core/score.js';
 import { BEATS_PER_BAR, STEPS_PER_BEAT } from '../core/pattern.js';
 
 /**
- * The music font, self-hosted from the installed package and imported as a
- * build asset so the bundler content-hashes it — nothing is fetched from a CDN
- * at runtime. VexFlow's font-free entry point is what makes this possible: the
- * default entry point inlines a base64 copy of the same font.
+ * Self-hosted as a build asset — nothing fetched from a CDN at runtime. Made
+ * possible by VexFlow's font-free entry point; the default one inlines a base64
+ * copy of the same font.
  */
 const MUSIC_FONT = 'Bravura';
 
 let fontLoad: Promise<void> | undefined;
 
 /**
- * Resolves once the staff can be drawn legibly. Memoised, so however many
- * components ask, the font is fetched once. Callers must await this before
- * drawing: glyphs measured against a missing font lay out wrongly, and the
- * wrong layout is what the reader would see.
+ * Resolves once the staff can be drawn legibly. Memoised: fetched once however
+ * many components ask. Callers must await before drawing — glyphs measured
+ * against a missing font lay out wrongly.
  */
 export function loadNotationFont(): Promise<void> {
   fontLoad ??= Font.load(MUSIC_FONT, bravuraUrl, { display: 'block' }).then(() => {
@@ -53,40 +48,30 @@ export function loadNotationFont(): Promise<void> {
 export interface StaffLayout {
   /** Logical width of the drawing, in points. */
   readonly width: number;
-  /** Measures per system. The caller decides; the export always passes all of them. */
+  /** Caller's choice; the export always passes all of them. */
   readonly measuresPerSystem: number;
 }
 
-/** Percussion clef on every system; the time signature only opens the piece. */
+/** Clef on every system; the time signature only opens the piece. */
 const CLEF = 'percussion';
 const TIME_SIGNATURE = `${BEATS_PER_BAR}/4`;
 
-/**
- * Page furniture, in points. The staff itself is five lines; the padding above
- * and below is room for the hi-hat sitting over the top line and for stems in
- * both directions.
- */
+/** Page furniture, in points. Vertical padding is room for the hi-hat above the
+ *  top line and for stems both ways. */
 const MARGIN_X = 10;
 const MARGIN_TOP = 30;
 const MARGIN_BOTTOM = 30;
-/**
- * The band one system owns, top of its beams to bottom of its down-stems. Wider
- * than the ink strictly needs: a foot note written low in one measure hangs a
- * stem down into the space where the next system's hi-hat beams sit, and at a
- * tighter spacing the two touch.
- */
+/** The band one system owns, beams to down-stems. Wider than the ink needs: a
+ *  low foot note's stem reaches into the next system's hi-hat beams. */
 const SYSTEM_HEIGHT = 130;
-/** Room a leading clef and a time signature take out of a measure's width. */
+/** Room a leading clef and time signature take out of a measure's width. */
 const CLEF_WIDTH = 45;
 const TIME_SIGNATURE_WIDTH = 30;
-/**
- * Slack left at the end of a measure. The formatter positions note *centres*
- * across the width it is given, so without this the last notehead of a measure
- * straddles the barline.
- */
+/** The formatter positions note *centres*, so without slack the last notehead
+ *  straddles the barline. */
 const NOTE_PADDING = 12;
 
-/** VexFlow's duration codes, keyed by the IR's vocabulary. */
+/** VexFlow duration codes, keyed by the IR's vocabulary. */
 const DURATION_CODES: Readonly<Record<Duration, string>> = {
   whole: 'w',
   quarter: 'q',
@@ -99,16 +84,13 @@ const NOTEHEAD_SUFFIX = { normal: '', cross: '/x2' } as const;
 
 const STEM_DIRECTIONS = { up: 1, down: -1 } as const;
 
-/** How tall the drawing will be, before anything is drawn. */
+/** The drawing's size, before anything is drawn. */
 export function staffSize(score: Score, layout: StaffLayout): { width: number; height: number } {
   const systems = Math.ceil(score.measures.length / layout.measuresPerSystem);
   return { width: layout.width, height: MARGIN_TOP + systems * SYSTEM_HEIGHT + MARGIN_BOTTOM };
 }
 
-/**
- * The one drawing routine. Screen and export both land here; only the context
- * and the layout differ.
- */
+/** The one drawing routine; screen and export differ only in context and layout. */
 export function drawScore(context: RenderContext, score: Score, layout: StaffLayout): void {
   const placed = placeMeasures(score.measures.length, layout);
 
@@ -125,11 +107,8 @@ interface Placement extends MeasureFurniture {
   readonly width: number;
 }
 
-/**
- * Where every measure lands on the page — the single answer both the drawing
- * and anything overlaid on it work from, so the two cannot disagree about which
- * patch of page belongs to which bar.
- */
+/** Where every measure lands — the single answer both the drawing and anything
+ *  overlaid on it work from, so they cannot disagree. */
 function placeMeasures(count: number, layout: StaffLayout): Placement[] {
   const perSystem = Math.max(1, Math.trunc(layout.measuresPerSystem));
   const placed: Placement[] = [];
@@ -163,15 +142,12 @@ export interface MeasureBox {
 }
 
 /**
- * The patch of page each measure occupies: its stave's width, and vertically
- * the whole band its system owns — the room VexFlow reserves above the lines
- * for high noteheads and up-stems, the lines themselves, and the room below
- * them for down-stems. Consecutive systems' bands tile rather than overlap, so
- * shading one measure never tints the bar underneath it.
+ * The patch of page each measure occupies: stave width, and vertically the whole
+ * band its system owns. Bands tile rather than overlap, so shading one measure
+ * never tints the bar underneath.
  *
- * Returned rather than drawn, because shading a measure is something the screen
- * does and the export must not; keeping it out of `drawScore` is what lets the
- * two stay the same drawing.
+ * Returned rather than drawn: shading is a screen-only thing, and keeping it out
+ * of `drawScore` is what lets screen and export stay one drawing.
  */
 export function measureBoxes(score: Score, layout: StaffLayout): MeasureBox[] {
   return placeMeasures(score.measures.length, layout).map(({ x, y, width }) => ({
@@ -182,11 +158,8 @@ export function measureBoxes(score: Score, layout: StaffLayout): MeasureBox[] {
   }));
 }
 
-/**
- * Splits a system's width between its measures. Every measure gets the same
- * room for its notes; the clef and the time signature are paid for on top, so
- * an opening measure is not squeezed by the furniture in front of it.
- */
+/** Splits a system's width between its measures: equal room for notes, with the
+ *  clef and time signature paid for on top. */
 function measureWidths(count: number, isFirstSystem: boolean, layout: StaffLayout): number[] {
   const extras = Array.from({ length: count }, (_, index) => {
     if (index !== 0) return 0;
@@ -215,22 +188,22 @@ function drawMeasure(
   if (furniture.timeSignature) stave.addTimeSignature(TIME_SIGNATURE);
   stave.setContext(context).draw();
 
-  // Both voices are formatted together so their notes line up vertically, then
-  // drawn separately so each keeps its own stem direction.
+  // Formatted together so the notes line up vertically, drawn separately so
+  // each voice keeps its stem direction.
   const drawn = measure.voices.map(toVexVoice);
   const voices = drawn.map(({ voice }) => voice);
   const room = stave.getNoteEndX() - stave.getNoteStartX() - NOTE_PADDING;
   new Formatter().joinVoices(voices).format(voices, Math.max(1, room));
 
-  // Beams last: they are drawn from the notes' final positions, which only
-  // exist once the voice has been formatted against this stave.
+  // Beams last: drawn from final note positions, which only exist once the
+  // voice is formatted against this stave.
   for (const { voice, beams } of drawn) {
     voice.draw(context, stave);
     for (const beam of beams) beam.setContext(context).draw();
   }
 }
 
-/** A voice ready to draw: its notes as one tickable run, plus their beams. */
+/** A voice ready to draw: one tickable run, plus its beams. */
 interface DrawnVoice {
   readonly voice: Voice;
   readonly beams: readonly Beam[];
@@ -241,15 +214,12 @@ function toVexVoice(voice: ScoreVoice): DrawnVoice {
 
   return {
     // STRICT: the core guarantees each voice fills its measure exactly, so a
-    // mismatch is a bug worth failing loudly rather than drawing crookedly.
+    // mismatch is a bug worth failing loudly.
     voice: new Voice({ numBeats: BEATS_PER_BAR, beatValue: 4 })
       .setMode(Voice.Mode.STRICT)
       .addTickables(notes),
-    /*
-     * Which notes belong together is already settled in the IR — the adapter
-     * has no say in it and no rule of its own to apply. Constructing the beam
-     * here, before formatting, is also what takes the flags off its notes.
-     */
+    // Grouping comes from the IR. Constructing the beam here, before
+    // formatting, is also what takes the flags off its notes.
     beams: voice.beamGroups.map((group) => new Beam(group.map((index) => notes[index]!))),
   };
 }
@@ -258,10 +228,9 @@ function toStaveNote(entry: Entry, voice: ScoreVoice): StaveNote {
   const rest = entry.kind === 'rest';
   const note = new StaveNote({
     keys: rest ? [entry.position] : entry.noteheads.map(keyOf),
-    // Dots have to be spelled in the duration — that is what VexFlow counts the
-    // note's ticks from — *and* attached as modifiers below, which is what
-    // draws them. Spelling alone draws nothing; attaching alone leaves the note
-    // a third too short and the measure rejected as incomplete.
+    // Dots go in the duration (VexFlow counts ticks from it) *and* as modifiers
+    // below (which draws them). Spelling alone draws nothing; attaching alone
+    // leaves the note short and the measure rejected as incomplete.
     duration: DURATION_CODES[entry.duration] + 'd'.repeat(entry.dots) + (rest ? 'r' : ''),
     stemDirection: STEM_DIRECTIONS[voice.stem],
   });
@@ -275,11 +244,8 @@ function keyOf(notehead: { position: string; type: keyof typeof NOTEHEAD_SUFFIX 
   return notehead.position + NOTEHEAD_SUFFIX[notehead.type];
 }
 
-/**
- * Draws the score into an element as SVG, replacing whatever was there. This
- * is the screen path; the export path will build its own context around the
- * same `drawScore`.
- */
+/** Draws the score into an element as SVG, replacing what was there. The screen
+ *  path; the export builds its own context around the same `drawScore`. */
 export function renderScoreSvg(host: HTMLDivElement, score: Score, layout: StaffLayout): void {
   host.replaceChildren();
 
@@ -289,12 +255,10 @@ export function renderScoreSvg(host: HTMLDivElement, score: Score, layout: Staff
   drawScore(renderer.getContext(), score, layout);
 
   /*
-   * VexFlow writes the logical size out as an inline style as well as an
-   * attribute, and an inline style beats any stylesheet — which pins the
-   * drawing at a width the container may not have, and leaves a phone showing
-   * the left two thirds of a bar. The viewBox is what carries the geometry, so
-   * the inline sizing is dropped and how the drawing is fitted to the page is
-   * left to CSS, where it belongs.
+   * VexFlow also writes the logical size as an inline style, which beats any
+   * stylesheet and pins the drawing at a width the container may not have. The
+   * viewBox carries the geometry, so drop the inline sizing and leave fitting
+   * to CSS.
    */
   const svg = host.firstElementChild as SVGSVGElement | null;
   svg?.style.removeProperty('width');
@@ -304,22 +268,17 @@ export function renderScoreSvg(host: HTMLDivElement, score: Score, layout: Staff
 /** The narrowest a sixteenth stays legible at, in points. */
 const MIN_STEP_WIDTH = 20;
 
-/** The width a system of this many measures needs before it starts to crowd. */
+/** Width a system of this many measures needs before it crowds. */
 function minimumSystemWidth(measures: number): number {
   const notes = measures * STEPS_PER_BEAT * BEATS_PER_BAR * MIN_STEP_WIDTH;
   return notes + CLEF_WIDTH + TIME_SIGNATURE_WIDTH + 2 * MARGIN_X;
 }
 
 /**
- * Chooses how to lay the score out inside a container of this width.
- *
- * The staff picks its wrapping point from its own content's minimum legible
- * width, not from a breakpoint shared with the grid — the two views are free to
- * switch at different widths.
- *
- * Below the point where even a single measure fits, the drawing is still made
- * at its minimum width and left to scale down to the container, because a
- * proportionally smaller staff reads better than a crowded or clipped one.
+ * How to lay the score out in a container of this width. The wrapping point
+ * comes from the staff's own minimum legible width, not a breakpoint shared
+ * with the grid. Narrower than one measure, it is still drawn at that minimum
+ * and left to scale down: a smaller staff reads better than a clipped one.
  */
 export function staffLayoutFor(containerWidth: number, measures: number): StaffLayout {
   let measuresPerSystem = measures;

@@ -13,15 +13,15 @@ import {
   toggleStep,
 } from '../../src/core/pattern.js';
 
-// Browser tests assert on DOM structure and counts, never on pixels.
+// Browser tests assert on DOM structure and counts, never pixels.
 
 const staff = '.sheet svg';
 const noteheads = `${staff} .vf-notehead`;
-/** VexFlow groups each beam and each flag it draws under its own class. */
+/** VexFlow gives each beam and flag its own class. */
 const beams = `${staff} .vf-beam`;
 const flags = `${staff} .vf-flag`;
 
-/** A pattern built from absolute step indices. */
+/** A pattern from absolute step indices. */
 function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
   return Object.entries(hits).reduce(
     (pattern, [id, steps]) =>
@@ -30,7 +30,7 @@ function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pa
   );
 }
 
-/** Loads the app on a given pattern, without clicking it in cell by cell. */
+/** Loads the app on a pattern, without clicking it in cell by cell. */
 async function load(page: Page, pattern: Pattern): Promise<void> {
   await page.goto('/');
   await page.evaluate(
@@ -41,11 +41,8 @@ async function load(page: Page, pattern: Pattern): Promise<void> {
   await page.waitForSelector(staff);
 }
 
-/**
- * How many augmentation dots the staff is showing. The music font draws one as
- * a glyph in the SMuFL codepoint below, so counting them is a structural
- * question about the drawing, not a question about pixels.
- */
+/** Augmentation dots on the staff. The font draws one as the SMuFL glyph below,
+ *  so counting them is structural, not pixels. */
 const AUGMENTATION_DOT = '\u{E1E7}';
 
 async function augmentationDots(page: Page): Promise<number> {
@@ -57,7 +54,7 @@ async function augmentationDots(page: Page): Promise<number> {
     );
 }
 
-/** The vertical position of each drawn measure, deduped into systems. */
+/** Measure tops, deduped into systems. */
 async function systemCount(page: Page): Promise<number> {
   const staves = page.locator(`${staff} .vf-stave`);
   await expect(staves).toHaveCount(BARS);
@@ -80,7 +77,7 @@ test('draws no staff at all until the music font has loaded', async ({ page }) =
 
   await page.goto('/', { waitUntil: 'commit' });
 
-  // The grid is already usable while the notation is still waiting on its font.
+  // The grid is usable while the notation still waits on its font.
   await expect(page.locator('button[data-instrument="kick"]').first()).toBeVisible();
   await expect(page.locator(staff)).toHaveCount(0);
 
@@ -119,7 +116,7 @@ test.describe('once the font has loaded', () => {
       const grid = document.querySelector('.grid')!;
       const notation = document.querySelector('.staff')!;
       return {
-        // Node.DOCUMENT_POSITION_FOLLOWING: the staff comes after the grid.
+        // DOCUMENT_POSITION_FOLLOWING: the staff comes after the grid.
         documentOrder: grid.compareDocumentPosition(notation) & Node.DOCUMENT_POSITION_FOLLOWING,
         gridBottom: grid.getBoundingClientRect().bottom,
         staffTop: notation.getBoundingClientRect().top,
@@ -157,14 +154,14 @@ test.describe('once the font has loaded', () => {
   test('beams a straight sixteenth hi-hat line instead of flagging it', async ({ page }) => {
     await load(page, patternWith({ hihat: [...Array(TOTAL_STEPS).keys()] }));
 
-    // One beam per beat, and nothing left carrying a flag of its own.
+    // One beam per beat, nothing left flagged.
     await expect(page.locator(beams)).toHaveCount(BARS * BEATS_PER_BAR);
     await expect(page.locator(flags)).toHaveCount(0);
   });
 
   test('leaves a lone flagged note its flag', async ({ page }) => {
-    // A single hi-hat on the second sixteenth is written `16r 8.` — one flagged
-    // note, with nothing to beam it to.
+    // A lone hi-hat on the second sixteenth is `16r 8.`: one flagged note with
+    // nothing to beam it to.
     await load(page, patternWith({ hihat: [1] }));
 
     await expect(page.locator(flags)).toHaveCount(1);
@@ -180,14 +177,14 @@ test.describe('once the font has loaded', () => {
 
     expect(await augmentationDots(page)).toBe(0);
 
-    // The feet play nothing on beat 2 of the rock beat, so a kick on that
-    // beat's last sixteenth is preceded by three silent ones: a dotted-eighth
-    // rest, the shortest route from the default groove to a dotted value.
+    // The feet play nothing on beat 2, so a kick on that beat's last sixteenth
+    // follows three silent ones: a dotted-eighth rest — the shortest route from
+    // the default groove to a dotted value.
     await page.locator('button[data-instrument="kick"][data-step="7"]').click();
 
     await expect.poll(async () => await augmentationDots(page)).toBe(1);
-    // A dot VexFlow draws but does not count would leave the measure short and
-    // the voice rejected outright, so a clean console is half of this test.
+    // A dot drawn but not counted leaves the measure short and the voice
+    // rejected, so a clean console is half this test.
     expect(errors).toEqual([]);
   });
 });

@@ -1,20 +1,18 @@
-# Everything the three CI jobs need before they can run a script, in one place.
+# Everything the three CI jobs need before running a script.
 #
-# Node's version is read from `.tool-versions`, the same file asdf uses locally,
-# so CI and a developer's machine can never drift apart silently. pnpm's version
-# comes from the `packageManager` field in package.json for the same reason —
-# neither version is written down twice.
+# Node's version comes from `.tool-versions` (the file asdf reads locally) and
+# pnpm's from `packageManager` in package.json, so CI and a developer's machine
+# cannot drift: neither version is written down twice.
 #
-# The checkout is not here, and cannot be: a local action is loaded from the
-# working directory, so the repository has to be on disk before this file can
-# run at all. Each job checks out first.
+# The checkout is not here and cannot be: a local action loads from the working
+# directory, so the repo must already be on disk. Each job checks out first.
 name: Setup
 description: Installs the toolchain and the project's dependencies
 
 runs:
   using: composite
   steps:
-    # Before setup-node, so that `cache: pnpm` below has a store to point at.
+    # Before setup-node, so `cache: pnpm` below has a store to point at.
     - uses: pnpm/action-setup@v4
 
     - uses: actions/setup-node@v6

@@ -1,55 +1,43 @@
 /**
- * drumnotes' service worker: hand-written, no plugin, no dependency.
+ * Hand-written service worker: no plugin, no dependency.
  *
- * The strategy is runtime caching with only the entry document precached, and
- * it was chosen for one reason: it needs no build-time asset list. The bundle,
- * the music font and the samples all arrive under content-hashed names that
- * change on every build, and nothing here has to know a single one of them.
+ * Runtime caching with only the entry document precached, chosen because it
+ * needs no build-time asset list — bundle, font and samples all arrive under
+ * content-hashed names that change every build.
  *
- * - Hashed assets are immutable, so they are served cache-first and cached on
- *   the way back the first time they are asked for.
- * - The entry document is not immutable — it is the file that names the current
- *   build's hashes. It is precached on install, refreshed on activation, and
- *   served network-first so a redeploy is picked up on the next load rather
- *   than pinned until this file happens to change.
+ * - Hashed assets are immutable: served cache-first, cached on first ask.
+ * - The entry document is not — it names the current build's hashes. Precached
+ *   on install, refreshed on activation, served network-first so a redeploy is
+ *   picked up on the next load.
  *
- * The page also tells the worker what it loaded (see `sw-register.ts`), which
- * is what makes a single online visit enough: requests made before the worker
- * took control were never seen by the fetch handler, and this is how they get
- * into the cache anyway — still without anyone writing down a filename.
+ * The page also reports what it loaded (see `sw-register.ts`), which is what
+ * makes one online visit enough: requests made before this worker had control
+ * were never seen by the fetch handler.
  */
 
-/**
- * Bump this when the caching behaviour changes. Everything under another name
- * is deleted on activation, so an old worker's leftovers never mix with a new
- * one's.
- */
+/** Bump on a caching-behaviour change; other names are dropped on activation. */
 const CACHE = 'drumnotes-v1';
 
 /**
- * The entry document, cached under the URL a navigation actually asks for.
+ * The entry document, under the URL a navigation asks for.
  *
- * This file is copied verbatim rather than bundled, so it cannot read the
- * build's base path — it reads its own location instead. The worker ships
- * beside the document it serves, so the directory holding this file is that
- * document: `/` when the site is served from a root, `/drumnotes/` on GitHub
- * Pages. That is also exactly the worker's scope, so nothing outside it is
- * ever claimed by mistake.
+ * Copied verbatim rather than bundled, so it cannot read the build's base path
+ * and reads its own location instead. This file ships beside the document it
+ * serves — `/` from a root, `/drumnotes/` on Pages — which is also exactly this
+ * worker's scope.
  */
 const ENTRY = new URL('./', self.location.href).pathname;
 
 /**
- * How a cached copy is looked up. `Vary` is ignored deliberately: the server
- * varies its assets on `Origin`, the build's tags are `crossorigin` so the
- * browser's own requests carry that header, and a copy fetched from in here
- * does not — which would make every hashed asset miss. A hashed URL names
- * exactly one body, so there is nothing for `Vary` to protect.
+ * `Vary` ignored deliberately: the server varies assets on `Origin`, the build's
+ * tags are `crossorigin` so the browser's requests carry that header and ours do
+ * not — every hashed asset would miss. A hashed URL names one body anyway.
  */
 const LOOKUP = { ignoreVary: true };
 
 self.addEventListener('install', (event) => {
-  // No waiting room: there is only ever one version of this app open, and a
-  // worker that sits idle until every tab closes is a worker that never runs.
+  // No waiting room: only one version of this app is ever open, and a worker
+  // idle until every tab closes never runs.
   event.waitUntil(refreshEntry().then(() => self.skipWaiting()));
 });
 
@@ -78,21 +66,18 @@ async function activate() {
   const names = await caches.keys();
   await Promise.all(names.filter((name) => name !== CACHE).map((name) => caches.delete(name)));
 
-  // Claim the page that registered this worker, so its first visit is also the
-  // visit that fills the cache.
+  // Claim the registering page, so its first visit also fills the cache.
   await self.clients.claim();
 }
 
-/** Fetches the entry document past every cache and stores it as the fallback. */
+/** Fetches the entry document past every cache; stores it as the fallback. */
 async function refreshEntry() {
   const cache = await caches.open(CACHE);
   await cache.add(new Request(ENTRY, { cache: 'reload' }));
 }
 
-/**
- * The document: network first, so a new deploy is seen immediately, falling
- * back to the last copy that arrived when there is no network to ask.
- */
+/** The document: network first, so a new deploy is seen at once; falls back to
+ *  the last copy that arrived. */
 async function entry(request) {
   try {
     const response = await fetch(request);
@@ -115,10 +100,8 @@ async function asset(request) {
   return response;
 }
 
-/**
- * Caches what the page loaded before this worker was in a position to see it.
- * Anything already held is left alone, so this costs nothing on later visits.
- */
+/** Caches what the page loaded before this worker could see it. Anything already
+ *  held is left alone, so later visits cost nothing. */
 async function warm(urls) {
   const cache = await caches.open(CACHE);
 
@@ -131,16 +114,14 @@ async function warm(urls) {
         const response = await fetch(url);
         if (response.ok) await cache.put(url, response);
       } catch {
-        // Offline, or the asset has gone. Either way the next visit tries again.
+        // Offline, or the asset is gone. Either way, the next visit retries.
       }
     }),
   );
 }
 
-/**
- * Stores a copy of a response. Opaque and error responses are skipped: caching
- * one would mean serving it forever from a cache that is never revalidated.
- */
+/** Stores a copy. Opaque and error responses are skipped: this cache is never
+ *  revalidated, so caching one means serving it forever. */
 async function store(request, response) {
   if (response.type !== 'basic') return;
 

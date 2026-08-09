@@ -18,7 +18,7 @@ import {
   withTempo,
 } from './pattern.js';
 
-/** The steps a lane sounds on, as a bar-relative list, asserted per bar. */
+/** The steps a lane sounds on, bar-relative, per bar. */
 function hitsPerBar(lane: readonly boolean[]): number[][] {
   return Array.from({ length: BARS }, (_, bar) =>
     lane
@@ -51,7 +51,7 @@ describe('defaultPattern', () => {
   it('is a straight eighth-note rock beat, the same in every bar', () => {
     const { lanes } = defaultPattern();
 
-    // Hi-hat on every eighth; snare on 2 and 4; kick on 1 and the "and" of 3.
+    // Hi-hat every eighth; snare on 2 and 4; kick on 1 and the "and" of 3.
     expect(hitsPerBar(lanes.hihat)).toEqual(
       Array.from({ length: BARS }, () => [0, 2, 4, 6, 8, 10, 12, 14]),
     );

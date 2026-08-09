@@ -6,10 +6,9 @@ import { expect, test } from '@playwright/test';
 import { EXPORT_SCALE, EXPORT_WIDTH, exportFilename } from '../../src/core/export.js';
 import { BARS } from '../../src/core/pattern.js';
 
-// Browser tests assert on DOM structure and counts, never on pixels — with one
-// deliberate exception here. The exported image's size and the opacity of its
-// background are claims about the file the app hands over, so they can only be
-// checked by looking at that file.
+// Browser tests assert on DOM structure and counts, never pixels — except here.
+// The exported image's size and background opacity are claims about the file
+// handed over, checkable only by looking at it.
 
 const sheet = '.sheet svg';
 const download = 'button[data-export="download"]';
@@ -17,7 +16,7 @@ const copy = 'button[data-export="copy"]';
 const transport = '.transport';
 const shading = '.playhead rect';
 
-/** The eight bytes every PNG opens with. */
+/** The eight bytes a PNG opens with. */
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 async function save(download: Download): Promise<Buffer> {
@@ -32,11 +31,8 @@ async function exportPng(page: Page): Promise<{ file: Download; bytes: Buffer }>
   return { file, bytes: await save(file) };
 }
 
-/**
- * What the exported file actually is, read back through the browser that wrote
- * it: how big the image is, what colour its top-left corner is, and how much of
- * it is ink.
- */
+/** What the exported file is, read back through the browser that wrote it:
+ *  size, corner colour, amount of ink. */
 async function inspect(bytes: Buffer, page: Page): Promise<Image> {
   return await page.evaluate(async (base64) => {
     const png = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
@@ -66,15 +62,15 @@ async function inspect(bytes: Buffer, page: Page): Promise<Image> {
 interface Image {
   readonly width: number;
   readonly height: number;
-  /** The top-left pixel, as red, green, blue, alpha. */
+  /** Top-left pixel, as RGBA. */
   readonly corner: number[];
-  /** How many pixels are dark. Not what the notation looks like — whether
-   *  there is any. A canvas hands VexFlow whatever fill style it was left in,
-   *  so an export can come out structurally perfect and entirely blank. */
+  /** Dark pixels. Not what the notation looks like — whether there is any: a
+   *  canvas hands VexFlow whatever fill style it was left in, so an export can
+   *  be structurally perfect and entirely blank. */
   readonly ink: number;
 }
 
-/** How many systems the staff on screen is laid out over. */
+/** Systems the on-screen staff is laid out over. */
 async function systemCount(page: Page): Promise<number> {
   const staves = page.locator(`${sheet} .vf-stave`);
   await expect(staves).toHaveCount(BARS);
@@ -85,7 +81,7 @@ async function systemCount(page: Page): Promise<number> {
   return new Set(tops).size;
 }
 
-/** The height, in points, of the drawing currently on screen. */
+/** Height in points of the drawing on screen. */
 async function screenHeight(page: Page): Promise<number> {
   const box = await page.locator(sheet).getAttribute('viewBox');
   return Number(box!.trim().split(/\s+/)[3]);
@@ -112,8 +108,8 @@ test('downloads a non-empty PNG of the notation', async ({ page }) => {
 test('exports the same single-system image whatever the viewport is doing', async ({ page }) => {
   await load(page, WIDE);
 
-  // At this width the screen is drawing one system too, so its own drawing is
-  // the shape the export should have — at 1× rather than at 2×.
+  // At this width the screen draws one system too, so its drawing is the shape
+  // the export should have — at 1× rather than 2×.
   expect(await systemCount(page)).toBe(1);
   const oneSystem = await screenHeight(page);
 
@@ -121,7 +117,7 @@ test('exports the same single-system image whatever the viewport is doing', asyn
   expect(wide.width).toBe(EXPORT_WIDTH * EXPORT_SCALE);
   expect(wide.height).toBe(oneSystem * EXPORT_SCALE);
 
-  // Now the screen wraps to a system per bar. The export must not follow it.
+  // The screen now wraps to a system per bar; the export must not follow.
   await page.setViewportSize(PHONE);
   await expect.poll(async () => await systemCount(page)).toBe(BARS);
   expect(await screenHeight(page)).toBeGreaterThan(oneSystem);
@@ -135,8 +131,8 @@ test('paints the notation onto opaque light paper', async ({ page }) => {
   const { corner } = await inspect((await exportPng(page)).bytes, page);
   const [red, green, blue, alpha] = corner as [number, number, number, number];
 
-  // Fully opaque, so the image does not read as a hole when dropped onto a dark
-  // background, and light enough that black noteheads sit on it.
+  // Opaque, so it is not a hole on a dark background; light enough for black
+  // noteheads.
   expect(alpha).toBe(255);
   expect(Math.min(red, green, blue)).toBeGreaterThan(200);
 });
@@ -147,8 +143,8 @@ test('actually draws the notation, and redraws it after an edit', async ({ page 
   const before = await inspect((await exportPng(page)).bytes, page);
   expect(before.ink).toBeGreaterThan(0);
 
-  // One more notehead is one more patch of ink. This is the export following
-  // the pattern, and — more bluntly — the export having ink at all.
+  // One more notehead, one more patch of ink: the export follows the pattern
+  // and — more bluntly — has ink at all.
   await page.locator('button[data-instrument="snare"][data-step="1"]').click();
 
   const after = await inspect((await exportPng(page)).bytes, page);
@@ -162,8 +158,8 @@ test('leaves the playhead out of the export', async ({ page }) => {
 
   await expect(page.locator(transport)).toBeEnabled();
   await page.locator(transport).click();
-  // The staff is visibly shading a measure — and the export is unchanged, byte
-  // for byte, because the shading was never part of the drawing.
+  // The staff shades a measure, and the export is unchanged byte for byte: the
+  // shading was never part of the drawing.
   await expect(page.locator(shading)).toHaveCount(1);
 
   expect((await exportPng(page)).bytes).toEqual(stopped);
@@ -196,8 +192,8 @@ test.describe('the copy affordance', () => {
 
     await page.locator(copy).click();
 
-    // The confirmation only appears once the clipboard write has resolved, so
-    // it is the whole round trip that is being asserted here.
+    // The confirmation appears only once the write resolves, so this asserts
+    // the whole round trip.
     await expect(page.locator(copy)).toHaveText('Copied');
     expect(errors).toEqual([]);
   });
@@ -208,8 +204,8 @@ test.describe('the copy affordance', () => {
     });
     await load(page, WIDE);
 
-    // The download is still there, so this is the copy control going away and
-    // not the whole component failing to render.
+    // The download is still there, so this is the copy control going away, not
+    // the component failing to render.
     await expect(page.locator(copy)).toHaveCount(0);
     await expect(page.locator(download)).toHaveCount(1);
   });

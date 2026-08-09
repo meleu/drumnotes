@@ -3,9 +3,9 @@
   import { transportState } from '../state/transport.svelte.js';
 </script>
 
-<!-- One button, because there is only ever one thing to do to a transport that
-     is either running or not. It reports its own state, so a test — or a
-     stylesheet — can tell which without reading the label. -->
+<!-- One button: a transport is running or not, so there is only ever one thing
+     to do. It reports its state, so a test or stylesheet need not read the
+     label. -->
 <button
   type="button"
   class="transport"

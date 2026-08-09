@@ -1,46 +1,34 @@
-/**
- * The pattern document: a pure, immutable value. No Svelte, no DOM, no
- * notation library — everything here is unit-testable in a node environment.
- */
+/** The pattern document: pure immutable value. No Svelte, DOM or notation lib. */
 
-/** Bars in the whole pattern. */
 export const BARS = 2;
-/** Sixteenth-note steps in one bar. */
 export const STEPS_PER_BAR = 16;
-/** Steps in one quarter-note beat. */
 export const STEPS_PER_BEAT = 4;
 
-/** Everything below is derived — no logic anywhere hardcodes a step count. */
+/** Derived — nothing hardcodes a step count. */
 export const BEATS_PER_BAR = STEPS_PER_BAR / STEPS_PER_BEAT;
 export const TOTAL_STEPS = BARS * STEPS_PER_BAR;
 
 export const DEFAULT_TEMPO = 90;
-/** The playable tempo range. Enforced here, never only in an input's attributes. */
+/** Playable range, enforced here — not only in an input's attributes. */
 export const MIN_TEMPO = 40;
 export const MAX_TEMPO = 240;
 
 export type InstrumentId = 'hihat' | 'snare' | 'kick';
 
-/**
- * Where a symbol sits on the staff, as scientific pitch. A position, not a
- * sound: this is notation vocabulary, not a note anyone plays.
- */
+/** Staff position as scientific pitch. Notation, not a sound. */
 export type StaffPosition = string;
 
-/** Percussive Arts Society noteheads: a cross for cymbals, a plain head otherwise. */
+/** PAS noteheads: cross for cymbals, plain otherwise. */
 export type NoteheadType = 'normal' | 'cross';
 
-/** Which of the two voices an instrument is written in — hands up, feet down. */
+/** Hands up, feet down. */
 export type VoiceId = 'hands' | 'feet';
 
 export interface Instrument {
   readonly id: InstrumentId;
   readonly name: string;
-  /**
-   * The drum-notation abbreviation, for labelling a row where the full name
-   * would cost the cells their width. Written alongside the name rather than
-   * replacing it: what is read out stays the word a drummer would say.
-   */
+  /** Row label, where the full name would cost the cells their width. Kept
+   *  alongside the name, which is what gets read out. */
   readonly abbreviation: string;
   readonly voice: VoiceId;
   readonly position: StaffPosition;
@@ -48,15 +36,11 @@ export interface Instrument {
 }
 
 /**
- * The single instrument table. Order is top-to-bottom, matching each
- * instrument's height on the staff, so the grid and the notation read as one
- * instrument. Positions follow the Percussive Arts Society key: closed hi-hat
- * in the space above the top line, snare in the third space, bass drum in the
- * first space. The top line itself stays free for a future ride cymbal.
+ * Ordered top-to-bottom by staff height, so grid and notation read as one.
+ * PAS key positions; the top line stays free for a future ride cymbal.
  *
- * Sounds are deliberately absent: a sample is a bundled asset with a build-time
- * URL, so the table pairing an instrument with its sample lives in the audio
- * adapter and this one stays pure.
+ * No sounds here: a sample is a build asset, so instrument→sample lives in the
+ * audio adapter and this table stays pure.
  */
 export const INSTRUMENTS: readonly Instrument[] = [
   {
@@ -88,22 +72,18 @@ export const INSTRUMENTS: readonly Instrument[] = [
 export interface VoiceStyle {
   readonly id: VoiceId;
   readonly stem: 'up' | 'down';
-  /**
-   * Where this voice's rests are written. Each voice rests at its own height so
-   * the two never collide, and so a reader can tell at a glance whose silence
-   * it is — which is why rests carry a position rather than taking the
-   * renderer's default.
-   */
+  /** Each voice rests at its own height, so rests never collide and the reader
+   *  can tell whose silence it is. */
   readonly restPosition: StaffPosition;
 }
 
-/** The two voices, in the order they are written into a measure. */
+/** In the order they are written into a measure. */
 export const VOICES: readonly VoiceStyle[] = [
   { id: 'hands', stem: 'up', restPosition: 'd/5' },
   { id: 'feet', stem: 'down', restPosition: 'f/4' },
 ];
 
-/** One flat lane per instrument, covering every step in the whole pattern. */
+/** One flat lane per instrument, covering every step of the pattern. */
 export type Lanes = Readonly<Record<InstrumentId, readonly boolean[]>>;
 
 export interface Pattern {
@@ -111,7 +91,7 @@ export interface Pattern {
   readonly lanes: Lanes;
 }
 
-/** A groove written once as bar-relative steps, then repeated across the bars. */
+/** Bar-relative steps, repeated across the bars. */
 type Groove = Readonly<Partial<Record<InstrumentId, readonly number[]>>>;
 
 function patternFrom(groove: Groove): Pattern {
@@ -135,7 +115,7 @@ function beatStep(beat: number, offset = 0): number {
   return (beat - 1) * STEPS_PER_BEAT + offset;
 }
 
-/** Straight eighth-note rock groove: what a first-time visitor lands on. */
+/** Straight eighth-note rock: what a first-time visitor lands on. */
 const ROCK_GROOVE: Groove = {
   hihat: Array.from({ length: STEPS_PER_BAR / STEPS_PER_EIGHTH }, (_, i) => i * STEPS_PER_EIGHTH),
   snare: [beatStep(2), beatStep(4)],
@@ -150,7 +130,7 @@ export function defaultPattern(): Pattern {
   return patternFrom(ROCK_GROOVE);
 }
 
-/** The counting a drummer reads off the grid: `1 e + a`, once per beat. */
+/** The counting read off the grid: `1 e + a`, once per beat. */
 const COUNT_LABELS = ['e', '+', 'a'];
 
 export interface GridStep {
@@ -165,10 +145,8 @@ export interface GridBar {
   readonly steps: readonly GridStep[];
 }
 
-/**
- * How the grid is laid out: bar blocks of labelled steps. Bar boundaries are
- * derived from the constants, so adding a bar is a data change.
- */
+/** Grid layout: bar blocks of labelled steps. Boundaries derived, so adding a
+ *  bar is a data change. */
 export function gridBars(): readonly GridBar[] {
   return Array.from({ length: BARS }, (_, barIndex) => ({
     index: barIndex,
@@ -184,48 +162,36 @@ export function gridBars(): readonly GridBar[] {
   }));
 }
 
-/**
- * Which bar a step belongs to — the bridge from a playing step to the measure
- * of notation it is being read out of.
- */
+/** Bridge from a playing step to the measure it is read out of. */
 export function barOfStep(step: number): number {
   return Math.floor(step / STEPS_PER_BAR);
 }
 
-/** Whether one instrument sounds on one step — the smallest thing a lane records. */
 export function isHit(pattern: Pattern, instrument: InstrumentId, step: number): boolean {
   return pattern.lanes[instrument][step] ?? false;
 }
 
-/**
- * Everything written on one step, in the table's top-to-bottom order — what the
- * player has to strike when the playhead arrives there.
- */
+/** Everything written on one step, in row order. */
 export function instrumentsAt(pattern: Pattern, step: number): InstrumentId[] {
   return INSTRUMENTS.filter(({ id }) => isHit(pattern, id, step)).map(({ id }) => id);
 }
 
 /**
- * The nearest playable tempo to the one asked for. Every route in — a button,
- * a typed number, a stored payload — comes through here, so nothing downstream
- * ever has to wonder whether a tempo is playable. Total by design: a number
- * that is no number at all resolves to the default rather than escaping as a
- * `NaN` that would silently poison every duration derived from it.
+ * Nearest playable tempo. Every route in — button, typed number, stored payload
+ * — comes through here. Total: a non-number resolves to the default rather than
+ * escaping as a NaN that poisons every duration derived from it.
  */
 export function clampTempo(tempo: number): number {
   if (!Number.isFinite(tempo)) return DEFAULT_TEMPO;
   return Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, Math.round(tempo)));
 }
 
-/** The same groove at another tempo, clamped. Lanes are shared, not copied. */
+/** Same groove, clamped tempo. Lanes shared, not copied. */
 export function withTempo(pattern: Pattern, tempo: number): Pattern {
   return { ...pattern, tempo: clampTempo(tempo) };
 }
 
-/**
- * Flips one cell, producing a new `Pattern`. Non-destructive array update, so
- * the input value — and every lane other than the one touched — is unchanged.
- */
+/** Flips one cell into a new `Pattern`; input untouched. */
 export function toggleStep(pattern: Pattern, instrument: InstrumentId, step: number): Pattern {
   const lane = pattern.lanes[instrument];
   return {

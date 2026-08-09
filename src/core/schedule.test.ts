@@ -10,7 +10,7 @@ import {
   stepsInWindow,
 } from './schedule.js';
 
-/** 120 BPM makes a sixteenth exactly an eighth of a second — arithmetic by eye. */
+/** At 120 BPM a sixteenth is exactly an eighth of a second: arithmetic by eye. */
 const LOOP = { tempo: 120, origin: 0 };
 const STEP = 0.125;
 
@@ -66,8 +66,8 @@ describe('stepsInWindow', () => {
     const step = stepDuration(loop.tempo);
     const passes = 5;
 
-    /* Ragged windows, as a wobbling timer would produce, but never overlapping
-     * and never leaving a gap: each one opens where the last one closed. */
+    /* Ragged windows, as a wobbling timer produces, but never overlapping or
+     * gapping: each opens where the last closed. */
     const played: number[] = [];
     let cursor = loop.origin;
     let width = 0.02;
@@ -110,8 +110,8 @@ describe('stepAt', () => {
   });
 
   test('names the step whose hits a moment falls among', () => {
-    /* The eye and the ear are shown the same thing: whatever step the scheduler
-     * gave this moment to is the step lit at this moment. */
+    /* Eye and ear shown the same thing: the step the scheduler gave this moment
+     * is the step lit at it. */
     const [hit] = stepsInWindow(LOOP, 7 * STEP, 8 * STEP);
 
     expect(stepAt(LOOP, hit!.time)).toBe(hit!.step);

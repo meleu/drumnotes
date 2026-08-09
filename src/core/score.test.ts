@@ -12,7 +12,7 @@ import {
 import type { Duration, Entry, NoteEntry, ScoreVoice } from './score.js';
 import { entrySteps, toScore } from './score.js';
 
-/** A pattern built from absolute step indices, for readable cases. */
+/** A pattern from absolute step indices. */
 function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
   return Object.entries(hits).reduce(
     (pattern, [id, steps]) =>
@@ -32,7 +32,7 @@ function notesOf(voice: ScoreVoice): NoteEntry[] {
   return voice.entries.filter((entry): entry is NoteEntry => entry.kind === 'note');
 }
 
-/** A spread of grooves to hold the whole-score invariants against. */
+/** Grooves to hold the whole-score invariants against. */
 const SAMPLE_PATTERNS: Record<string, Pattern> = {
   empty: emptyPattern(),
   rock: defaultPattern(),
@@ -43,7 +43,7 @@ const SAMPLE_PATTERNS: Record<string, Pattern> = {
     kick: [0, 3, 10],
   }),
   offbeats: patternWith({ hihat: [1, 5, 9, 13], kick: [15] }),
-  // One bar silent and the other not, so the whole rest and the beat rule meet.
+  // One bar silent, one not: whole rest and beat rule meet.
   secondBarOnly: patternWith({ snare: [STEPS_PER_BAR + 5], kick: [STEPS_PER_BAR + 12] }),
 };
 
@@ -79,7 +79,7 @@ describe('toScore', () => {
     const notes = notesOf(voice);
 
     expect(notes).toHaveLength(1);
-    // Low to high, so the chord reads the way it is drawn.
+    // Low to high, as drawn.
     expect(notes[0]!.noteheads).toEqual([
       { position: 'c/5', type: 'normal' },
       { position: 'g/5', type: 'cross' },
@@ -92,11 +92,11 @@ describe('toScore', () => {
     const feet = notesOf(firstMeasureVoice(pattern, 'feet'));
 
     expect(hands.map((note) => note.noteheads)).toEqual([
-      [{ position: 'g/5', type: 'cross' }], // hi-hat: X above the top line
-      [{ position: 'c/5', type: 'normal' }], // snare: third space
+      [{ position: 'g/5', type: 'cross' }], // hi-hat: above top line
+      [{ position: 'c/5', type: 'normal' }], // snare: 3rd space
     ]);
     expect(feet.map((note) => note.noteheads)).toEqual([
-      [{ position: 'f/4', type: 'normal' }], // kick: first space
+      [{ position: 'f/4', type: 'normal' }], // kick: 1st space
     ]);
   });
 
@@ -113,7 +113,7 @@ describe('toScore', () => {
       voice.entries.map((entry) => (entry.kind === 'rest' ? entry.position : null)),
     );
 
-    // Hands on the fourth line, feet in the first space.
+    // Hands: 4th line. Feet: 1st space.
     expect(new Set(positions[0])).toEqual(new Set(['d/5']));
     expect(new Set(positions[1])).toEqual(new Set(['f/4']));
   });
@@ -160,11 +160,8 @@ describe('toScore', () => {
   });
 });
 
-/**
- * Every entry spelled the way a reader says it: `16`, `8`, `8.`, `q`, `w`, with
- * an `r` for a rest. Short enough that a whole beat's spelling fits on one line
- * of a case table, which is what makes the table below readable.
- */
+/** Entries spelled as read: `16`, `8`, `8.`, `q`, `w`, `r` for a rest. Short
+ *  enough that a beat's spelling fits one line of the case tables below. */
 const SPELLINGS: Record<Duration, string> = {
   whole: 'w',
   quarter: 'q',
@@ -182,13 +179,12 @@ function spellAll(entries: readonly Entry[]): string {
 
 describe('durations', () => {
   /**
-   * Every shape a single beat can take — all sixteen subsets of its four steps —
-   * with the spelling each one has to produce. Exhaustive by construction: if a
-   * beat can be written wrongly at all, one of these rows says so.
+   * All sixteen subsets of a beat's four steps, with the spelling each must
+   * produce — exhaustive by construction.
    *
-   * The cases are read off beat 1 of the hands voice. A sentinel snare on the
-   * last step of the measure keeps the measure from being silent, so the
-   * whole-rest spelling never stands in for a beat's own answer.
+   * Read off beat 1 of the hands voice. The sentinel snare on the last step
+   * keeps the measure from being silent, so the whole rest never stands in for
+   * a beat's own answer.
    */
   const SENTINEL = STEPS_PER_BAR - 1;
   const beatCases: readonly (readonly [hits: readonly number[], spelling: string])[] = [
@@ -230,8 +226,7 @@ describe('durations', () => {
   });
 
   it('caps a note by the gap in its own voice, not by what the other voice plays', () => {
-    // A kick between two snares says nothing about how long the snare before it
-    // is held: the hands read the same with it and without it.
+    // A kick between two snares says nothing about the snare's length.
     const withKick = patternWith({ snare: [0, STEPS_PER_BEAT], kick: [2] });
     const withoutKick = patternWith({ snare: [0, STEPS_PER_BEAT] });
 
@@ -249,9 +244,8 @@ describe('durations', () => {
           for (const entry of voice.entries) {
             expect(`${where}: ${entry.startStep}`).toBe(`${where}: ${step}`);
             step += entrySteps(entry);
-            // Nothing outlasts the beat it starts on, so nothing can reach a
-            // barline either. The whole rest is the one exception: it stands
-            // for a measure with nothing in it at all.
+            // Nothing outlasts its beat, so nothing reaches a barline. The
+            // whole rest is the exception: an entirely empty measure.
             if (entry.duration !== 'whole') {
               const beatEnd = (Math.floor(entry.startStep / STEPS_PER_BEAT) + 1) * STEPS_PER_BEAT;
               expect(`${where}: ${step}`).toBe(`${where}: ${Math.min(step, beatEnd)}`);
@@ -267,14 +261,12 @@ describe('durations', () => {
 
 describe('beaming', () => {
   /**
-   * Every shape a beat can take, against the groups it has to produce — the
-   * same sixteen subsets the duration table covers, read the other way round.
-   * Indices are into the voice's entries, and beat 1's entries start at 0, so
-   * they read here as positions within the beat.
+   * The same sixteen subsets, read the other way: the groups each must produce.
+   * Indices are into the voice's entries; beat 1 starts at 0, so they read as
+   * positions within the beat.
    *
-   * The sentinel snare that keeps the measure from being silent lands on the
-   * last sixteenth of beat 4, where it is written `8.r 16` — a lone sixteenth,
-   * which is never a group. So whatever appears below is beat 1's doing alone.
+   * The sentinel lands on the last sixteenth of beat 4, written `8.r 16` — a
+   * lone sixteenth, never a group. So everything below is beat 1's doing.
    */
   const SENTINEL = STEPS_PER_BAR - 1;
   const beamCases: readonly (readonly [
@@ -283,14 +275,14 @@ describe('beaming', () => {
     groups: readonly (readonly number[])[],
   ])[] = [
     [[], 'qr', []], //                     nothing to beam
-    [[0], 'q', []], //                     a quarter carries no flag
-    [[1], '16r 8.', []], //                one flagged note is not a group
+    [[0], 'q', []], //                     a quarter has no flag
+    [[1], '16r 8.', []], //                one flagged note is no group
     [[2], '8r 8', []],
     [[3], '8.r 16', []],
     [[0, 1], '16 8.', [[0, 1]]],
     [[0, 2], '8 8', [[0, 1]]],
     [[0, 3], '8. 16', [[0, 1]]],
-    [[1, 2], '16r 16 8', [[1, 2]]], //     the leading rest stays outside
+    [[1, 2], '16r 16 8', [[1, 2]]], //     leading rest stays outside
     [[1, 3], '16r 8 16', [[1, 2]]],
     [[2, 3], '8r 16 16', [[1, 2]]],
     [[0, 1, 2], '16 16 8', [[0, 1, 2]]],
@@ -318,7 +310,7 @@ describe('beaming', () => {
     ]);
   });
 
-  /** Every group of every voice of every measure, with where it came from. */
+  /** Every group of every voice of every measure, with its origin. */
   function allGroups(): { where: string; voice: ScoreVoice; group: readonly number[] }[] {
     return Object.entries(SAMPLE_PATTERNS).flatMap(([name, pattern]) =>
       toScore(pattern).measures.flatMap((measure) =>
@@ -333,7 +325,7 @@ describe('beaming', () => {
     );
   }
 
-  /** The only things a beam can join: flagged notes, dots or no dots. */
+  /** All a beam can join: flagged notes, dotted or not. */
   const BEAMABLE_SPELLINGS = ['16', '8', '8.'];
 
   it('joins nothing but flagged notes — never a rest, never a quarter', () => {
@@ -350,8 +342,8 @@ describe('beaming', () => {
         Math.floor(voice.entries[index]!.startStep / STEPS_PER_BEAT),
       );
 
-      // One beat for the whole group — so no beam reaches over a beat boundary,
-      // and since beats tile the measure, none reaches over a barline either.
+      // One beat per group, so no beam crosses a beat — nor, since beats tile
+      // the measure, a barline.
       expect(`${where}: ${beats.join(',')}`).toBe(
         `${where}: ${beats.map(() => beats[0]).join(',')}`,
       );

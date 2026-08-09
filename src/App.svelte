@@ -13,7 +13,7 @@
     <Tempo />
     <Export />
   </div>
-  <!-- The grid is entirely above the staff; the two views never interleave. -->
+  <!-- Grid entirely above the staff; the views never interleave. -->
   <Grid />
   <Staff />
 </main>
@@ -25,7 +25,7 @@
     padding: 1rem;
   }
 
-  /* One row of controls on a desktop, wrapping to two on a narrow phone. */
+  /* One row on desktop, wrapping to two on a narrow phone. */
   .controls {
     display: flex;
     flex-wrap: wrap;

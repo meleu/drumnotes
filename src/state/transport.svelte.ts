@@ -5,23 +5,19 @@ import { audioState } from './audio.svelte.js';
 import { patternState } from './pattern.svelte.js';
 
 /**
- * Playback: a coarse timer that hands the audio hardware every hit falling in a
- * short stretch of the near future, and lets the hardware decide exactly when
- * each one sounds. The timer's own accuracy therefore never reaches the ear —
- * it only has to tick often enough to stay ahead.
+ * Playback: a coarse timer hands the hardware every hit in a short stretch of
+ * the near future and lets the hardware decide exactly when each sounds. The
+ * timer's accuracy never reaches the ear — it only has to stay ahead.
  */
 
 /** How far ahead each tick hands work over. */
 const LOOKAHEAD_SECONDS = 0.1;
-/** How often the timer ticks. Comfortably shorter than the lookahead, so a
- * late tick still lands before the work it queued has run out. */
+/** Comfortably shorter than the lookahead, so a late tick still lands before
+ *  the queued work runs out. */
 const TICK_MS = 25;
-/**
- * The slack between pressing Play and the first sound, so step 0 is handed over
- * as a moment still to come rather than one that has just gone by. Real time
- * rather than musical: it does not scale with tempo, and it is a fraction of
- * even the fastest beat. Not a count-in — nobody hears this.
- */
+/** Slack between Play and the first sound, so step 0 is handed over as a moment
+ *  still to come. Real time, not musical: a fraction of even the fastest beat,
+ *  and nobody hears it. */
 const START_SLACK_SECONDS = 0.06;
 
 class TransportState {
@@ -29,28 +25,23 @@ class TransportState {
   #step = $state(0);
   #timer: ReturnType<typeof setInterval> | undefined;
   #frame: number | undefined;
-  /** The tempo being played and the audio-clock time step 0 sounded at. */
+  /** Tempo being played, and the audio-clock time step 0 sounded at. */
   #loop: Loop = { tempo: DEFAULT_TEMPO, origin: 0 };
-  /**
-   * The time through which hits have already been handed over. Each tick opens
-   * its window exactly where the last one closed, so consecutive windows tile
-   * the timeline: nothing is scheduled twice and nothing falls between them.
-   */
+  /** Handed over through this time. Each tick opens where the last closed, so
+   *  windows tile: nothing scheduled twice, nothing falling between. */
   #scheduledThrough = 0;
 
   get playing(): boolean {
     return this.#playing;
   }
 
-  /**
-   * The step sounding right now, or `null` when stopped — there is no playhead
-   * to show then, which is what clears every highlight at once.
-   */
+  /** The step sounding now, or `null` when stopped — which clears every
+   *  highlight at once. */
   get playhead(): number | null {
     return this.#playing ? this.#step : null;
   }
 
-  /** Starts the loop from the top. Pressing it while playing does nothing. */
+  /** Starts from the top; a no-op while playing. */
   start(): void {
     if (this.#playing) return;
 
@@ -65,10 +56,7 @@ class TransportState {
     this.#follow();
   }
 
-  /**
-   * Halts and rewinds to the first step — the next Play starts from there,
-   * because starting is the only thing that sets an origin.
-   */
+  /** Halts and rewinds: starting is the only thing that sets an origin. */
   stop(): void {
     if (!this.#playing) return;
 
@@ -82,11 +70,10 @@ class TransportState {
   }
 
   /**
-   * The pattern and tempo are read afresh every tick, which is exactly how an
-   * edit becomes audible: within one window, on the next tick, without ever
-   * retracting a hit already handed over. A tempo change pivots the loop about
-   * the edge of the last window handed over, so the groove carries on from
-   * where it had got to instead of jumping.
+   * Pattern and tempo are read afresh each tick — that is how an edit becomes
+   * audible, on the next tick, without retracting a hit already handed over. A
+   * tempo change pivots about the last window's edge, so the groove carries on
+   * instead of jumping.
    */
   #schedule(): void {
     const pattern = patternState.current;
@@ -105,20 +92,17 @@ class TransportState {
   }
 
   /**
-   * The playhead. Each frame asks the audio clock — the very clock the hits
-   * were handed to — where the loop has got to, and converts it with the same
-   * arithmetic that placed them. A wall clock or a count of frames would answer
-   * the question the eye asked rather than the one the ear did, and the two
-   * would slowly part company; this cannot.
+   * The playhead. Each frame asks the audio clock — the clock the hits were
+   * handed to — and converts with the arithmetic that placed them. A wall clock
+   * or a frame count would answer the eye's question, not the ear's, and the
+   * two would part company; this cannot.
    */
   #follow(): void {
     this.#frame = requestAnimationFrame(() => {
-      /* Play is pressed a moment before the loop's origin, so that slack
-       * reads as standing on step 0 rather than as the tail of a pass that
-       * never happened. */
+      // Play is pressed just before the origin; that slack reads as step 0
+      // rather than the tail of a pass that never happened.
       const step = stepAt(this.#loop, Math.max(audioState.now, this.#loop.origin));
-      // A step lasts many frames, so most frames have nothing to report; the
-      // state is written only when the answer actually changes.
+      // A step lasts many frames: write only when the answer changes.
       if (step !== this.#step) this.#step = step;
       this.#follow();
     });

@@ -1,9 +1,7 @@
 /**
- * The local-storage adapter: the only place that knows where the autosaved
- * pattern lives. All of the shape checking happens in the pure codec; this
- * layer only moves a string in and out of the browser, and swallows the errors
- * storage itself can raise — a blocked or full store means the groove is not
- * saved, never that the app stops working.
+ * The only place that knows where the autosaved pattern lives. Shape checking is
+ * the codec's; this just moves a string in and out and swallows storage errors —
+ * a blocked or full store means unsaved, never broken.
  */
 
 import type { Pattern } from '../core/pattern.js';

@@ -5,10 +5,9 @@ import { STORAGE_KEY } from '../../src/adapters/storage.js';
 import type { InstrumentId, Pattern } from '../../src/core/pattern.js';
 import { INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
 
-// Each test gets its own browser context, so local storage starts empty unless
-// the test seeds it.
+// Each test gets its own context, so storage starts empty unless seeded.
 
-/** The steps the grid shows as filled, in document order. */
+/** Steps the grid shows as filled, in document order. */
 function filledCells(page: Page, instrument: InstrumentId) {
   return page
     .locator(`button[data-instrument="${instrument}"][aria-pressed="true"]`)

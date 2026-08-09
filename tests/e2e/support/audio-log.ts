@@ -2,12 +2,12 @@ import type { Page } from '@playwright/test';
 
 /**
  * What the page did to the audio hardware. Recorded by wrapping the Web Audio
- * entry points before any application code runs, so the browser tests can
- * assert on what was played without listening to anything.
+ * entry points before any app code runs, so tests can assert on what was played
+ * without listening.
  */
 export interface AudioLog {
   decodes: number;
-  /** One entry per hit handed to the hardware: the time it was given, if any. */
+  /** One entry per hit handed over: the time it was given, if any. */
   starts: (number | undefined)[];
   resumes: number;
   stops: number;

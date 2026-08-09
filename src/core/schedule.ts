@@ -1,44 +1,42 @@
 /**
- * The arithmetic behind playback: which steps sound between two moments, at a
- * given tempo, looping forever. Pure — it knows nothing of audio, of timers or
- * of how far ahead the caller likes to work.
+ * Playback arithmetic: which steps sound between two moments, at a tempo,
+ * looping forever. Pure — no audio, no timers, no lookahead policy.
  *
- * Times here are whatever clock the caller keeps; the app hands it the audio
- * clock, and a test hands it plain numbers.
+ * Times are whatever clock the caller keeps: the audio clock in the app, plain
+ * numbers in a test.
  */
 
 import { STEPS_PER_BEAT, TOTAL_STEPS } from './pattern.js';
 
 const SECONDS_PER_MINUTE = 60;
 
-/** How long one sixteenth-note step lasts, in seconds. */
+/** Seconds per sixteenth-note step. */
 export function stepDuration(tempo: number): number {
   return SECONDS_PER_MINUTE / tempo / STEPS_PER_BEAT;
 }
 
-/** How long one pass through the whole pattern lasts, in seconds. */
+/** Seconds per pass through the whole pattern. */
 export function loopDuration(tempo: number): number {
   return TOTAL_STEPS * stepDuration(tempo);
 }
 
 export interface Loop {
   readonly tempo: number;
-  /** The time at which step 0 of the first pass sounds. */
+  /** When step 0 of the first pass sounds. */
   readonly origin: number;
 }
 
 export interface ScheduledStep {
-  /** Index into a lane, always within the pattern however many passes deep. */
+  /** Index into a lane, wrapped however many passes deep. */
   readonly step: number;
-  /** When it sounds — an absolute time, still counting up past the loop point. */
+  /** Absolute time, still climbing past the loop point. */
   readonly time: number;
 }
 
 /**
- * Every step falling in `[from, until)`, in order, each with the moment it
- * sounds. The window is half-open on purpose: a step landing exactly on the
- * boundary between two windows belongs to the one that opens on it, so a caller
- * walking contiguous windows plays it exactly once and never skips it.
+ * Every step in `[from, until)`, in order, with the moment it sounds. Half-open
+ * on purpose: a step on a window boundary belongs to the window opening on it,
+ * so contiguous windows play it exactly once.
  */
 export function stepsInWindow(loop: Loop, from: number, until: number): ScheduledStep[] {
   const duration = stepDuration(loop.tempo);
@@ -52,39 +50,32 @@ export function stepsInWindow(loop: Loop, from: number, until: number): Schedule
   return steps;
 }
 
-/**
- * Where a moment falls in the pattern, counted in steps from the origin and
- * still climbing past the loop point — fractional between two steps.
- */
+/** Where a moment falls, in fractional steps from the origin, unwrapped. */
 export function positionAt(loop: Loop, time: number): number {
   return (time - loop.origin) / stepDuration(loop.tempo);
 }
 
 /**
- * Which step is sounding at a moment — the same arithmetic that decided when
- * each hit would sound, read the other way round. Sharing it is what keeps the
- * playhead from drifting against the kit: both answers come from one clock and
- * one formula, so they cannot disagree.
+ * Which step sounds at a moment — the scheduling arithmetic read backwards. One
+ * clock, one formula, so the playhead cannot drift against the kit.
  */
 export function stepAt(loop: Loop, time: number): number {
   return wrap(Math.floor(positionAt(loop, time)));
 }
 
 /**
- * The same loop at a new tempo, still standing in the same place at `at`.
+ * Same loop, new tempo, same place in the pattern at `at`.
  *
- * A loop is anchored by the moment its first step sounded, so simply writing a
- * new tempo over the old one would re-measure that whole elapsed stretch in
- * steps of a different length and jerk the pattern to some unrelated step.
- * Moving the anchor instead pivots the loop about `at`: everything before it
- * keeps the times it was already given, and everything after it runs at the new
- * tempo from exactly where the old one left off.
+ * A loop is anchored at its first step, so overwriting the tempo would
+ * re-measure the elapsed stretch in steps of another length and jerk to an
+ * unrelated step. Moving the anchor pivots about `at` instead: what came before
+ * keeps its times, what follows runs at the new tempo from there.
  */
 export function retune(loop: Loop, tempo: number, at: number): Loop {
   return { tempo, origin: at - positionAt(loop, at) * stepDuration(tempo) };
 }
 
-/** Which step of the pattern a pass-counting index lands on. */
+/** Pass-counting index → step of the pattern. */
 function wrap(index: number): number {
   return ((index % TOTAL_STEPS) + TOTAL_STEPS) % TOTAL_STEPS;
 }

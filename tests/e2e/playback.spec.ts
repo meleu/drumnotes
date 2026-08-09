@@ -14,14 +14,12 @@ import {
 import { loopDuration } from '../../src/core/schedule.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
 
-/*
- * Playback runs at the top of the tempo range throughout, so a whole loop goes
- * by in a couple of seconds and a test can watch one wrap around.
- */
+/* Top of the tempo range throughout, so a whole loop passes in a couple of
+   seconds and a test can watch one wrap around. */
 const TEMPO = MAX_TEMPO;
 const LOOP_MS = loopDuration(TEMPO) * 1000;
 
-/** The one transport button, whatever it currently reads. */
+/** The one transport button, whatever it reads. */
 const transport = '.transport';
 
 function at(pattern: Pattern, hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
@@ -43,7 +41,7 @@ async function load(page: Page, pattern: Pattern): Promise<void> {
   await expect(page.locator(transport)).toBeEnabled();
 }
 
-/** Hits handed over with a time on the audio clock, rather than auditioned. */
+/** Hits handed over with a time, rather than auditioned. */
 async function scheduled(page: Page): Promise<number[]> {
   const { starts } = await audioLog(page);
   return starts.filter((when): when is number => typeof when === 'number');
@@ -52,8 +50,7 @@ async function scheduled(page: Page): Promise<number[]> {
 test('starts and stops the transport', async ({ page }) => {
   await load(page, defaultPattern());
 
-  // The one button offers whichever action is available, so it always names
-  // what pressing it will do rather than what the transport is doing.
+  // The button names what pressing it does, not what the transport is doing.
   await expect(page.locator(transport)).toHaveAttribute('data-state', 'stopped');
   await expect(page.locator(transport)).toHaveText('Play');
 
@@ -117,8 +114,8 @@ test('sounds a cell enabled during playback on the next pass', async ({ page }) 
 });
 
 test('starts from the top again after a stop', async ({ page }) => {
-  // Only the downbeat is written, so the first hit of a pass arrives at once if
-  // playback rewound and up to a whole loop later if it did not.
+  // Only the downbeat is written, so a pass's first hit arrives at once if
+  // playback rewound, and up to a loop later if not.
   await load(page, at(emptyPattern(), { kick: [0] }));
 
   await page.locator(transport).click();
@@ -129,7 +126,7 @@ test('starts from the top again after a stop', async ({ page }) => {
   const before = (await scheduled(page)).length;
 
   await page.locator(transport).click();
-  // Far shorter than a loop: only a rewind can produce a downbeat this soon.
+  // Far shorter than a loop: only a rewind gives a downbeat this soon.
   await expect
     .poll(async () => (await scheduled(page)).length, { timeout: 400 })
     .toBeGreaterThan(before);

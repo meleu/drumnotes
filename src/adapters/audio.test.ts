@@ -3,11 +3,8 @@ import { expect, test } from 'vitest';
 import { INSTRUMENTS } from '../core/pattern.js';
 import { createDrumKit } from './audio.js';
 
-/**
- * Enough of the Web Audio API to exercise the kit in a node test. The real
- * `AudioContext` satisfies the same shape; the casts are the seam between a
- * browser type and a stand-in for it.
- */
+/** Enough Web Audio to exercise the kit in node. The real `AudioContext` has
+ *  the same shape; the casts are the seam to the stand-in. */
 class FakeSource {
   buffer: AudioBuffer | null = null;
   connectedTo: unknown = null;

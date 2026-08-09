@@ -1,18 +1,16 @@
-# Git hooks, managed by lefthook. Reference: https://lefthook.dev/configuration/
+# Git hooks, managed by lefthook. https://lefthook.dev/configuration/
 #
-# The installed hook in .git/hooks is a shim that re-reads this file on every
-# run, so editing a job below takes effect right away. Re-run
-# `pnpm exec lefthook install` only when adding or removing a hook itself —
-# a top-level key like `pre-push` — since that needs a new shim on disk.
+# .git/hooks holds a shim that re-reads this file each run, so job edits take
+# effect at once. Re-run `pnpm exec lefthook install` only when adding or
+# removing a hook itself (a top-level key like `pre-push`): that needs a shim.
 
 pre-commit:
   exclude:
     - '*.md'
 
-  # Jobs run top to bottom, and `piped` aborts at the first failure: no point
-  # formatting code that does not lint, or verifying a tree we already know is
-  # broken. The order is load-bearing — `eslint --fix` rewrites code, so
-  # Prettier runs afterwards to normalise whatever it produced.
+  # Top to bottom, `piped` aborting at the first failure: no point formatting
+  # code that does not lint, or verifying a tree known to be broken. Order is
+  # load-bearing — `eslint --fix` rewrites code, so Prettier runs after it.
   piped: true
   jobs:
     - name: lint
@@ -24,15 +22,13 @@ pre-commit:
       run: pnpm exec prettier --write --ignore-unknown {staged_files}
       stage_fixed: true
 
-    # The jobs above only ever see staged files. This one re-checks the whole
-    # repo and adds the typecheck and unit tests, so it is not the redundancy
-    # it looks like.
+    # The jobs above only see staged files. This re-checks the whole repo and
+    # adds typecheck and unit tests — not the redundancy it looks like.
     - name: verify
       run: pnpm run verify
 
-# The end-to-end suite is too slow to sit in front of every commit, so it
-# guards the push instead — the last point where a failure is still cheap to
-# fix locally.
+# Too slow for every commit, so it guards the push — the last point where a
+# failure is cheap to fix locally.
 pre-push:
   jobs:
     - name: e2e

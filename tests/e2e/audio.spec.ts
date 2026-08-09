@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 import { INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
 
-/** The first cell the default groove leaves empty in a given lane. */
+/** First cell the default groove leaves empty in a lane. */
 function silentCell(page: Page, instrument: 'hihat' | 'snare' | 'kick') {
   const step = defaultPattern().lanes[instrument].indexOf(false);
   return page.locator(`button[data-instrument="${instrument}"][data-step="${step}"]`);
@@ -53,7 +53,7 @@ test('sounds a cell as it is written and stays silent as it is rubbed out', asyn
 
   await cell.click();
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
-  // No time handed over: an audition sounds at once rather than through a queue.
+  // No time handed over: an audition sounds at once, not through a queue.
   expect((await audioLog(page)).starts).toEqual([undefined]);
 
   await cell.click();

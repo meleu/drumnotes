@@ -10,7 +10,7 @@ import {
 } from './pattern.js';
 import { SCHEMA_VERSION, parsePattern, serialisePattern } from './codec.js';
 
-/** A well-formed payload, as a plain object to be corrupted one field at a time. */
+/** A well-formed payload, to be corrupted one field at a time. */
 function payload(): Record<string, unknown> {
   return JSON.parse(serialisePattern(emptyPattern()));
 }
@@ -25,7 +25,7 @@ function without(source: Record<string, unknown>, key: string): Record<string, u
   return copy;
 }
 
-/** The well-formed payload with some of its fields replaced, serialised. */
+/** The payload with fields replaced, serialised. */
 function corrupt(overrides: Record<string, unknown>): string {
   return JSON.stringify({ ...payload(), ...overrides });
 }

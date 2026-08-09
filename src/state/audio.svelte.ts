@@ -2,14 +2,11 @@ import { createDrumKit } from '../adapters/audio.js';
 import type { InstrumentId } from '../core/pattern.js';
 
 /**
- * The reactive edge of the drum kit. Components ask it whether the kit can be
- * played and tell it what was just struck; nothing else in the app touches an
- * `AudioContext`.
+ * Reactive edge of the drum kit; nothing else touches an `AudioContext`.
  *
- * The context is built on load — suspended, as every browser insists — and
- * woken on the first press, which is a user gesture by definition. Decoding
- * starts immediately so the samples are ready before the first tap rather than
- * because of it.
+ * The context is built on load (suspended, as browsers insist) and woken on the
+ * first press, which is a user gesture by definition. Decoding starts at once,
+ * so samples are ready before the first tap rather than because of it.
  */
 class AudioState {
   #kit = createDrumKit(new AudioContext({ latencyHint: 'interactive' }));
@@ -21,28 +18,25 @@ class AudioState {
     });
   }
 
-  /** Whether every sample has decoded. Controls that make sound wait on this. */
+  /** Controls that make sound wait on this. */
   get ready(): boolean {
     return this.#ready;
   }
 
-  /** The audio clock, the one clock playback is allowed to believe. */
+  /** The one clock playback is allowed to believe. */
   get now(): number {
     return this.#kit.now;
   }
 
-  /**
-   * Sounds an instrument the moment it is written down. Waking the context is
-   * deliberately not awaited: awaiting it would put a round trip between the
-   * tap and the hit, and a hit started on a context that is about to run sounds
-   * as soon as it does.
-   */
+  /** Sounds an instrument as it is written down. Waking is deliberately not
+   *  awaited: that round trip would sit between tap and hit, and a hit started
+   *  on a context about to run sounds as soon as it does. */
   audition(instrument: InstrumentId): void {
     this.wake();
     this.#kit.play(instrument);
   }
 
-  /** Hands a hit to the hardware for a moment that has not arrived yet. */
+  /** Hands a hit to the hardware for a moment yet to come. */
   schedule(instrument: InstrumentId, when: number): void {
     this.#kit.play(instrument, when);
   }
