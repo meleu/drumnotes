@@ -4,14 +4,16 @@
 # so CI and a developer's machine can never drift apart silently. pnpm's version
 # comes from the `packageManager` field in package.json for the same reason —
 # neither version is written down twice.
+#
+# The checkout is not here, and cannot be: a local action is loaded from the
+# working directory, so the repository has to be on disk before this file can
+# run at all. Each job checks out first.
 name: Setup
-description: Checks out the repository and installs the toolchain and dependencies
+description: Installs the toolchain and the project's dependencies
 
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v5
-
     # Before setup-node, so that `cache: pnpm` below has a store to point at.
     - uses: pnpm/action-setup@v4
 

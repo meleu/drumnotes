@@ -28,6 +28,7 @@ jobs:
     name: Lint, typecheck and unit tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
 
       # `pnpm run verify` is exactly this chain, but as a single step a failure
@@ -49,6 +50,7 @@ jobs:
     name: Browser tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
 
       # The `test:e2e` script installs the browser too, but without the system
@@ -64,7 +66,7 @@ jobs:
       # first retry, which is the only way to see what the browser saw.
       - name: Upload traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-traces
           path: test-results/
@@ -96,6 +98,7 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
 
       - name: Configure Pages
