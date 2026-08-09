@@ -16,7 +16,12 @@ test('renders every step of every bar as a button per instrument row', async ({ 
 test('orders the rows hi-hat, snare, kick, matching staff height', async ({ page }) => {
   const names = page.locator('.bar').first().locator('.name');
 
-  await expect(names).toHaveText(['Hi-hat', 'Snare', 'Kick']);
+  // Abbreviated on screen so the label column costs the cells as little width
+  // as possible; the full name is still carried, as the tooltip.
+  await expect(names).toHaveText(['HH', 'SD', 'BD']);
+  for (const [row, name] of ['Hi-hat', 'Snare', 'Kick'].entries()) {
+    await expect(names.nth(row)).toHaveAttribute('title', name);
+  }
 });
 
 test('labels the columns with the counting, once per bar', async ({ page }) => {

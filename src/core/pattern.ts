@@ -36,6 +36,12 @@ export type VoiceId = 'hands' | 'feet';
 export interface Instrument {
   readonly id: InstrumentId;
   readonly name: string;
+  /**
+   * The drum-notation abbreviation, for labelling a row where the full name
+   * would cost the cells their width. Written alongside the name rather than
+   * replacing it: what is read out stays the word a drummer would say.
+   */
+  readonly abbreviation: string;
   readonly voice: VoiceId;
   readonly position: StaffPosition;
   readonly notehead: NoteheadType;
@@ -53,9 +59,30 @@ export interface Instrument {
  * adapter and this one stays pure.
  */
 export const INSTRUMENTS: readonly Instrument[] = [
-  { id: 'hihat', name: 'Hi-hat', voice: 'hands', position: 'g/5', notehead: 'cross' },
-  { id: 'snare', name: 'Snare', voice: 'hands', position: 'c/5', notehead: 'normal' },
-  { id: 'kick', name: 'Kick', voice: 'feet', position: 'f/4', notehead: 'normal' },
+  {
+    id: 'hihat',
+    name: 'Hi-hat',
+    abbreviation: 'HH',
+    voice: 'hands',
+    position: 'g/5',
+    notehead: 'cross',
+  },
+  {
+    id: 'snare',
+    name: 'Snare',
+    abbreviation: 'SD',
+    voice: 'hands',
+    position: 'c/5',
+    notehead: 'normal',
+  },
+  {
+    id: 'kick',
+    name: 'Kick',
+    abbreviation: 'BD',
+    voice: 'feet',
+    position: 'f/4',
+    notehead: 'normal',
+  },
 ];
 
 export interface VoiceStyle {

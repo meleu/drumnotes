@@ -31,7 +31,10 @@
       {/each}
 
       {#each INSTRUMENTS as instrument (instrument.id)}
-        <span class="name">{instrument.name}</span>
+        <!-- Abbreviated so the label column costs the cells as little width as
+             possible; the full name is a hover away, and is what every cell in
+             the row is announced by. -->
+        <span class="name" title={instrument.name}>{instrument.abbreviation}</span>
         {#each bar.steps as step (step.index)}
           <button
             type="button"
@@ -67,7 +70,9 @@
   .bar {
     display: grid;
     grid-template-columns: auto repeat(var(--steps), 1fr);
-    gap: 2px;
+    /* Hairline: every point spent between cells is a point off their width, and
+       each cell's own border is already enough to tell it from its neighbour. */
+    gap: 1px;
     align-items: center;
   }
 
