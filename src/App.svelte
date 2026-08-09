@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Export from './components/Export.svelte';
   import Grid from './components/Grid.svelte';
   import Staff from './components/Staff.svelte';
   import Tempo from './components/Tempo.svelte';
@@ -10,6 +11,7 @@
   <div class="controls">
     <Transport />
     <Tempo />
+    <Export />
   </div>
   <!-- The grid is entirely above the staff; the two views never interleave. -->
   <Grid />

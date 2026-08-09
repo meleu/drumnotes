@@ -441,16 +441,16 @@ writes, and download it as a dated file. The copy affordance hides itself when u
 
 ### Acceptance criteria
 
-- [ ] Export and screen rendering call the same drawing routine with different contexts
-- [ ] The exported image is roughly 2400px wide regardless of viewport width
-- [ ] Both measures are on a single system in the export, even when the screen is wrapping
+- [x] Export and screen rendering call the same drawing routine with different contexts
+- [x] The exported image is roughly 2400px wide regardless of viewport width
+- [x] Both measures are on a single system in the export, even when the screen is wrapping
       them
-- [ ] The exported image contains no playhead column and no measure shading
-- [ ] The background is opaque light, with a margin around the staff
-- [ ] The downloaded filename carries the date
-- [ ] The copy control is absent (not merely disabled) when image clipboard writes are
+- [x] The exported image contains no playhead column and no measure shading
+- [x] The background is opaque light, with a margin around the staff
+- [x] The downloaded filename carries the date
+- [x] The copy control is absent (not merely disabled) when image clipboard writes are
       unsupported
-- [ ] Browser test: triggering the download produces a non-empty PNG file
+- [x] Browser test: triggering the download produces a non-empty PNG file
 
 ---
 
@@ -522,6 +522,13 @@ reopen them.
    reports, not by `drawScore`. Decided in phase 9 so the export keeps sharing one drawing
    routine and still carries no playhead, and so a step change repaints a rectangle rather
    than re-engraving the staff.
+10. **Export canvas** — a detached `<canvas>` and `toBlob`, rather than `OffscreenCanvas`
+    and `convertToBlob`. Both are offscreen; the detached element is supported everywhere
+    the rest of the app is. Decided in phase 10.
+11. **Copying is handed an unresolved image** — `copyImage` takes the `Promise<Blob>`, not
+    the blob, so `navigator.clipboard.write` is called inside the click rather than after
+    an `await`. A browser only honours a clipboard write belonging to a user gesture, and
+    awaiting the drawing first spends it. Decided in phase 10.
 
 ## Still open
 
