@@ -13,8 +13,8 @@
  * started on runs out, whichever comes first.
  */
 
-import type { InstrumentId, NoteheadType, Pattern, StaffPosition, VoiceId } from './pattern.js';
-import { BARS, INSTRUMENTS, STEPS_PER_BAR, STEPS_PER_BEAT, VOICES } from './pattern.js';
+import type { Instrument, NoteheadType, Pattern, StaffPosition, VoiceId } from './pattern.js';
+import { BARS, INSTRUMENTS, STEPS_PER_BAR, STEPS_PER_BEAT, VOICES, isHit } from './pattern.js';
 
 /**
  * The note values reachable on this grid. The beat ceiling — nothing outlasts a
@@ -32,11 +32,18 @@ const STEPS_PER_DURATION: Readonly<Record<Duration, number>> = {
   sixteenth: STEPS_PER_BEAT / 4,
 };
 
-/** One head of a chord: where it sits, and what shape it is drawn with. */
+/** One head of a stroke: where it sits, and what shape it is drawn with. */
 export interface Notehead {
   readonly position: StaffPosition;
   readonly type: NoteheadType;
 }
+
+/**
+ * What one voice strikes on one step, low to high. A hi-hat and a snare struck
+ * together are a single stroke, which is why they come out on one stem: the
+ * voice plays one thing there, not two.
+ */
+type Stroke = readonly Notehead[];
 
 interface BaseEntry {
   /** Absolute step index into the pattern's lanes — the entry's identity. */
@@ -172,16 +179,16 @@ function voiceContent(
   const instruments = INSTRUMENTS_LOW_TO_HIGH.filter((instrument) => instrument.voice === voice);
 
   const firstStep = measure * STEPS_PER_BAR;
-  const steps = Array.from({ length: STEPS_PER_BAR }, (_, stepInBar) =>
-    instruments
-      .filter((instrument) => isHit(pattern, instrument.id, firstStep + stepInBar))
-      .map(({ position, notehead }) => ({ position, type: notehead })),
+  // Each step of the measure holds this voice's stroke there, or nothing at all:
+  // silence is the absence of a stroke, never a stroke of nothing.
+  const strokes = Array.from({ length: STEPS_PER_BAR }, (_, stepInBar) =>
+    strokeAt(pattern, instruments, firstStep + stepInBar),
   );
 
   // A voice that never plays is written as one whole rest rather than four
   // quarter rests — the conventional spelling for an empty measure. It carries
   // this voice's rest position, so it does not land on the renderer's default.
-  if (steps.every((noteheads) => noteheads.length === 0)) {
+  if (strokes.every((stroke) => stroke === undefined)) {
     return {
       entries: [
         { kind: 'rest', startStep: firstStep, duration: 'whole', dots: 0, position: restPosition },
@@ -202,18 +209,18 @@ function voiceContent(
     const beatFirstEntry = entries.length;
 
     for (let stepInBar = beatStart; stepInBar < beatEnd;) {
-      // Notes and silence obey the same rule: hold until whatever this voice
-      // plays next, or until the beat runs out, whichever comes first.
+      // Notes and silence obey the same rule: hold until this voice's next
+      // stroke, or until the beat runs out, whichever comes first.
       let next = stepInBar + 1;
-      while (next < beatEnd && steps[next]!.length === 0) next += 1;
+      while (next < beatEnd && strokes[next] === undefined) next += 1;
 
-      const noteheads = steps[stepInBar]!;
+      const stroke = strokes[stepInBar];
       const startStep = firstStep + stepInBar;
       const { duration, dots } = valueSpanning(next - stepInBar);
 
       entries.push(
-        noteheads.length > 0
-          ? { kind: 'note', startStep, duration, dots, noteheads }
+        stroke !== undefined
+          ? { kind: 'note', startStep, duration, dots, noteheads: stroke }
           : { kind: 'rest', startStep, duration, dots, position: restPosition },
       );
       stepInBar = next;
@@ -231,6 +238,17 @@ function voiceContent(
   return { entries, beamGroups };
 }
 
-function isHit(pattern: Pattern, instrument: InstrumentId, step: number): boolean {
-  return pattern.lanes[instrument][step] ?? false;
+/**
+ * What this voice strikes on one step, or nothing where it does not play there.
+ * Heads come out low to high, which is the order a chord has to be written in.
+ */
+function strokeAt(
+  pattern: Pattern,
+  instruments: readonly Instrument[],
+  step: number,
+): Stroke | undefined {
+  const heads = instruments
+    .filter((instrument) => isHit(pattern, instrument.id, step))
+    .map(({ position, notehead }) => ({ position, type: notehead }));
+  return heads.length > 0 ? heads : undefined;
 }

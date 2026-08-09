@@ -14,8 +14,7 @@ from, who wrote it, and the terms it is redistributed under.
   `data/drumkits/GMRockKit` at tag `1.2.6`.
 - **Authors**: Copyright © 2024 Glen MacArthur / Sebastian Moors.
 - **Licence**: GNU General Public License, version 3 or later — as declared in the
-  kit's `drumkit.xml`. **This is why drumnotes is GPL**: the samples are
-  redistributed with the app, so the app takes their terms.
+  kit's `drumkit.xml`.
 
 ## Bravura (music font)
 

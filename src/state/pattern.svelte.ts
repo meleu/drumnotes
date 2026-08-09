@@ -1,5 +1,5 @@
 import type { InstrumentId, Pattern } from '../core/pattern.js';
-import { isStepFilled, toggleStep, withTempo } from '../core/pattern.js';
+import { isHit, toggleStep, withTempo } from '../core/pattern.js';
 import { loadPattern, savePattern } from '../adapters/storage.js';
 
 /**
@@ -23,7 +23,7 @@ class PatternState {
   toggle(instrument: InstrumentId, step: number): boolean {
     const next = toggleStep(this.#pattern, instrument, step);
     this.#replace(next);
-    return isStepFilled(next, instrument, step);
+    return isHit(next, instrument, step);
   }
 
   /**

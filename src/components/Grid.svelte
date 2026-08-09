@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { InstrumentId } from '../core/pattern.js';
-  import { INSTRUMENTS, STEPS_PER_BAR, gridBars, isStepFilled } from '../core/pattern.js';
+  import { INSTRUMENTS, STEPS_PER_BAR, gridBars, isHit } from '../core/pattern.js';
   import { audioState } from '../state/audio.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
   import { transportState } from '../state/transport.svelte.js';
@@ -38,7 +38,7 @@
             class="cell"
             class:beat={step.isBeatStart}
             class:playing={transportState.playhead === step.index}
-            aria-pressed={isStepFilled(patternState.current, instrument.id, step.index)}
+            aria-pressed={isHit(patternState.current, instrument.id, step.index)}
             aria-label="{instrument.name}, step {step.index + 1}"
             data-instrument={instrument.id}
             data-step={step.index}

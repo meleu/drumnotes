@@ -8,19 +8,21 @@ import { patternState } from './pattern.svelte.js';
  * Playback: a coarse timer that hands the audio hardware every hit falling in a
  * short stretch of the near future, and lets the hardware decide exactly when
  * each one sounds. The timer's own accuracy therefore never reaches the ear —
- * it only has to wake often enough to stay ahead.
+ * it only has to tick often enough to stay ahead.
  */
 
-/** How far ahead each pass hands work over. */
+/** How far ahead each tick hands work over. */
 const LOOKAHEAD_SECONDS = 0.1;
-/** How often the timer wakes. Comfortably shorter than the lookahead, so a
- * late wake-up still lands before the work it queued has run out. */
+/** How often the timer ticks. Comfortably shorter than the lookahead, so a
+ * late tick still lands before the work it queued has run out. */
 const TICK_MS = 25;
 /**
- * A beat of slack between pressing Play and the first hit, so step 0 is handed
- * over as a future moment rather than one that has just gone by.
+ * The slack between pressing Play and the first sound, so step 0 is handed over
+ * as a moment still to come rather than one that has just gone by. Real time
+ * rather than musical: it does not scale with tempo, and it is a fraction of
+ * even the fastest beat. Not a count-in — nobody hears this.
  */
-const LEAD_IN_SECONDS = 0.06;
+const START_SLACK_SECONDS = 0.06;
 
 class TransportState {
   #playing = $state(false);
@@ -30,7 +32,7 @@ class TransportState {
   /** The tempo being played and the audio-clock time step 0 sounded at. */
   #loop: Loop = { tempo: DEFAULT_TEMPO, origin: 0 };
   /**
-   * The time through which hits have already been handed over. Each pass opens
+   * The time through which hits have already been handed over. Each tick opens
    * its window exactly where the last one closed, so consecutive windows tile
    * the timeline: nothing is scheduled twice and nothing falls between them.
    */
@@ -53,7 +55,7 @@ class TransportState {
     if (this.#playing) return;
 
     audioState.wake();
-    const origin = audioState.now + LEAD_IN_SECONDS;
+    const origin = audioState.now + START_SLACK_SECONDS;
     this.#loop = { tempo: patternState.current.tempo, origin };
     this.#scheduledThrough = origin;
     this.#playing = true;
@@ -80,8 +82,8 @@ class TransportState {
   }
 
   /**
-   * The pattern and tempo are read afresh every pass, which is exactly how an
-   * edit becomes audible: within one window, on the next pass, without ever
+   * The pattern and tempo are read afresh every tick, which is exactly how an
+   * edit becomes audible: within one window, on the next tick, without ever
    * retracting a hit already handed over. A tempo change pivots the loop about
    * the edge of the last window handed over, so the groove carries on from
    * where it had got to instead of jumping.
@@ -111,7 +113,7 @@ class TransportState {
    */
   #follow(): void {
     this.#frame = requestAnimationFrame(() => {
-      /* Play is pressed a moment before the loop's origin, so that lead-in
+      /* Play is pressed a moment before the loop's origin, so that slack
        * reads as standing on step 0 rather than as the tail of a pass that
        * never happened. */
       const step = stepAt(this.#loop, Math.max(audioState.now, this.#loop.origin));

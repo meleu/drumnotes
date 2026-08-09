@@ -108,8 +108,8 @@ function beatStep(beat: number, offset = 0): number {
   return (beat - 1) * STEPS_PER_BEAT + offset;
 }
 
-/** Straight eighth-note rock beat: the groove a first-time visitor lands on. */
-const ROCK_BEAT: Groove = {
+/** Straight eighth-note rock groove: what a first-time visitor lands on. */
+const ROCK_GROOVE: Groove = {
   hihat: Array.from({ length: STEPS_PER_BAR / STEPS_PER_EIGHTH }, (_, i) => i * STEPS_PER_EIGHTH),
   snare: [beatStep(2), beatStep(4)],
   kick: [beatStep(1), beatStep(3, STEPS_PER_EIGHTH)],
@@ -120,7 +120,7 @@ export function emptyPattern(): Pattern {
 }
 
 export function defaultPattern(): Pattern {
-  return patternFrom(ROCK_BEAT);
+  return patternFrom(ROCK_GROOVE);
 }
 
 /** The counting a drummer reads off the grid: `1 e + a`, once per beat. */
@@ -165,7 +165,8 @@ export function barOfStep(step: number): number {
   return Math.floor(step / STEPS_PER_BAR);
 }
 
-export function isStepFilled(pattern: Pattern, instrument: InstrumentId, step: number): boolean {
+/** Whether one instrument sounds on one step — the smallest thing a lane records. */
+export function isHit(pattern: Pattern, instrument: InstrumentId, step: number): boolean {
   return pattern.lanes[instrument][step] ?? false;
 }
 
@@ -174,7 +175,7 @@ export function isStepFilled(pattern: Pattern, instrument: InstrumentId, step: n
  * player has to strike when the playhead arrives there.
  */
 export function instrumentsAt(pattern: Pattern, step: number): InstrumentId[] {
-  return INSTRUMENTS.filter(({ id }) => isStepFilled(pattern, id, step)).map(({ id }) => id);
+  return INSTRUMENTS.filter(({ id }) => isHit(pattern, id, step)).map(({ id }) => id);
 }
 
 /**
