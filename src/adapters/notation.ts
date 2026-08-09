@@ -69,7 +69,13 @@ const TIME_SIGNATURE = `${BEATS_PER_BAR}/4`;
 const MARGIN_X = 10;
 const MARGIN_TOP = 30;
 const MARGIN_BOTTOM = 30;
-const SYSTEM_HEIGHT = 100;
+/**
+ * The band one system owns, top of its beams to bottom of its down-stems. Wider
+ * than the ink strictly needs: a foot note written low in one measure hangs a
+ * stem down into the space where the next system's hi-hat beams sit, and at a
+ * tighter spacing the two touch.
+ */
+const SYSTEM_HEIGHT = 130;
 /** Room a leading clef and a time signature take out of a measure's width. */
 const CLEF_WIDTH = 45;
 const TIME_SIGNATURE_WIDTH = 30;

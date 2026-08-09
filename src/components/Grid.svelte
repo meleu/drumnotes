@@ -89,9 +89,17 @@
     white-space: nowrap;
   }
 
+  /*
+   * A cell is square wherever the step column is narrower than the comfortable
+   * height, which on a phone is everywhere — a row of squares reads as a grid,
+   * where tall thin slots read as bars of their own. The height is capped rather
+   * than fixed so a wide screen keeps the same short row it has now instead of
+   * growing squares the size of the label column.
+   */
   .cell {
     min-width: 0;
-    height: 2rem;
+    aspect-ratio: 1;
+    max-height: 2rem;
     padding: 0;
     border: 1px solid #d1d5db;
     border-radius: 3px;
