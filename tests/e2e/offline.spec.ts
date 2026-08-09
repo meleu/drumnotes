@@ -37,7 +37,9 @@ async function ready(page: Page): Promise<void> {
 
 /** One online visit, waited out until the worker has everything it needs. */
 async function warm(page: Page): Promise<void> {
-  await page.goto('/');
+  // Relative, so it lands on whatever directory the build is served from
+  // rather than on the origin's root.
+  await page.goto('./');
   await ready(page);
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
@@ -99,7 +101,12 @@ test('picks up a redeployed entry document rather than pinning the first one', a
   const poison = async () =>
     await page.evaluate(async (html) => {
       const cache = await caches.open((await caches.keys())[0]!);
-      await cache.put('/', new Response(html, { headers: { 'content-type': 'text/html' } }));
+      // The entry is cached under the directory the app is served from, which
+      // is the one the page is sitting on.
+      await cache.put(
+        location.pathname,
+        new Response(html, { headers: { 'content-type': 'text/html' } }),
+      );
     }, '<!doctype html><title>stale</title>');
 
   await poison();
@@ -109,7 +116,7 @@ test('picks up a redeployed entry document rather than pinning the first one', a
   // And the fresh copy replaced the poisoned one, so the next load offline gets
   // the new deploy rather than the one before it.
   await page.waitForFunction(async () => {
-    const cached = await caches.match('/', { ignoreVary: true });
+    const cached = await caches.match(location.pathname, { ignoreVary: true });
     return (await cached?.text())?.includes('<title>drumnotes</title>') === true;
   });
 });
