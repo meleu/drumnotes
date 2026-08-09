@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="drumnotes">
+  <title>drumnotes</title>
+  <rect width="512" height="512" fill="#111827" />
+  <g stroke="#9ca3af" stroke-width="6">
+    <path d="M140 200h232M140 232h232M140 264h232M140 296h232" />
+  </g>
+  <g stroke="#ffffff" stroke-width="16" stroke-linecap="round">
+    <path d="M186 170l32 32M218 170l-32 32" />
+    <path d="M202 202v104" />
+  </g>
+  <g fill="#ffffff">
+    <ellipse cx="318" cy="280" rx="30" ry="21" transform="rotate(-20 318 280)" />
+  </g>
+  <path d="M340 268V166" stroke="#ffffff" stroke-width="16" stroke-linecap="round" />
+</svg>

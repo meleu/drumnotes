@@ -478,19 +478,19 @@ and its asset provenance.
 
 ### Acceptance criteria
 
-- [ ] A second load with the network offline serves the app, its samples and its font from
+- [x] A second load with the network offline serves the app, its samples and its font from
       cache
-- [ ] The worker contains no hardcoded hashed asset filenames and needs no build-time
+- [x] The worker contains no hardcoded hashed asset filenames and needs no build-time
       generation step
-- [ ] The entry HTML is precached on install and refreshed on activation, so a new deploy is
+- [x] The entry HTML is precached on install and refreshed on activation, so a new deploy is
       picked up rather than pinned forever
-- [ ] The cache is versioned and stale caches are dropped on activation, so a new build does
+- [x] The cache is versioned and stale caches are dropped on activation, so a new build does
       not serve a mix of old and new hashed assets
-- [ ] Service worker registration does not interfere with the dev server or the browser test
+- [x] Service worker registration does not interfere with the dev server or the browser test
       suite
-- [ ] The README describes the app, the pure-core/adapter split, how to run dev, unit and
+- [x] The README describes the app, the pure-core/adapter split, how to run dev, unit and
       browser tests, and the licence and sample provenance
-- [ ] `pnpm run verify` and the browser suite both pass
+- [x] `pnpm run verify` and the browser suite both pass
 
 ---
 
@@ -525,7 +525,24 @@ reopen them.
 10. **Export canvas** — a detached `<canvas>` and `toBlob`, rather than `OffscreenCanvas`
     and `convertToBlob`. Both are offscreen; the detached element is supported everywhere
     the rest of the app is. Decided in phase 10.
-11. **Copying is handed an unresolved image** — `copyImage` takes the `Promise<Blob>`, not
+11. **The page tells the worker what it loaded** — phase 11's plan assumed one online visit
+    would populate the cache on its own. It does not: on a first visit the bundle, the font
+    and the samples are all requested before the worker is registered, so its fetch handler
+    never sees them, and an offline reload then fails on the bundle. The page therefore reads
+    its own resource-timing entries and posts the same-origin URLs to the worker, which
+    caches whatever it does not already hold. This keeps the property the strategy was chosen
+    for — no filename is ever written down, and no build step generates a list.
+12. **The entry document is network-first, everything else cache-first** — the document is
+    the one file that is not immutable, since it names the current build's hashes. Serving it
+    cache-first would pin the app to the first deploy seen, because the worker only
+    re-activates when its own bytes change. Hashed assets stay cache-first. Decided in
+    phase 11.
+13. **Cache lookups ignore `Vary`** — the build's script and link tags carry `crossorigin`,
+    so the browser's requests send an `Origin` header while a copy fetched from inside the
+    worker does not; with the server answering `Vary: Origin` every hashed asset missed.
+    A hashed URL names exactly one body, so there is nothing for `Vary` to protect. Found by
+    the offline test in phase 11.
+14. **Copying is handed an unresolved image** — `copyImage` takes the `Promise<Blob>`, not
     the blob, so `navigator.clipboard.write` is called inside the click rather than after
     an `await`. A browser only honours a clipboard write belonging to a user gesture, and
     awaiting the drawing first spends it. Decided in phase 10.
