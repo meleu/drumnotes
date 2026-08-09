@@ -26,8 +26,17 @@
  */
 const CACHE = 'drumnotes-v1';
 
-/** The entry document, cached under the URL a navigation actually asks for. */
-const ENTRY = '/';
+/**
+ * The entry document, cached under the URL a navigation actually asks for.
+ *
+ * This file is copied verbatim rather than bundled, so it cannot read the
+ * build's base path — it reads its own location instead. The worker ships
+ * beside the document it serves, so the directory holding this file is that
+ * document: `/` when the site is served from a root, `/drumnotes/` on GitHub
+ * Pages. That is also exactly the worker's scope, so nothing outside it is
+ * ever claimed by mistake.
+ */
+const ENTRY = new URL('./', self.location.href).pathname;
 
 /**
  * How a cached copy is looked up. `Vary` is ignored deliberately: the server

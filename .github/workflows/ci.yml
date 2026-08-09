@@ -1,0 +1,119 @@
+# The same gates lefthook runs locally, re-run where they cannot be skipped,
+# plus the deploy that follows when they pass.
+#
+# `verify` and `e2e` are separate jobs because they are independent and the
+# browser suite is by far the slower of the two: splitting them means a lint
+# error comes back in a minute rather than waiting behind Chromium.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer commit on a branch makes an in-flight check of the older one
+# pointless, so pull request runs are cancelled when superseded. Runs on `main`
+# are left alone: those end in a deployment, and half-finished deployments are
+# not something to be clever about.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, typecheck and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup
+
+      # `pnpm run verify` is exactly this chain, but as a single step a failure
+      # only says "verify failed" and the log has to be read to find out which
+      # part. Split, the failing check is the step name.
+      - name: Check formatting
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run check
+
+      - name: Unit tests
+        run: pnpm run test:unit
+
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup
+
+      # The `test:e2e` script installs the browser too, but without the system
+      # libraries it needs on a bare runner. Installing here with `--with-deps`
+      # covers that and leaves the script's own install a no-op.
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        run: pnpm run test:e2e
+
+      # A failed run is worth the upload: the config records a trace on the
+      # first retry, which is the only way to see what the browser saw.
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: [verify, e2e]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Publishing the artifact, and proving to the Pages deployment that this
+      # workflow is the one that produced it.
+      pages: write
+      id-token: write
+
+    # Deployments target one shared environment, so they queue rather than race.
+    # Nothing is cancelled: a superseded deploy still has to finish tearing
+    # itself down before the next can start.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: ./.github/actions/setup
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      # A project site is served from a subdirectory named after the repository,
+      # so the build cannot assume it sits at a root. The path comes from the
+      # step above rather than being written here, which means a custom domain —
+      # where the site *is* at a root, and `base_path` is `/` — needs no change.
+      - name: Build
+        run: pnpm run build
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

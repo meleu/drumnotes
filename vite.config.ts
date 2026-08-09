@@ -3,6 +3,12 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // Where the app will be served from. Root by default, which is what the dev
+  // server, `vite preview` and the browser suite all assume; CI overrides it
+  // for the GitHub Pages build, where the site lives under the repository name.
+  // Everything that names a URL derives it from here, so neither case is a
+  // special case at runtime.
+  base: process.env.BASE_PATH ?? '/',
   plugins: [svelte()],
   test: {
     // Unit tests live beside the pure modules they cover. The Playwright suite

@@ -1,0 +1,24 @@
+# Everything the three CI jobs need before they can run a script, in one place.
+#
+# Node's version is read from `.tool-versions`, the same file asdf uses locally,
+# so CI and a developer's machine can never drift apart silently. pnpm's version
+# comes from the `packageManager` field in package.json for the same reason —
+# neither version is written down twice.
+name: Setup
+description: Checks out the repository and installs the toolchain and dependencies
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v5
+
+    # Before setup-node, so that `cache: pnpm` below has a store to point at.
+    - uses: pnpm/action-setup@v4
+
+    - uses: actions/setup-node@v6
+      with:
+        node-version-file: .tool-versions
+        cache: pnpm
+
+    - run: pnpm install --frozen-lockfile
+      shell: bash

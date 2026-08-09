@@ -13,7 +13,13 @@
  * with everything cached, and no build step ever writes a filename down.
  */
 
-const WORKER = '/sw.js';
+/**
+ * The worker sits next to the entry document, wherever that turns out to be —
+ * the site root when served from one, a subdirectory on GitHub Pages. Its
+ * registration scope follows its own location, so this one path is all that
+ * needs to know the difference.
+ */
+const WORKER = `${import.meta.env.BASE_URL}sw.js`;
 
 /** How the worker is told about a resource the page loaded without it. */
 interface CacheMessage {
