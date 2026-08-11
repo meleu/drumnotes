@@ -58,6 +58,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(23rem, 100%), 1fr));
     gap: 1.5rem;
+    /* Queried below, so a bar can tell which of the two it got. */
+    container-type: inline-size;
   }
 
   .bar {
@@ -85,6 +87,22 @@
     font-size: 0.8125rem;
     text-align: right;
     white-space: nowrap;
+  }
+
+  /* Side by side, one set of labels names the rows of every bar in the row, so
+     the repeat is noise — the cells take back the width instead. The leading
+     column goes with the labels, keeping the counts over their own cells.
+     47.5rem is where auto-fit above fits a second 23rem bar past the 1.5rem
+     gap: the two numbers move together. */
+  @container (min-width: 47.5rem) {
+    .bar:not(:first-of-type) {
+      grid-template-columns: repeat(var(--steps), 1fr);
+    }
+
+    .bar:not(:first-of-type) .corner,
+    .bar:not(:first-of-type) .name {
+      display: none;
+    }
   }
 
   /* Square wherever the step column is narrower than the comfortable height,

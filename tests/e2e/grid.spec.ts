@@ -57,6 +57,22 @@ test('stacks the bar blocks when narrow and sits them side by side when wide', a
   expect(await barTop(BARS - 1)).toBe(await barTop(0));
 });
 
+test('labels the rows once when the bars sit side by side, once per bar when stacked', async ({
+  page,
+}) => {
+  const later = page
+    .locator('.bar')
+    .nth(BARS - 1)
+    .locator('.name');
+
+  await page.setViewportSize({ width: 390, height: 800 });
+  await expect(later).toHaveText(['HH', 'SD', 'BD']);
+
+  // Read off the bar beside it instead; the labels would only repeat.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(later.first()).toBeHidden();
+});
+
 test('mounts without console errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
