@@ -1,13 +1,8 @@
 <script lang="ts">
+  import { placeMeasures, staffLayoutFor, staffSize } from '../core/layout.js';
   import { BARS, barOfStep } from '../core/pattern.js';
   import { toScore } from '../core/score.js';
-  import {
-    loadNotationFont,
-    measureBoxes,
-    renderScoreSvg,
-    staffLayoutFor,
-    staffSize,
-  } from '../adapters/notation.js';
+  import { loadNotationFont, renderScoreSvg } from '../adapters/notation.js';
   import { patternState } from '../state/pattern.svelte.js';
   import { transportState } from '../state/transport.svelte.js';
 
@@ -26,7 +21,7 @@
   const shading = $derived.by(() => {
     const step = transportState.playhead;
     if (step === null || width === 0) return undefined;
-    return measureBoxes(score, layout)[barOfStep(step)];
+    return placeMeasures(score, layout)[barOfStep(step)];
   });
 
   /* Nothing drawn until the font loads: glyphs measured against a missing font

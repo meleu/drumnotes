@@ -127,6 +127,18 @@ nothing crosses a beat or a barline, every length has exactly one spelling, and 
 impossible.
 _Avoid_: beat boundary rule, quantisation
 
+**System**:
+One row of measures on the page, read left to right before the eye drops to the next. How
+many measures share one is a page decision, never a musical one — the same `Score` lays out
+as one system on the export and two on a phone.
+_Avoid_: row, line, stave, staff (a staff is the five lines; a system is a row of them)
+
+**Placement**:
+The patch of page one measure occupies, and whether it opens with a clef or a time
+signature. The one answer the drawing and the playhead shading both read, so they cannot
+disagree about where a measure is.
+_Avoid_: box, rect, bounds, position (a staff position is a height on the staff)
+
 **Beam group**:
 The entries a single beam joins, decided when the score is built and never by the
 renderer. One group per beat at most, and none where fewer than two notes could be

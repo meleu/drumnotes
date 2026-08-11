@@ -10,21 +10,16 @@
 
 import { CanvasContext } from 'vexflow/core';
 
-import { EXPORT_SCALE, EXPORT_WIDTH } from '../core/export.js';
+import { EXPORT_SCALE } from '../core/export.js';
+import { exportStaffLayout, placeMeasures, staffSize } from '../core/layout.js';
 import type { Score } from '../core/score.js';
-import type { StaffLayout } from './notation.js';
-import { drawScore, loadNotationFont, staffSize } from './notation.js';
+import { drawScore, loadNotationFont } from './notation.js';
 
 /** Opaque, and light: the notation is black ink and needs paper behind it. */
 const PAPER = '#ffffff';
 /** Stated, not assumed: VexFlow only overrides the canvas fill style where an
  *  element asks for its own colour — otherwise it is white ink on white paper. */
 const INK = '#000000';
-
-/** One system, fixed width, whatever the viewport says. */
-function exportLayout(score: Score): StaffLayout {
-  return { width: EXPORT_WIDTH, measuresPerSystem: score.measures.length };
-}
 
 /**
  * Draws the score to an off-document canvas and returns a PNG. Drawn at
@@ -36,7 +31,7 @@ export async function renderScorePng(score: Score): Promise<Blob> {
   // image cannot be corrected a moment later.
   await loadNotationFont();
 
-  const layout = exportLayout(score);
+  const layout = exportStaffLayout(score);
   const { width, height } = staffSize(score, layout);
 
   const canvas = document.createElement('canvas');
@@ -55,7 +50,7 @@ export async function renderScorePng(score: Score): Promise<Blob> {
   context.strokeStyle = INK;
 
   // Margins are the ones `staffSize` and `drawScore` already agree on.
-  drawScore(new CanvasContext(context), score, layout);
+  drawScore(new CanvasContext(context), score, placeMeasures(score, layout));
 
   return await toPng(canvas);
 }
