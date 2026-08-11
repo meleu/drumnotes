@@ -191,6 +191,16 @@ export function withTempo(pattern: Pattern, tempo: number): Pattern {
   return { ...pattern, tempo: clampTempo(tempo) };
 }
 
+/** Whether anything at all is written — one hit anywhere is enough. */
+export function hasHits(pattern: Pattern): boolean {
+  return INSTRUMENTS.some(({ id }) => pattern.lanes[id].some(Boolean));
+}
+
+/** Rubs out the whole groove, keeping the tempo it was played at. */
+export function withoutHits(pattern: Pattern): Pattern {
+  return { ...pattern, lanes: emptyPattern().lanes };
+}
+
 /** Flips one cell into a new `Pattern`; input untouched. */
 export function toggleStep(pattern: Pattern, instrument: InstrumentId, step: number): Pattern {
   const lane = pattern.lanes[instrument];

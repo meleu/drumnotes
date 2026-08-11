@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Clear from './components/Clear.svelte';
   import Export from './components/Export.svelte';
   import Grid from './components/Grid.svelte';
   import Staff from './components/Staff.svelte';
@@ -12,6 +13,9 @@
     <Transport />
     <Tempo />
     <Export />
+    <!-- Last in the row: the one destructive control, kept as far from Play as
+         the row is wide. -->
+    <Clear />
   </div>
   <!-- Grid entirely above the staff; the views never interleave. -->
   <Grid />

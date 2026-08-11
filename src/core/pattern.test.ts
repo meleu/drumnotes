@@ -13,9 +13,11 @@ import {
   defaultPattern,
   emptyPattern,
   gridBars,
+  hasHits,
   instrumentsAt,
   toggleStep,
   withTempo,
+  withoutHits,
 } from './pattern.js';
 
 /** The steps a lane sounds on, bar-relative, per bar. */
@@ -165,6 +167,40 @@ describe('withTempo', () => {
     expect(after).not.toBe(before);
     expect(before.tempo).toBe(DEFAULT_TEMPO);
     expect(after.lanes).toBe(before.lanes);
+  });
+});
+
+describe('hasHits', () => {
+  it('tells a written pattern from a silent one', () => {
+    expect(hasHits(defaultPattern())).toBe(true);
+    expect(hasHits(emptyPattern())).toBe(false);
+  });
+
+  it('counts a single hit in any lane as written', () => {
+    for (const { id } of INSTRUMENTS) {
+      expect(hasHits(toggleStep(emptyPattern(), id, TOTAL_STEPS - 1))).toBe(true);
+    }
+  });
+});
+
+describe('withoutHits', () => {
+  it('silences every lane while the tempo plays on', () => {
+    const before = withTempo(defaultPattern(), 140);
+    const after = withoutHits(before);
+
+    for (const { id } of INSTRUMENTS) {
+      expect(after.lanes[id]).toHaveLength(TOTAL_STEPS);
+      expect(after.lanes[id].some(Boolean)).toBe(false);
+    }
+    expect(after.tempo).toBe(140);
+  });
+
+  it('returns a new pattern and leaves the input untouched', () => {
+    const before = defaultPattern();
+    const after = withoutHits(before);
+
+    expect(after).not.toBe(before);
+    expect(before.lanes.hihat.some(Boolean)).toBe(true);
   });
 });
 
