@@ -240,3 +240,12 @@ Sounding an instrument the instant its cell is written, outside the schedule ent
 Writing a hit auditions it, in full — a flam auditions as a flam; rubbing one out is
 silent.
 _Avoid_: preview, tap sound, trigger, monitor
+
+### The library
+
+**Library**:
+The patterns kept by name, each a copy taken at the moment it was saved. Nothing in it
+changes because the pattern on the grid does — saving takes a copy out, loading takes one
+back in, and neither leaves the two joined. A name belongs to one pattern only.
+_Avoid_: shelf, collection, store, storage, presets, saved pattern (a pattern in the
+library is just a pattern)
