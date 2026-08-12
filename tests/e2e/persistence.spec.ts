@@ -2,8 +2,9 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
+import { SCHEMA_VERSION } from '../../src/core/codec.js';
 import type { Articulation, InstrumentId, Pattern } from '../../src/core/pattern.js';
-import { INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
+import { INSTRUMENTS, defaultPattern, emptyPattern } from '../../src/core/pattern.js';
 
 // Each test gets its own context, so storage starts empty unless seeded.
 
@@ -50,25 +51,43 @@ test('an edit survives a reload', async ({ page }) => {
 
 test('a groove stored before articulations existed loads unchanged', async ({ page }) => {
   await page.goto('/');
-  // Exactly what v1.0.0 wrote: same groove, cells as booleans.
-  const version1 = JSON.stringify({
-    version: 1,
-    tempo: defaultPattern().tempo,
-    lanes: Object.fromEntries(
-      INSTRUMENTS.map(({ id }) => [
-        id,
-        defaultPattern().lanes[id].map((articulation) => articulation !== 'empty'),
-      ]),
-    ),
+  // The current pattern exactly as v1.0.0 wrote one: same groove, cells as
+  // booleans, carried in the store the library brought with it.
+  const stored = JSON.stringify({
+    current: {
+      version: 1,
+      tempo: defaultPattern().tempo,
+      lanes: Object.fromEntries(
+        INSTRUMENTS.map(({ id }) => [
+          id,
+          defaultPattern().lanes[id].map((articulation) => articulation !== 'empty'),
+        ]),
+      ),
+    },
+    library: {},
   });
-  await page.evaluate(
-    ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, version1],
-  );
+  await page.evaluate(([key, text]) => localStorage.setItem(key!, text!), [STORAGE_KEY, stored]);
 
   await page.reload();
 
   await expectGridToShow(page, defaultPattern());
+});
+
+test('the abandoned pattern key is deleted at startup and never read', async ({ page }) => {
+  // A readable payload of the shape that key held, deliberately unlike the
+  // default: if anything read it, the grid would show a silent kick lane.
+  const abandoned = JSON.stringify({
+    version: SCHEMA_VERSION,
+    tempo: 200,
+    lanes: emptyPattern().lanes,
+  });
+  await page.goto('/');
+  await page.evaluate((stored) => localStorage.setItem('drumnotes:pattern', stored), abandoned);
+
+  await page.reload();
+
+  await expectGridToShow(page, defaultPattern());
+  expect(await page.evaluate(() => localStorage.getItem('drumnotes:pattern'))).toBeNull();
 });
 
 test('corrupt stored data falls back to the default pattern', async ({ page }) => {

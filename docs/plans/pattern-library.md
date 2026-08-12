@@ -144,23 +144,24 @@ name, disabled Save states, any confirmation, loading, and deleting.
 
 ### Acceptance criteria
 
-- [ ] A `Patterns` control sits in the controls row; the panel is closed when the app opens
+- [x] A `Patterns` control sits in the controls row; the panel is closed when the app opens
       and the interface otherwise looks exactly as it does today
-- [ ] Pressing the control opens the panel; pressing it again closes it
-- [ ] The panel holds, in order, a labelled name field, a Save button, and the rows
-- [ ] Typing a name and pressing Save adds a row showing that name and the current tempo
-- [ ] The panel stays open after a save and the new row is visible
-- [ ] An empty library shows a short line in place of the rows
+- [x] Pressing the control opens the panel; pressing it again closes it
+- [x] The panel holds, in order, a labelled name field, a Save button, and the rows
+- [x] Typing a name and pressing Save adds a row showing that name and the current tempo
+- [x] The panel stays open after a save and the new row is visible
+- [x] An empty library shows a short line in place of the rows
 - [ ] Saving does not alter the pattern on the grid, its tempo, or playback
-- [ ] Both the current pattern and the library survive a reload
-- [ ] Storage lives under one key, `drumnotes:store`, in the documented shape, with each
+      <!-- grid and tempo covered; playback through a save is not asserted -->
+- [x] Both the current pattern and the library survive a reload
+- [x] Storage lives under one key, `drumnotes:store`, in the documented shape, with each
       stored pattern carrying its own `version`
-- [ ] The v1 key `drumnotes:pattern` is deleted at startup and never read
-- [ ] Two writes in quick succession — a cell tap and a save — both land; neither is lost
-- [ ] Unit tests cover the pure library module's insert and list, and the codec's whole-store
+- [x] The v1 key `drumnotes:pattern` is deleted at startup and never read
+- [x] Two writes in quick succession — a cell tap and a save — both land; neither is lost
+- [x] Unit tests cover the pure library module's insert and list, and the codec's whole-store
       round trip
-- [ ] End-to-end tests cover saving, the row's contents, and survival across a reload
-- [ ] Existing persistence tests pass against the new key
+- [x] End-to-end tests cover saving, the row's contents, and survival across a reload
+- [x] Existing persistence tests pass against the new key
 
 ---
 

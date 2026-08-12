@@ -2,7 +2,6 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
-import { serialisePattern } from '../../src/core/codec.js';
 import type { InstrumentId, Pattern } from '../../src/core/pattern.js';
 import {
   BARS,
@@ -13,6 +12,7 @@ import {
   toggleStep,
   withArticulation,
 } from '../../src/core/pattern.js';
+import { storedApp } from './support/store.js';
 
 // Browser tests assert on DOM structure and counts, never pixels — except which
 // side of the staff a mark landed on, a fact about the page and nothing else.
@@ -38,7 +38,7 @@ async function load(page: Page, pattern: Pattern): Promise<void> {
   await page.goto('/');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(pattern)],
+    [STORAGE_KEY, storedApp(pattern)],
   );
   await page.reload();
   await page.waitForSelector(staff);

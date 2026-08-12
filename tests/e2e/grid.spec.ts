@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
-import { serialisePattern } from '../../src/core/codec.js';
 import {
   ARTICULATIONS,
   BARS,
@@ -10,6 +9,7 @@ import {
   defaultPattern,
   withArticulation,
 } from '../../src/core/pattern.js';
+import { storedApp } from './support/store.js';
 
 // Browser tests assert on DOM structure and counts, never pixels.
 test.beforeEach(async ({ page }) => {
@@ -99,7 +99,7 @@ test('marks an accented cell and leaves a plain one bare', async ({ page }) => {
   const plain = defaultPattern().lanes.hihat.indexOf('normal');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(withArticulation(defaultPattern(), 'snare', step, 'accent'))],
+    [STORAGE_KEY, storedApp(withArticulation(defaultPattern(), 'snare', step, 'accent'))],
   );
   await page.reload();
 
@@ -119,7 +119,7 @@ test('marks a ghosted cell with the pair the staff brackets it in', async ({ pag
   pattern = withArticulation(pattern, 'hihat', accented, 'accent');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(pattern)],
+    [STORAGE_KEY, storedApp(pattern)],
   );
   await page.reload();
 
@@ -140,7 +140,7 @@ test('marks a flammed cell with the letter drummers write it as', async ({ page 
   pattern = withArticulation(pattern, 'hihat', ghosted, 'ghost');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(pattern)],
+    [STORAGE_KEY, storedApp(pattern)],
   );
   await page.reload();
 
@@ -164,7 +164,7 @@ test('marks a dragged cell with a letter of its own, not the one a flam wears', 
   pattern = withArticulation(pattern, 'hihat', flammed, 'flam');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(pattern)],
+    [STORAGE_KEY, storedApp(pattern)],
   );
   await page.reload();
 
@@ -192,7 +192,7 @@ test('draws every mark small enough to fit the cell, at the narrowest layout', a
   );
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(pattern)],
+    [STORAGE_KEY, storedApp(pattern)],
   );
   await page.reload();
 
@@ -222,7 +222,7 @@ test('keeps an accented cell marked as the playhead lights its column', async ({
   const step = defaultPattern().lanes.snare.indexOf('normal');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(withArticulation(defaultPattern(), 'snare', step, 'accent'))],
+    [STORAGE_KEY, storedApp(withArticulation(defaultPattern(), 'snare', step, 'accent'))],
   );
   await page.reload();
 
@@ -257,7 +257,7 @@ test('draws the six articulations as six distinguishable cells at phone size', a
   );
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(pattern)],
+    [STORAGE_KEY, storedApp(pattern)],
   );
   await page.reload();
 

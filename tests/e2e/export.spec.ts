@@ -4,10 +4,10 @@ import type { Download, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
-import { serialisePattern } from '../../src/core/codec.js';
 import { EXPORT_SCALE, EXPORT_WIDTH, exportFilename } from '../../src/core/export.js';
 import type { Pattern } from '../../src/core/pattern.js';
 import { BARS, emptyPattern, toggleStep, withArticulation } from '../../src/core/pattern.js';
+import { storedApp } from './support/store.js';
 
 // Browser tests assert on DOM structure and counts, never pixels — except here:
 // the image's size and background opacity are claims about the file handed over,
@@ -101,7 +101,7 @@ const PHONE = { width: 390, height: 900 };
 async function rewrite(page: Page, pattern: Pattern): Promise<void> {
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern(pattern)],
+    [STORAGE_KEY, storedApp(pattern)],
   );
   await page.reload();
   await page.waitForSelector(sheet);

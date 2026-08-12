@@ -2,6 +2,7 @@
   import Clear from './components/Clear.svelte';
   import Export from './components/Export.svelte';
   import Grid from './components/Grid.svelte';
+  import Patterns from './components/Patterns.svelte';
   import Staff from './components/Staff.svelte';
   import Tempo from './components/Tempo.svelte';
   import Transport from './components/Transport.svelte';
@@ -13,7 +14,12 @@
     <Transport />
     <Tempo />
     <Export />
+    <!-- Its panel opens beneath the whole row, pushing the grid and staff down.
+         Declared before Clear so the panel's contents follow their own button
+         rather than the destructive one. -->
+    <Patterns />
     <!-- Last: the one destructive control, kept as far from Play as possible. -->
+
     <Clear />
   </div>
   <Grid />

@@ -2,7 +2,6 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
-import { serialisePattern } from '../../src/core/codec.js';
 import type { InstrumentId, Pattern } from '../../src/core/pattern.js';
 import {
   MAX_TEMPO,
@@ -14,6 +13,7 @@ import {
 } from '../../src/core/pattern.js';
 import { graceLead, loopDuration, stepDuration } from '../../src/core/schedule.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
+import { storedApp } from './support/store.js';
 
 /* Top of the range throughout, so a loop passes in a couple of seconds and a
    test can watch one wrap around. */
@@ -35,7 +35,7 @@ async function load(page: Page, pattern: Pattern): Promise<void> {
   await page.goto('/');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern({ ...pattern, tempo: TEMPO })],
+    [STORAGE_KEY, storedApp({ ...pattern, tempo: TEMPO })],
   );
   await page.reload();
   await expect(page.locator(transport)).toBeEnabled();

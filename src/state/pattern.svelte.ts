@@ -6,7 +6,7 @@ import {
   withNothingWritten,
   withTempo,
 } from '../core/pattern.js';
-import { loadPattern, savePattern } from '../adapters/storage.js';
+import { loadStore, saveCurrent } from '../adapters/storage.js';
 
 /**
  * Reactive edge of the pattern document; runes live here and nowhere else.
@@ -16,7 +16,7 @@ import { loadPattern, savePattern } from '../adapters/storage.js';
  * kind of edit cannot forget to persist.
  */
 class PatternState {
-  #pattern = $state.raw<Pattern>(loadPattern());
+  #pattern = $state.raw<Pattern>(loadStore().current);
 
   get current(): Pattern {
     return this.#pattern;
@@ -52,7 +52,7 @@ class PatternState {
 
   #replace(pattern: Pattern): void {
     this.#pattern = pattern;
-    savePattern(pattern);
+    saveCurrent(pattern);
   }
 }
 
