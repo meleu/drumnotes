@@ -137,6 +137,56 @@ test('writes and sounds a plain hit from the menu, and rubs one out in silence',
   expect((await audioLog(page)).starts).toEqual([undefined]);
 });
 
+test('writes and sounds an accent from the menu, at the hardest rung', async ({ page }) => {
+  const cell = silentCell(page, 'snare');
+  const menu = page.getByRole('menu');
+
+  await press(page, cell, HELD_MS);
+  await menu.getByRole('menuitemradio', { name: 'Accent' }).click();
+
+  await expect(menu).toBeHidden();
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+  await expect(cell).toBeFocused();
+
+  const log = await audioLog(page);
+  expect(log.starts).toEqual([undefined]);
+  expect(log.samples).toEqual(['Snare-Hardest']);
+});
+
+test('marks the entry a cell already holds, on an accent as on an empty cell', async ({ page }) => {
+  const cell = silentCell(page, 'hihat');
+  const menu = page.getByRole('menu');
+
+  await press(page, cell, HELD_MS);
+  await expect(menu.getByRole('menuitemradio', { name: 'Empty' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await menu.getByRole('menuitemradio', { name: 'Accent' }).click();
+
+  await press(page, cell, HELD_MS);
+  await expect(menu.getByRole('menuitemradio', { name: 'Accent' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+});
+
+test('names the articulation a cell holds, so a reader hears more than written', async ({
+  page,
+}) => {
+  const cell = silentCell(page, 'snare');
+  const menu = page.getByRole('menu');
+
+  await expect(cell).toHaveAttribute('aria-label', /Snare, step \d+, Empty$/);
+
+  await press(page, cell, HELD_MS);
+  await menu.getByRole('menuitemradio', { name: 'Accent' }).click();
+  await expect(cell).toHaveAttribute('aria-label', /Snare, step \d+, Accent$/);
+
+  await cell.click();
+  await expect(cell).toHaveAttribute('aria-label', /Snare, step \d+, Empty$/);
+});
+
 test('abandons a hold that drifts past a small threshold', async ({ page }) => {
   const cell = silentCell(page, 'hihat');
   const { x, y } = await centre(cell);

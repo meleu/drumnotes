@@ -11,9 +11,11 @@
 import bravuraUrl from '@vexflow-fonts/bravura/bravura.woff2?url';
 import type { RenderContext } from 'vexflow/core';
 import {
+  Articulation,
   Beam,
   Dot,
   Font,
+  Modifier,
   Formatter,
   Renderer,
   Stave,
@@ -68,6 +70,18 @@ const DURATION_CODES: Readonly<Record<Duration, string>> = {
 const NOTEHEAD_SUFFIX = { normal: '', cross: '/x2' } as const;
 
 const STEM_DIRECTIONS = { up: 1, down: -1 } as const;
+
+/** SMuFL accent, as VexFlow spells it. */
+const ACCENT = 'a>';
+
+/* Marks go on the far side of the stem from the staff, so a voice's accents sit
+   clear of the notes and of the other voice's: hands above, feet below. Read off
+   the stem the voice already has, which is what keeps grid, staff and page
+   agreeing without a second table to disagree with. */
+const MARK_POSITIONS = {
+  up: Modifier.Position.ABOVE,
+  down: Modifier.Position.BELOW,
+} as const;
 
 /** The one drawing routine; screen and export differ only in context and placements. */
 export function drawScore(
@@ -142,6 +156,10 @@ function toStaveNote(entry: Entry, voice: ScoreVoice): StaveNote {
   });
   if (entry.dots > 0) {
     for (let dot = 0; dot < entry.dots; dot += 1) Dot.buildAndAttach([note], { all: true });
+  }
+  // One mark for the stroke, however many heads share the stem.
+  if (!rest && entry.accented) {
+    note.addModifier(new Articulation(ACCENT).setPosition(MARK_POSITIONS[voice.stem]));
   }
   return note;
 }

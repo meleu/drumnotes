@@ -1,6 +1,6 @@
 import type { Articulation, InstrumentId, Pattern } from '../core/pattern.js';
 import {
-  isWritten,
+  articulationAt,
   toggleStep,
   withArticulation,
   withNothingWritten,
@@ -23,20 +23,21 @@ class PatternState {
     return this.#pattern;
   }
 
-  /** Flips one cell; reports whether it is now written, so a caller can sound
-   *  what was added without asking twice. */
-  toggle(instrument: InstrumentId, step: number): boolean {
+  /** Flips one cell; reports what it now holds, so a caller can sound exactly
+   *  what was written without asking twice. */
+  toggle(instrument: InstrumentId, step: number): Articulation {
     const next = toggleStep(this.#pattern, instrument, step);
     this.#replace(next);
-    return isWritten(next, instrument, step);
+    return articulationAt(next, instrument, step);
   }
 
-  /** Writes one cell outright, whatever it held; reports whether it now sounds,
-   *  so a caller can audition what it wrote without asking twice. */
-  write(instrument: InstrumentId, step: number, articulation: Articulation): boolean {
+  /** Writes one cell outright, whatever it held; reports what it now holds, so
+   *  a caller can audition it without asking twice. `empty` sounds as nothing,
+   *  which is how rubbing a cell out stays silent. */
+  write(instrument: InstrumentId, step: number, articulation: Articulation): Articulation {
     const next = withArticulation(this.#pattern, instrument, step, articulation);
     this.#replace(next);
-    return isWritten(next, instrument, step);
+    return articulationAt(next, instrument, step);
   }
 
   /** Rubs out the whole groove, tempo and playback untouched — an empty pattern

@@ -6,6 +6,7 @@ import {
   ARTICULATIONS,
   BARS,
   DEFAULT_TEMPO,
+  DYNAMICS,
   INSTRUMENTS,
   MAX_TEMPO,
   MIN_TEMPO,
@@ -18,8 +19,9 @@ import {
   defaultPattern,
   emptyPattern,
   gridBars,
-  instrumentsAt,
+  hitsOf,
   isWritten,
+  soundsAt,
   toggleStep,
   withArticulation,
   withNothingWritten,
@@ -133,8 +135,8 @@ describe('articulationAt', () => {
 });
 
 describe('ARTICULATION_CHOICES', () => {
-  it('offers silence first, then a plain hit', () => {
-    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual(['empty', 'normal']);
+  it('offers silence first, then the articulations the app can write', () => {
+    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual(['empty', 'normal', 'accent']);
   });
 
   it('offers each articulation at most once, and none the pattern cannot hold', () => {
@@ -299,16 +301,57 @@ describe('withNothingWritten', () => {
   });
 });
 
-describe('instrumentsAt', () => {
-  it('names everything written on a step, in row order', () => {
+describe('soundsAt', () => {
+  it('sounds everything written on a step, in row order', () => {
     const pattern = defaultPattern();
 
-    expect(instrumentsAt(pattern, 0)).toEqual(['hihat', 'kick']);
-    expect(instrumentsAt(pattern, 4)).toEqual(['hihat', 'snare']);
+    expect(soundsAt(pattern, 0)).toEqual([
+      { instrument: 'hihat', dynamic: 'plain' },
+      { instrument: 'kick', dynamic: 'plain' },
+    ]);
+    expect(soundsAt(pattern, 4)).toEqual([
+      { instrument: 'hihat', dynamic: 'plain' },
+      { instrument: 'snare', dynamic: 'plain' },
+    ]);
   });
 
-  it('names nothing on a silent step', () => {
-    expect(instrumentsAt(emptyPattern(), 3)).toEqual([]);
+  it('sounds an accent at its own dynamic', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'accent');
+
+    expect(soundsAt(pattern, 4)).toEqual([{ instrument: 'snare', dynamic: 'hardest' }]);
+  });
+
+  it('sounds nothing on a silent step', () => {
+    expect(soundsAt(emptyPattern(), 3)).toEqual([]);
+  });
+});
+
+describe('DYNAMICS', () => {
+  it('runs from softest to hardest', () => {
+    expect(DYNAMICS).toEqual(['softest', 'plain', 'hard', 'hardest']);
+  });
+});
+
+describe('hitsOf', () => {
+  it('plays silence as no hit at all', () => {
+    expect(hitsOf('empty')).toEqual([]);
+  });
+
+  it('plays a plain hit on the step, plainly', () => {
+    expect(hitsOf('normal')).toEqual([{ leads: 0, dynamic: 'plain' }]);
+  });
+
+  it('plays an accent on the step, at the hardest recording', () => {
+    expect(hitsOf('accent')).toEqual([{ leads: 0, dynamic: 'hardest' }]);
+  });
+
+  it('names a dynamic for every hit of every articulation', () => {
+    for (const articulation of ARTICULATIONS) {
+      for (const hit of hitsOf(articulation)) {
+        expect(DYNAMICS).toContain(hit.dynamic);
+        expect(hit.leads).toBeGreaterThanOrEqual(0);
+      }
+    }
   });
 });
 

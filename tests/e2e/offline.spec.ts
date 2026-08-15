@@ -1,6 +1,12 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { DYNAMICS, INSTRUMENTS } from '../../src/core/pattern.js';
+
+/** Every rung of every instrument the app can sound — the subset of the kit the
+ *  build carries, and so the whole of what the worker has to cache. */
+const SAMPLE_COUNT = INSTRUMENTS.length * DYNAMICS.length;
+
 // Runs against a preview of the production build, the only place the service
 // worker exists. Asserts what the browser can still do without a network.
 
@@ -52,7 +58,7 @@ async function warm(page: Page): Promise<void> {
         samples: paths.filter((path) => path.endsWith('.wav')).length,
       };
     })
-    .toEqual({ js: true, font: true, samples: 3 });
+    .toEqual({ js: true, font: true, samples: SAMPLE_COUNT });
 }
 
 test('serves the app, its samples and its font from cache on a second load offline', async ({

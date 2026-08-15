@@ -101,6 +101,13 @@ export interface ArticulationChoice {
   readonly id: Articulation;
   /** What the menu calls it, and what a screen reader reads out. */
   readonly name: string;
+  /**
+   * The SMuFL character a cell holding this is drawn with — the same mark the
+   * staff engraves, so the grid and the page say one thing rather than two.
+   * A plain hit and an empty cell carry no mark: the cell's own fill is the
+   * whole of what they have to say.
+   */
+  readonly mark?: string;
 }
 
 /**
@@ -112,7 +119,65 @@ export interface ArticulationChoice {
 export const ARTICULATION_CHOICES: readonly ArticulationChoice[] = [
   { id: 'empty', name: 'Empty' },
   { id: PLAIN, name: 'Plain' },
+  { id: 'accent', name: 'Accent', mark: '\uE4A0' }, // SMuFL articAccentAbove
 ];
+
+/** What one articulation is called and drawn with, or nothing if the app cannot
+ *  yet write it. */
+export function choiceOf(articulation: Articulation): ArticulationChoice | undefined {
+  return ARTICULATION_CHOICES.find(({ id }) => id === articulation);
+}
+
+/**
+ * How hard a hit is struck. Four recordings of the same drum rather than four
+ * gains of one (ADR 0006), so this names a rung and never a level — a number
+ * here would invite arithmetic that the ear would not thank us for.
+ *
+ * Softest to hardest.
+ */
+export const DYNAMICS = ['softest', 'plain', 'hard', 'hardest'] as const;
+
+export type Dynamic = (typeof DYNAMICS)[number];
+
+/** One sound an articulation is played out as. */
+export interface Hit {
+  /**
+   * Grace leads ahead of the step. `0` is the main hit, landing exactly on it;
+   * a positive count is an ornament sounding that many leads early. What a lead
+   * is worth in seconds is the schedule's business, not the vocabulary's.
+   */
+  readonly leads: number;
+  readonly dynamic: Dynamic;
+}
+
+/**
+ * The expansion table: what each articulation is actually played out as. The
+ * one place that decides an accent is `hardest` and a ghost is `softest`, and
+ * it decides in rungs — no filename appears here or anywhere else in the core.
+ *
+ * Ornament rows are the vocabulary's, not this phase's: they are read once the
+ * schedule can place a hit off its own step.
+ */
+const HITS: Readonly<Record<Articulation, readonly Hit[]>> = {
+  empty: [],
+  normal: [{ leads: 0, dynamic: 'plain' }],
+  accent: [{ leads: 0, dynamic: 'hardest' }],
+  ghost: [{ leads: 0, dynamic: 'softest' }],
+  flam: [
+    { leads: 1, dynamic: 'softest' },
+    { leads: 0, dynamic: 'hard' },
+  ],
+  drag: [
+    { leads: 2, dynamic: 'softest' },
+    { leads: 1, dynamic: 'softest' },
+    { leads: 0, dynamic: 'hard' },
+  ],
+};
+
+/** Every sound an articulation makes, earliest first. */
+export function hitsOf(articulation: Articulation): readonly Hit[] {
+  return HITS[articulation];
+}
 
 /** One flat lane per instrument, covering every step of the pattern. */
 export type Lanes = Readonly<Record<InstrumentId, readonly Articulation[]>>;
@@ -213,9 +278,25 @@ export function isWritten(pattern: Pattern, instrument: InstrumentId, step: numb
   return articulationAt(pattern, instrument, step) !== 'empty';
 }
 
-/** Everything written on one step, in row order. */
-export function instrumentsAt(pattern: Pattern, step: number): InstrumentId[] {
-  return INSTRUMENTS.filter(({ id }) => isWritten(pattern, id, step)).map(({ id }) => id);
+/** An instrument struck at a dynamic — what the audio adapter is handed. */
+export interface Sound {
+  readonly instrument: InstrumentId;
+  readonly dynamic: Dynamic;
+}
+
+/**
+ * Everything that sounds on one step, in row order — each hit already carrying
+ * the rung it is struck at, so nothing downstream reads an articulation.
+ *
+ * Only the hits that land on the step itself: an ornament's grace hits belong
+ * to the moments before it, which is a window's question rather than a step's.
+ */
+export function soundsAt(pattern: Pattern, step: number): readonly Sound[] {
+  return INSTRUMENTS.flatMap(({ id }) =>
+    hitsOf(articulationAt(pattern, id, step))
+      .filter((hit) => hit.leads === 0)
+      .map((hit) => ({ instrument: id, dynamic: hit.dynamic })),
+  );
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   defaultPattern,
   emptyPattern,
   toggleStep,
+  withArticulation,
 } from './pattern.js';
 import type { Duration, Entry, NoteEntry, ScoreVoice } from './score.js';
 import { entrySteps, toScore } from './score.js';
@@ -157,6 +158,47 @@ describe('toScore', () => {
     const hands = lastMeasure.voices.find((voice) => voice.id === 'hands')!;
 
     expect(notesOf(hands).map((note) => note.startStep)).toEqual([STEPS_PER_BAR + 2]);
+  });
+});
+
+describe('accents', () => {
+  it('leaves a plain stroke unaccented', () => {
+    const notes = notesOf(firstMeasureVoice(patternWith({ snare: [4] }), 'hands'));
+
+    expect(notes[0]!.accented).toBe(false);
+  });
+
+  it('accents the stroke an accented cell belongs to', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'accent');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.accented).toBe(true);
+  });
+
+  it('accents a stroke once, however few of its heads asked for it', () => {
+    // Hi-hat and snare struck together, one of them accented: one stroke, one
+    // stem, one mark — the mark belongs to the stroke and not to a head
+    // (ADR 0005).
+    const pattern = withArticulation(patternWith({ hihat: [4], snare: [4] }), 'snare', 4, 'accent');
+
+    const [stroke] = notesOf(firstMeasureVoice(pattern, 'hands'));
+    expect(stroke!.noteheads).toHaveLength(2);
+    expect(stroke!.accented).toBe(true);
+  });
+
+  it("keeps each voice's accents to itself", () => {
+    const pattern = withArticulation(patternWith({ snare: [4] }), 'kick', 4, 'accent');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.accented).toBe(false);
+    expect(notesOf(firstMeasureVoice(pattern, 'feet'))[0]!.accented).toBe(true);
+  });
+
+  it('changes nothing about what the measure is worth', () => {
+    const plain = patternWith({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12] });
+    const accented = withArticulation(plain, 'hihat', 4, 'accent');
+
+    expect(spellAll(firstMeasureVoice(accented, 'hands').entries)).toBe(
+      spellAll(firstMeasureVoice(plain, 'hands').entries),
+    );
   });
 });
 

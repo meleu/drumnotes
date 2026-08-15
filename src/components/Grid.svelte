@@ -4,9 +4,12 @@
     INSTRUMENTS,
     STEPS_PER_BAR,
     articulationAt,
+    choiceOf,
     gridBars,
+    hitsOf,
     isWritten,
   } from '../core/pattern.js';
+  import { loadNotationFont } from '../adapters/notation.js';
   import { audioState } from '../state/audio.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
   import { transportState } from '../state/transport.svelte.js';
@@ -37,10 +40,27 @@
     return menu?.instrument === instrument && menu.step === step;
   }
 
-  /** What a cell is called, to the cell itself and to the menu acting on it. */
+  /* The marks are Bravura characters, which read as tofu until the font is in.
+     Memoised upstream, so asking here costs nothing the staff was not already
+     paying. */
+  let marksReady = $state(false);
+  void loadNotationFont().then(() => {
+    marksReady = true;
+  });
+
+  /** What a cell is called, to the cell itself and to the menu acting on it —
+   *  including what it holds, which is the only way a reader learns that a cell
+   *  is accented rather than merely written. */
   function cellName(instrument: InstrumentId, step: number): string {
     const { name } = INSTRUMENTS.find(({ id }) => id === instrument) ?? { name: instrument };
-    return `${name}, step ${step + 1}`;
+    const articulation = articulationAt(patternState.current, instrument, step);
+    return `${name}, step ${step + 1}, ${choiceOf(articulation)?.name ?? articulation}`;
+  }
+
+  /** The mark a cell wears, if what it holds has one to wear. */
+  function cellMark(instrument: InstrumentId, step: number): string {
+    if (!marksReady) return '';
+    return choiceOf(articulationAt(patternState.current, instrument, step))?.mark ?? '';
   }
 
   function open(cell: HTMLButtonElement, instrument: InstrumentId, step: number): void {
@@ -65,13 +85,18 @@
     });
   }
 
+  /* What a cell sounds like the moment it is written. The core says which hits
+     an articulation makes and at which rung; `empty` makes none, which is how
+     rubbing a cell out stays silent without a special case here. */
+  function audition(instrument: InstrumentId, articulation: Articulation): void {
+    for (const hit of hitsOf(articulation)) audioState.audition(instrument, hit.dynamic);
+  }
+
   function choose(articulation: Articulation): void {
     const chosen = menu;
     close();
     if (chosen === undefined) return;
-    if (patternState.write(chosen.instrument, chosen.step, articulation)) {
-      audioState.audition(chosen.instrument);
-    }
+    audition(chosen.instrument, patternState.write(chosen.instrument, chosen.step, articulation));
   }
 
   function pressStart(event: PointerEvent, instrument: InstrumentId, step: number): void {
@@ -112,7 +137,7 @@
       swallowClick = false;
       return;
     }
-    if (patternState.toggle(instrument, step)) audioState.audition(instrument);
+    audition(instrument, patternState.toggle(instrument, step));
   }
 
   /* One handler for right-click and for the keyboard's own way of asking — the
@@ -160,7 +185,9 @@
             onpointercancel={abandonHold}
             onpointerleave={abandonHold}
             oncontextmenu={(event) => contextMenu(event, instrument.id, step.index)}
-          ></button>
+            ><span class="mark" aria-hidden="true">{cellMark(instrument.id, step.index)}</span
+            ></button
+          >
         {/each}
       {/each}
     </section>
@@ -240,6 +267,9 @@
     min-width: 0;
     aspect-ratio: 1;
     max-height: 2rem;
+    /* So the mark inside can size itself off the cell it sits in, which is the
+       only thing that keeps a glyph proportionate from desktop to phone. */
+    container-type: size;
     padding: 0;
     border: 1px solid #d1d5db;
     border-radius: 3px;
@@ -277,6 +307,24 @@
   .cell[aria-pressed='true'] {
     border-color: #1d4ed8;
     background: #2563eb;
+  }
+
+  /* The cell's articulation, in the same font the staff engraves it with, so
+     grid and page show one mark rather than two dialects of one. Sized off the
+     cell rather than the page: the square shrinks on a phone and the mark goes
+     with it. White on the written fill, which is the only ground it ever sits
+     on — the playhead lights an empty cell, never a marked one. */
+  .mark {
+    display: grid;
+    place-items: center;
+    font-family: 'Bravura', serif;
+    font-size: 145cqh;
+    line-height: 0;
+    color: #fff;
+    /* Bravura hangs articulation marks below the origin; centring the box is
+       not centring the glyph. */
+    padding-top: 0.28em;
+    pointer-events: none;
   }
 
   /* Samples still decoding: readable, not yet playable. */

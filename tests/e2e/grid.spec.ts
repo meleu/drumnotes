@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-import { BARS, STEPS_PER_BAR, TOTAL_STEPS, defaultPattern } from '../../src/core/pattern.js';
+import { STORAGE_KEY } from '../../src/adapters/storage.js';
+import { serialisePattern } from '../../src/core/codec.js';
+import {
+  BARS,
+  STEPS_PER_BAR,
+  TOTAL_STEPS,
+  defaultPattern,
+  withArticulation,
+} from '../../src/core/pattern.js';
 
 // Browser tests assert on DOM structure and counts, never pixels.
 test.beforeEach(async ({ page }) => {
@@ -84,4 +92,46 @@ test('mounts without console errors', async ({ page }) => {
   await expect(page.locator('button[data-instrument="kick"]').first()).toBeVisible();
 
   expect(errors).toEqual([]);
+});
+
+test('marks an accented cell and leaves a plain one bare', async ({ page }) => {
+  const step = defaultPattern().lanes.snare.indexOf('normal');
+  const plain = defaultPattern().lanes.hihat.indexOf('normal');
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(withArticulation(defaultPattern(), 'snare', step, 'accent'))],
+  );
+  await page.reload();
+
+  // SMuFL articAccentAbove: the same mark the staff engraves, so grid and page
+  // say one thing rather than two.
+  await expect(
+    page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
+  ).toHaveText('\u{E4A0}');
+  await expect(
+    page.locator(`button[data-instrument="hihat"][data-step="${plain}"] .mark`),
+  ).toBeEmpty();
+});
+
+test('keeps an accented cell marked as the playhead lights its column', async ({ page }) => {
+  const step = defaultPattern().lanes.snare.indexOf('normal');
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(withArticulation(defaultPattern(), 'snare', step, 'accent'))],
+  );
+  await page.reload();
+
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${step}"]`);
+  await expect(cell).toBeEnabled();
+  await page.getByRole('button', { name: 'Play' }).click();
+  await expect(cell).toHaveClass(/playing/);
+
+  // A written cell keeps its own colour under the playhead, so the mark keeps
+  // the one ground it was drawn to read against.
+  await expect(cell.locator('.mark')).toHaveText('\u{E4A0}');
+  const [markColour, cellColour] = await cell.evaluate((node) => [
+    getComputedStyle(node.querySelector('.mark')!).color,
+    getComputedStyle(node).backgroundColor,
+  ]);
+  expect(markColour).not.toBe(cellColour);
 });

@@ -1,8 +1,11 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-import { INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
+import { DYNAMICS, INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
+
+/** Every rung of every instrument the app can sound. */
+const SAMPLE_COUNT = INSTRUMENTS.length * DYNAMICS.length;
 
 /** First cell the default groove leaves empty in a lane. */
 function silentCell(page: Page, instrument: 'hihat' | 'snare' | 'kick') {
@@ -14,7 +17,7 @@ test.beforeEach(async ({ page }) => {
   await instrumentAudio(page);
 });
 
-test('decodes one sample per instrument, exactly once, before enabling the grid', async ({
+test('decodes every rung of every instrument, exactly once, before enabling the grid', async ({
   page,
 }) => {
   await page.goto('/');
@@ -23,7 +26,7 @@ test('decodes one sample per instrument, exactly once, before enabling the grid'
   await expect(cell).toBeEnabled();
 
   const log = await audioLog(page);
-  expect(log.decodes).toBe(INSTRUMENTS.length);
+  expect(log.decodes).toBe(SAMPLE_COUNT);
   expect(log.latencyHints).toEqual(['interactive']);
 });
 
@@ -61,6 +64,19 @@ test('sounds a cell as it is written and stays silent as it is rubbed out', asyn
   expect((await audioLog(page)).starts).toEqual([undefined]);
 });
 
+test('sounds a plain hit at the rung its own instrument calls plain', async ({ page }) => {
+  await page.goto('/');
+  await expect(silentCell(page, 'snare')).toBeEnabled();
+
+  await silentCell(page, 'snare').click();
+  await silentCell(page, 'kick').click();
+  // The closed hi-hat, and only it, reads -Soft where the others read -Med:
+  // at -Med it sits on top of the groove instead of under it.
+  await silentCell(page, 'hihat').click();
+
+  expect((await audioLog(page)).samples).toEqual(['Snare-Med', 'Kick-Med', 'HatClosed-Soft']);
+});
+
 test('reuses the decoded buffers however many times a lane is played', async ({ page }) => {
   await page.goto('/');
   const cell = silentCell(page, 'hihat');
@@ -73,7 +89,7 @@ test('reuses the decoded buffers however many times a lane is played', async ({ 
 
   const log = await audioLog(page);
   expect(log.starts).toHaveLength(3);
-  expect(log.decodes).toBe(INSTRUMENTS.length);
+  expect(log.decodes).toBe(SAMPLE_COUNT);
 });
 
 test('wakes the audio context on the first press', async ({ page }) => {

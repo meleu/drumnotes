@@ -10,7 +10,14 @@
  */
 
 import type { Instrument, NoteheadType, Pattern, StaffPosition, VoiceId } from './pattern.js';
-import { BARS, INSTRUMENTS, STEPS_PER_BAR, STEPS_PER_BEAT, VOICES, isWritten } from './pattern.js';
+import {
+  BARS,
+  INSTRUMENTS,
+  STEPS_PER_BAR,
+  STEPS_PER_BEAT,
+  VOICES,
+  articulationAt,
+} from './pattern.js';
 
 /**
  * Note values reachable on this grid. The beat ceiling — nothing outlasts a
@@ -34,7 +41,13 @@ export interface Notehead {
 }
 
 /** What one voice strikes on one step, low to high — one stroke, one stem. */
-type Stroke = readonly Notehead[];
+interface Stroke {
+  readonly noteheads: readonly Notehead[];
+  /** Marked as struck harder than what surrounds it. A property of the whole
+   *  stroke rather than of a head, since one stem takes one mark however many
+   *  heads it carries (ADR 0005). */
+  readonly accented: boolean;
+}
 
 interface BaseEntry {
   /** Absolute step index into the lanes — the entry's identity. */
@@ -43,7 +56,7 @@ interface BaseEntry {
   readonly dots: number;
 }
 
-export interface NoteEntry extends BaseEntry {
+export interface NoteEntry extends BaseEntry, Stroke {
   readonly kind: 'note';
   /** Simultaneous hits in one voice: one chord on one stem, low to high. */
   readonly noteheads: readonly Notehead[];
@@ -196,7 +209,7 @@ function voiceContent(
 
       entries.push(
         stroke !== undefined
-          ? { kind: 'note', startStep, duration, dots, noteheads: stroke }
+          ? { kind: 'note', startStep, duration, dots, ...stroke }
           : { kind: 'rest', startStep, duration, dots, position: restPosition },
       );
       stepInBar = next;
@@ -213,14 +226,29 @@ function voiceContent(
   return { entries, beamGroups };
 }
 
-/** What this voice strikes on one step, low to high, or nothing. */
+/**
+ * What this voice strikes on one step, low to high, or nothing.
+ *
+ * The mark is the stroke's: one accented head accents the stem it shares with
+ * the rest, because a stem cannot be half struck harder.
+ */
 function strokeAt(
   pattern: Pattern,
   instruments: readonly Instrument[],
   step: number,
 ): Stroke | undefined {
-  const heads = instruments
-    .filter((instrument) => isWritten(pattern, instrument.id, step))
-    .map(({ position, notehead }) => ({ position, type: notehead }));
-  return heads.length > 0 ? heads : undefined;
+  const struck = instruments.map((instrument) => ({
+    instrument,
+    articulation: articulationAt(pattern, instrument.id, step),
+  }));
+  const heads = struck.filter(({ articulation }) => articulation !== 'empty');
+  if (heads.length === 0) return undefined;
+
+  return {
+    noteheads: heads.map(({ instrument }) => ({
+      position: instrument.position,
+      type: instrument.notehead,
+    })),
+    accented: heads.some(({ articulation }) => articulation === 'accent'),
+  };
 }

@@ -9,6 +9,9 @@ export interface AudioLog {
   decodes: number;
   /** One entry per hit handed over: the time it was given, if any. */
   starts: (number | undefined)[];
+  /** One entry per hit handed over, alongside `starts`: which recording it
+   *  sounded, named as the kit names it and stripped of the build's hash. */
+  samples: string[];
   resumes: number;
   stops: number;
   latencyHints: unknown[];
@@ -29,15 +32,40 @@ declare global {
 export async function instrumentAudio(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const contexts: AudioContext[] = [];
+    /* Which file each decoded buffer came from, carried across the two steps
+       that separate a url from a sound: fetch → decode → play. */
+    const urlOfBytes = new WeakMap<ArrayBuffer, string>();
+    const urlOfBuffer = new WeakMap<AudioBuffer, string>();
+
+    /** `/assets/Snare-Hardest-a1b2c3d4.wav` → `Snare-Hardest`. */
+    const sampleName = (url: string | undefined): string =>
+      url === undefined
+        ? 'unknown'
+        : (url.split('/').at(-1) ?? '').replace(/\.wav$/, '').replace(/-[A-Za-z0-9_-]{8}$/, '');
+
     const log: PageLog = {
       decodes: 0,
       starts: [],
+      samples: [],
       resumes: 0,
       stops: 0,
       latencyHints: [],
       state: () => contexts[0]?.state ?? 'none',
     };
     window.__audio = log;
+
+    const realFetch = window.fetch;
+    window.fetch = async function (input, init) {
+      const response = await realFetch.call(this, input, init);
+      const url = typeof input === 'string' ? input : new Request(input).url;
+      const bytes = response.arrayBuffer.bind(response);
+      response.arrayBuffer = async () => {
+        const buffer = await bytes();
+        urlOfBytes.set(buffer, url);
+        return buffer;
+      };
+      return response;
+    };
 
     const RealContext = window.AudioContext;
     window.AudioContext = class extends RealContext {
@@ -51,7 +79,12 @@ export async function instrumentAudio(page: Page): Promise<void> {
     const decode = RealContext.prototype.decodeAudioData;
     RealContext.prototype.decodeAudioData = function (...args) {
       log.decodes += 1;
-      return decode.apply(this, args);
+      // Decoding detaches the bytes, so read the url off them first.
+      const url = urlOfBytes.get(args[0]);
+      return decode.apply(this, args).then((buffer) => {
+        if (url !== undefined) urlOfBuffer.set(buffer, url);
+        return buffer;
+      });
     };
 
     const resume = RealContext.prototype.resume;
@@ -63,6 +96,7 @@ export async function instrumentAudio(page: Page): Promise<void> {
     const start = AudioBufferSourceNode.prototype.start;
     AudioBufferSourceNode.prototype.start = function (...args) {
       log.starts.push(args[0]);
+      log.samples.push(sampleName(this.buffer ? urlOfBuffer.get(this.buffer) : undefined));
       return start.apply(this, args);
     };
 
@@ -79,6 +113,7 @@ export async function audioLog(page: Page): Promise<AudioLog> {
   return await page.evaluate(() => ({
     decodes: window.__audio.decodes,
     starts: window.__audio.starts,
+    samples: window.__audio.samples,
     resumes: window.__audio.resumes,
     stops: window.__audio.stops,
     latencyHints: window.__audio.latencyHints,

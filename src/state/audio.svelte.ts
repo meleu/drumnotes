@@ -1,5 +1,5 @@
 import { createDrumKit } from '../adapters/audio.js';
-import type { InstrumentId } from '../core/pattern.js';
+import type { Dynamic, InstrumentId } from '../core/pattern.js';
 
 /**
  * Reactive edge of the drum kit; nothing else touches an `AudioContext`.
@@ -31,14 +31,14 @@ class AudioState {
   /** Sounds an instrument as it is written down. Waking is deliberately not
    *  awaited: that round trip would sit between tap and hit, and a hit started
    *  on a context about to run sounds as soon as it does. */
-  audition(instrument: InstrumentId): void {
+  audition(instrument: InstrumentId, dynamic: Dynamic): void {
     this.wake();
-    this.#kit.play(instrument);
+    this.#kit.play(instrument, dynamic);
   }
 
   /** Hands a hit to the hardware for a moment yet to come. */
-  schedule(instrument: InstrumentId, when: number): void {
-    this.#kit.play(instrument, when);
+  schedule(instrument: InstrumentId, dynamic: Dynamic, when: number): void {
+    this.#kit.play(instrument, dynamic, when);
   }
 
   /** Drops what has been scheduled and not yet sounded. */

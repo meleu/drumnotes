@@ -11,9 +11,12 @@ import {
   defaultPattern,
   emptyPattern,
   toggleStep,
+  withArticulation,
 } from '../../src/core/pattern.js';
 
-// Browser tests assert on DOM structure and counts, never pixels.
+// Browser tests assert on DOM structure and counts, never pixels — except for
+// which side of the staff a mark landed on, which is a fact about the page and
+// nothing else.
 
 const staff = '.sheet svg';
 const noteheads = `${staff} .vf-notehead`;
@@ -52,6 +55,56 @@ async function augmentationDots(page: Page): Promise<number> {
       (nodes, glyph) => nodes.filter((node) => node.textContent === glyph).length,
       AUGMENTATION_DOT,
     );
+}
+
+/** SMuFL articAccentAbove and articAccentBelow — one mark, drawn as the mirror
+ *  of itself depending on which side of the stroke it sits. */
+const ACCENT_GLYPHS = ['\u{E4A0}', '\u{E4A1}'];
+
+interface Ink {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Where a group of paths draws, in the page's own coordinates. `getBBox` bounds
+ * it in the element's own space, so it has to be put through the transform that
+ * places that space on the page.
+ */
+async function inkOf(page: Page, selector: string): Promise<Ink[]> {
+  return await page.locator(selector).evaluateAll((nodes) =>
+    nodes.map((element) => {
+      const node = element as unknown as SVGGraphicsElement;
+      const box = node.getBBox();
+      const ctm = node.getScreenCTM();
+      if (ctm === null) throw new Error('element is not rendered');
+      const top = new DOMPoint(box.x, box.y).matrixTransform(ctm).y;
+      const bottom = new DOMPoint(box.x, box.y + box.height).matrixTransform(ctm).y;
+      return { top: Math.min(top, bottom), bottom: Math.max(top, bottom) };
+    }),
+  );
+}
+
+/**
+ * Where each drawn accent sits, so above and below can be told apart. A glyph's
+ * baseline rather than its box: a text node's box is the whole font's ascent and
+ * descent, which for a mark this small says almost nothing about where the mark
+ * is.
+ */
+async function accentBaselines(page: Page): Promise<number[]> {
+  return await page.locator(`${staff} text`).evaluateAll(
+    (nodes, glyphs) =>
+      nodes
+        .filter((node) => glyphs.includes(node.textContent ?? ''))
+        .map((element) => {
+          const node = element as unknown as SVGGraphicsElement;
+          const ctm = node.getScreenCTM();
+          if (ctm === null) throw new Error('accent is not rendered');
+          const at = new DOMPoint(Number(node.getAttribute('x')), Number(node.getAttribute('y')));
+          return at.matrixTransform(ctm).y;
+        }),
+    ACCENT_GLYPHS,
+  );
 }
 
 /** Measure tops, deduped into systems. */
@@ -187,4 +240,37 @@ test.describe('once the font has loaded', () => {
     // rejected, so a clean console is half this test.
     expect(errors).toEqual([]);
   });
+});
+
+test('engraves no accent on a groove that has none', async ({ page }) => {
+  await load(page, patternWith({ hihat: [0, 4], snare: [4], kick: [0] }));
+
+  expect(await accentBaselines(page)).toEqual([]);
+});
+
+test('engraves one accent per accented stroke, however many heads share it', async ({ page }) => {
+  // Hi-hat and snare struck together on step 4, the snare accented: one stem,
+  // one mark. A second, unaccompanied accent on step 8.
+  let pattern = patternWith({ hihat: [0, 4, 8], snare: [4] });
+  pattern = withArticulation(pattern, 'snare', 4, 'accent');
+  pattern = withArticulation(pattern, 'hihat', 8, 'accent');
+  await load(page, pattern);
+
+  expect(await accentBaselines(page)).toHaveLength(2);
+});
+
+test('engraves the hands above the staff and the feet below it', async ({ page }) => {
+  /** The first system's five lines, in the same coordinates as the accents. */
+  const staveEdges = async (): Promise<Ink> => (await inkOf(page, `${staff} .vf-stave`))[0]!;
+
+  await load(page, withArticulation(patternWith({ hihat: [0] }), 'hihat', 0, 'accent'));
+  const [hands] = await accentBaselines(page);
+  const handsStave = await staveEdges();
+
+  await load(page, withArticulation(patternWith({ kick: [0] }), 'kick', 0, 'accent'));
+  const [feet] = await accentBaselines(page);
+  const feetStave = await staveEdges();
+
+  expect(hands!).toBeLessThan(handsStave.top);
+  expect(feet!).toBeGreaterThan(feetStave.bottom);
 });

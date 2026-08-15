@@ -1,4 +1,4 @@
-import { DEFAULT_TEMPO, instrumentsAt } from '../core/pattern.js';
+import { DEFAULT_TEMPO, soundsAt } from '../core/pattern.js';
 import type { Loop } from '../core/schedule.js';
 import { retune, stepAt, stepsInWindow } from '../core/schedule.js';
 import { audioState } from './audio.svelte.js';
@@ -84,8 +84,8 @@ class TransportState {
       this.#loop = retune(this.#loop, pattern.tempo, this.#scheduledThrough);
     }
     for (const { step, time } of stepsInWindow(this.#loop, this.#scheduledThrough, until)) {
-      for (const instrument of instrumentsAt(pattern, step)) {
-        audioState.schedule(instrument, time);
+      for (const { instrument, dynamic } of soundsAt(pattern, step)) {
+        audioState.schedule(instrument, dynamic, time);
       }
     }
     this.#scheduledThrough = until;
