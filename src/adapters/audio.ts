@@ -4,9 +4,9 @@
  * through the injected `AudioContext`, so a node test can pass a stand-in.
  */
 
-import hihatUrl from '../assets/samples/hihat.wav?url';
-import kickUrl from '../assets/samples/kick.wav?url';
-import snareUrl from '../assets/samples/snare.wav?url';
+import hihatUrl from '../assets/samples/GMRockKit/HatClosed-Soft.wav?url';
+import kickUrl from '../assets/samples/GMRockKit/Kick-Med.wav?url';
+import snareUrl from '../assets/samples/GMRockKit/Snare-Med.wav?url';
 
 import type { InstrumentId } from '../core/pattern.js';
 

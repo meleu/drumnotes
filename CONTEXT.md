@@ -30,12 +30,47 @@ _Avoid_: tick, slot, column, frame, position
 
 **Cell**:
 Where a lane meets a step — the thing a drummer taps. The grid's word for a step in one
-instrument's lane.
+instrument's lane, and the smallest thing the pattern records: one articulation, or
+silence.
 _Avoid_: square, pad, box, button
 
 **Hit**:
-One instrument sounding on one step — the smallest event the pattern records.
+One instrument sounding once — what a cell's articulation is played out as. A plain cell
+is one hit; a flam is a grace hit and the hit it leads into.
 _Avoid_: filled cell, filled step, onset, strike, stroke, note, event
+
+**Articulation**:
+How a cell is struck — plain, accented, ghosted, flammed or dragged. One value and never
+two, so an accented flam is unwritable. It gathers the accent marks and the ornaments,
+which engraving keeps apart, because a cell has one slot for both. Silence carries none:
+rubbing a cell out takes its articulation with it.
+_Avoid_: dynamic, ornament, stroke type, velocity
+
+**Accent**:
+The articulation struck hardest. Written as a single mark on the whole stroke — above for
+hands, below for feet — so a stroke whose heads disagree still carries one accent, and the
+staff says the stroke is loud rather than which instrument is.
+_Avoid_: emphasis, stress, marcato, sforzando
+
+**Ghost note**:
+The articulation struck softest, written as parentheses around its own notehead and no
+other. Unlike an accent, it names the instrument it belongs to.
+_Avoid_: ghost hit, dead note, ghosted stroke, grace note (a grace note leads into a hit;
+a ghost note is one)
+
+**Flam**:
+The articulation whose hit is led by one grace hit.
+_Avoid_: grace, ornament, ruff
+
+**Drag**:
+The articulation whose hit is led by two grace hits.
+_Avoid_: ruff, roll, double grace, buzz
+
+**Grace hit**:
+A hit sounding a sliver ahead of the step it belongs to, softer than the hit it leads
+into. A flam has one, a drag two, and no other articulation has any.
+_Avoid_: grace note (that is the written form), grace stroke (a stroke is a stack on one
+stem), ruff, ornament hit
 
 **Stroke**:
 Everything one voice plays on a single step: one or more hits, written on one stem. A
@@ -64,8 +99,10 @@ written in, its staff position, its notehead and its sample.
 _Avoid_: drum, sound, pad, voice, part
 
 **Sample**:
-The recorded audio one instrument plays. One per instrument, bundled with the app.
-_Avoid_: sound, clip, buffer
+The recorded audio one instrument plays at one dynamic. Bundled with the app, and picked
+by what is being sounded — hardest for an accent, softest for a ghost note or a grace hit
+— so a dynamic is a different recording rather than the same one turned up.
+_Avoid_: sound, clip, buffer, velocity layer
 
 ### The notation
 
@@ -94,6 +131,11 @@ _Avoid_: event, element, item, symbol
 An entry that sounds — the written form of exactly one **Stroke**, its heads on a single
 stem.
 _Avoid_: hit, strike, chord (a chord is a note with several heads)
+
+**Grace note**:
+The small note a grace hit is written as, drawn before its stroke and stealing no time
+from the bar. Grace hits landing together share a stem, exactly as a stroke's heads do.
+_Avoid_: acciaccatura, appoggiatura, ornament, grace hit (that is the sound)
 
 **Rest**:
 An entry that is silent, standing where a voice has no stroke. Written at its voice's own
@@ -184,7 +226,14 @@ Inaudible, and it does not scale with tempo.
 _Avoid_: lead-in, count-in (a count-in is audible, musical, measured in beats, and
 deferred), latency, delay, offset
 
+**Grace lead**:
+How far ahead of its step a grace hit sounds. Near-constant real time rather than a
+subdivision — a flam is a gesture of the hand, not a note value — and tightened only at
+tempos fast enough that a drag would otherwise reach back into the step before.
+_Avoid_: offset, delay, flam time, swing, slack (slack precedes the whole loop, once)
+
 **Audition**:
 Sounding an instrument the instant its cell is written, outside the schedule entirely.
-Writing a hit auditions it; rubbing one out is silent.
+Writing a hit auditions it, in full — a flam auditions as a flam; rubbing one out is
+silent.
 _Avoid_: preview, tap sound, trigger, monitor

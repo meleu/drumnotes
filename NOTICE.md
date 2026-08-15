@@ -7,9 +7,11 @@ from, who wrote it, and the terms it is redistributed under.
 ## GMRockKit (drum samples)
 
 - **What**: the samples the app plays.
-  Committed to this repository under `src/assets/samples/` and shipped in the build
-  output as content-hashed `.wav` assets. Nothing is fetched from a third-party URL
-  at runtime.
+  A subset of the kit, committed to this repository under
+  `src/assets/samples/GMRockKit/` under the kit's own filenames — every dynamic the
+  app sounds, for the instruments it plays and for those it has left room to add.
+  Shipped in the build output as content-hashed `.wav` assets. Nothing is fetched
+  from a third-party URL at runtime.
 - **Origin**: <https://github.com/hydrogen-music/hydrogen>, directory
   `data/drumkits/GMRockKit` at tag `1.2.6`.
 - **Authors**: Copyright © 2024 Glen MacArthur / Sebastian Moors.

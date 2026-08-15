@@ -61,9 +61,9 @@ class FakeContext {
 }
 
 const SOURCES = {
-  hihat: '/samples/hihat.wav',
-  snare: '/samples/snare.wav',
-  kick: '/samples/kick.wav',
+  hihat: '/samples/HatClosed-Soft.wav',
+  snare: '/samples/Snare-Med.wav',
+  kick: '/samples/Kick-Med.wav',
 };
 
 test('decodes every sample exactly once', async () => {
