@@ -56,7 +56,25 @@ export function remove(library: Library, name: string): Library {
   return kept;
 }
 
-/** The entries, as a list something can be rendered from. */
+/**
+ * Names in the order a drummer would count them: runs of digits compare as
+ * numbers, so `Pattern 2` comes before `Pattern 10`, and case is ignored, so
+ * `bossa` sits with `Bossa` rather than in a lower-case district at the end.
+ *
+ * The locale is pinned rather than left to the browser: the order rows appear
+ * in is part of what the app does, and it should not change because the machine
+ * it runs on is set up differently.
+ */
+const byName = new Intl.Collator('en', { numeric: true, sensitivity: 'accent' });
+
+/**
+ * The entries, in name order — the only order there is. Sorting here rather
+ * than at the call site means a list can never be rendered unsorted, and it
+ * also settles the order the stored map happens to have been written in, which
+ * a JavaScript object does not keep faithfully once a name is all digits.
+ */
 export function entriesOf(library: Library): readonly Entry[] {
-  return Object.entries(library).map(([name, pattern]) => ({ name, pattern }));
+  return Object.entries(library)
+    .map(([name, pattern]) => ({ name, pattern }))
+    .sort((one, other) => byName.compare(one.name, other.name));
 }

@@ -95,3 +95,30 @@ describe('entriesOf', () => {
     expect(entriesOf(library)[0]?.pattern.tempo).toBe(140);
   });
 });
+
+/** A library holding one pattern under each name, saved in the order given. */
+function libraryOf(...kept: string[]): ReturnType<typeof emptyLibrary> {
+  return kept.reduce((library, name) => keep(library, name, defaultPattern()), emptyLibrary());
+}
+
+describe('the order entries are listed in', () => {
+  it('reads alphabetically when there are no digits', () => {
+    expect(names(libraryOf('Samba', 'Bossa', 'Funk'))).toEqual(['Bossa', 'Funk', 'Samba']);
+  });
+
+  it('compares a run of digits as a number, not as text', () => {
+    expect(names(libraryOf('Pattern 10', 'Pattern 2'))).toEqual(['Pattern 2', 'Pattern 10']);
+  });
+
+  it('compares names that are entirely digits as numbers too', () => {
+    expect(names(libraryOf('10', '9', '100'))).toEqual(['9', '10', '100']);
+  });
+
+  it('ignores case, so lower-case names are not banished to the end', () => {
+    expect(names(libraryOf('cherry', 'apple', 'Banana'))).toEqual(['apple', 'Banana', 'cherry']);
+  });
+
+  it('does not depend on the order things were saved in', () => {
+    expect(names(libraryOf('Funk', 'Bossa'))).toEqual(names(libraryOf('Bossa', 'Funk')));
+  });
+});

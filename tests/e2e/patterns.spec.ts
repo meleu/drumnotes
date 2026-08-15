@@ -35,6 +35,11 @@ async function load(page: Page, name: string): Promise<void> {
   await row(page, name).locator('[data-patterns="load"]').click();
 }
 
+/** The names the panel is showing, in the order it is showing them. */
+function listed(page: Page) {
+  return page.locator(`${rows} .name`);
+}
+
 /** The control that drops a row, which asks before it acts. */
 function remove(page: Page, name: string) {
   return row(page, name).locator('[data-patterns="delete"]');
@@ -341,4 +346,39 @@ test('asking about one row does not arm another', async ({ page }) => {
   await expect(remove(page, 'Funk')).toHaveAttribute('data-state', 'asking');
   await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'idle');
   await expect(row(page, 'Funk')).toBeVisible();
+});
+
+/* A pattern is always in the same place, so it can be found by reading rather
+   than by hunting through the order things happened to be saved in. */
+test('lists the rows in the order a drummer would count them', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await keep(page, 'Pattern 10');
+  await keep(page, 'bossa');
+  await keep(page, 'Pattern 2');
+  await keep(page, 'Bebop');
+
+  await expect(listed(page)).toHaveText(['Bebop', 'bossa', 'Pattern 2', 'Pattern 10']);
+});
+
+test('a new row arrives in its place in the list, not at the end', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await keep(page, 'Samba');
+
+  await keep(page, 'Funk');
+
+  await expect(listed(page)).toHaveText(['Bossa', 'Funk', 'Samba']);
+});
+
+test('the order is the same after a reload', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Pattern 10');
+  await keep(page, 'Pattern 2');
+  await keep(page, 'apple');
+
+  await page.reload();
+  await page.locator(toggle).click();
+
+  await expect(listed(page)).toHaveText(['apple', 'Pattern 2', 'Pattern 10']);
 });

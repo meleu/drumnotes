@@ -280,14 +280,14 @@ and lives in the core library module, with the sorted list derived in the state 
 
 ### Acceptance criteria
 
-- [ ] Rows appear in natural order by name
-- [ ] `Pattern 2` sorts before `Pattern 10`
-- [ ] Sorting is case-insensitive: `apple`, `Banana`, `cherry` appear in that order
-- [ ] A newly saved row appears in its sorted position rather than at the end
-- [ ] The order is identical after a reload
-- [ ] Unit tests cover digit runs, mixed case, names with no digits, and names that are
+- [x] Rows appear in natural order by name
+- [x] `Pattern 2` sorts before `Pattern 10`
+- [x] Sorting is case-insensitive: `apple`, `Banana`, `cherry` appear in that order
+- [x] A newly saved row appears in its sorted position rather than at the end
+- [x] The order is identical after a reload
+- [x] Unit tests cover digit runs, mixed case, names with no digits, and names that are
       entirely digits
-- [ ] An end-to-end test reads the rendered row order
+- [x] An end-to-end test reads the rendered row order
 
 ---
 
