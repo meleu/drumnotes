@@ -6,6 +6,10 @@
  * The last-written store is held in memory and each write is merged into it, so
  * the autosave that fires on every cell tap and a library write cannot clobber
  * one another, and neither re-reads the store to find out what the other did.
+ *
+ * Whether the store works at all is settled once, at startup, so the interface
+ * can say up front what it cannot offer instead of finding out a write at a
+ * time.
  */
 
 import type { Store } from '../core/codec.js';
@@ -21,7 +25,37 @@ export const STORAGE_KEY = 'drumnotes:store';
  *  migrate. */
 const ABANDONED_KEY = 'drumnotes:pattern';
 
+/** Written and taken straight back out, only to find out whether it can be. */
+const PROBE_KEY = 'drumnotes:probe';
+
+const usable = probe();
+
 let held: Store = start();
+
+/**
+ * Whether this browser will keep anything at all. Asked once, at startup: a
+ * store that refuses — private browsing, a site-data setting, a full quota —
+ * does not relent mid-session, so asking again per write would only cost time
+ * and could answer differently for no reason the drummer could see.
+ *
+ * Decides whether the library's controls exist rather than whether they are
+ * enabled, as `canCopyImage` already does for the clipboard.
+ */
+export function canKeep(): boolean {
+  return usable;
+}
+
+/* A round trip rather than a look: a store can be readable and still refuse a
+   write, and a write is the thing being promised. */
+function probe(): boolean {
+  try {
+    localStorage.setItem(PROBE_KEY, '');
+    localStorage.removeItem(PROBE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function start(): Store {
   forget(ABANDONED_KEY);

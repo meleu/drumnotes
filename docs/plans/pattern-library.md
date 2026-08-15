@@ -464,16 +464,16 @@ and the pattern simply goes unsaved, as it does today.
 
 ### Acceptance criteria
 
-- [ ] Availability is probed once at startup, not per operation
-- [ ] With storage blocked, the panel shows one explanatory line and nothing else
-- [ ] The line states the fact plainly and names no cause it cannot observe
-- [ ] No name field and no Save button are rendered at all
-- [ ] No rows and no empty-library line are rendered — the two lines are distinct, and the
+- [x] Availability is probed once at startup, not per operation
+- [x] With storage blocked, the panel shows one explanatory line and nothing else
+- [x] The line states the fact plainly and names no cause it cannot observe
+- [x] No name field and no Save button are rendered at all
+- [x] No rows and no empty-library line are rendered — the two lines are distinct, and the
       blocked one never stands in for the empty one
-- [ ] The Patterns control still opens and closes the panel
-- [ ] The grid, staff, playback, tempo, clear and export all work as normal
-- [ ] Nothing throws, and no error reaches the console during ordinary use
-- [ ] An end-to-end test blocks storage and asserts the panel's contents
+- [x] The Patterns control still opens and closes the panel
+- [x] The grid, staff, playback, tempo, clear and export all work as normal
+- [x] Nothing throws, and no error reaches the console during ordinary use
+- [x] An end-to-end test blocks storage and asserts the panel's contents
 
 ---
 

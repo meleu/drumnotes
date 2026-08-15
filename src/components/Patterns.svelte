@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { canKeep } from '../adapters/storage.js';
   import type { Entry } from '../core/library.js';
   import { MAX_NAME_LENGTH, sameName } from '../core/library.js';
   import { anythingWritten } from '../core/pattern.js';
@@ -12,6 +13,11 @@
      did until the library is asked for. */
   let open = $state(false);
   const PANEL_ID = 'patterns-panel';
+
+  /* Asked once, and decides what the panel holds rather than what is greyed
+     out: a store that will not keep anything never starts, so a field and a
+     Save button would be an invitation to press something that cannot work. */
+  const storable = canKeep();
 
   let name = $state('');
 
@@ -156,81 +162,91 @@
   <!-- A full-width flex item, ordered last, so it lands on its own line beneath
        the whole controls row rather than splitting it. -->
   <div class="panel" id={PANEL_ID}>
-    <div class="keep">
-      <label for="pattern-name">Name</label>
-      <!-- The suggestion arrives selected, so typing a real name replaces it
+    {#if !storable}
+      <!-- The whole panel, when nothing can be kept: the fact, and no guess at
+           a cause the probe cannot tell apart. Deliberately not the
+           empty-library line, which is an invitation this browser cannot
+           accept. -->
+      <p class="blocked" data-patterns="blocked">
+        This browser will not let anything be kept here.
+      </p>
+    {:else}
+      <div class="keep">
+        <label for="pattern-name">Name</label>
+        <!-- The suggestion arrives selected, so typing a real name replaces it
            rather than having to be cleared first. -->
-      <input
-        id="pattern-name"
-        type="text"
-        data-patterns="name"
-        maxlength={MAX_NAME_LENGTH}
-        bind:value={name}
-        {@attach (node) => {
-          node.focus();
-          node.select();
-        }}
-      />
-      <!-- Asks before it writes over a name already kept, and says so where the
+        <input
+          id="pattern-name"
+          type="text"
+          data-patterns="name"
+          maxlength={MAX_NAME_LENGTH}
+          bind:value={name}
+          {@attach (node) => {
+            node.focus();
+            node.select();
+          }}
+        />
+        <!-- Asks before it writes over a name already kept, and says so where the
            press will land. It reports its state, so a test or stylesheet need
            not read the label. -->
-      <button
-        type="button"
-        class="save"
-        data-patterns="save"
-        data-state={replacing ? 'asking' : 'idle'}
-        aria-label={replacing ? `Replace ${typed}? Press again to confirm` : 'Save'}
-        disabled={!keepable}
-        onclick={pressSave}
-        onblur={forgetSave}
-      >
-        {replacing ? 'Replace?' : 'Save'}
-      </button>
-    </div>
+        <button
+          type="button"
+          class="save"
+          data-patterns="save"
+          data-state={replacing ? 'asking' : 'idle'}
+          aria-label={replacing ? `Replace ${typed}? Press again to confirm` : 'Save'}
+          disabled={!keepable}
+          onclick={pressSave}
+          onblur={forgetSave}
+        >
+          {replacing ? 'Replace?' : 'Save'}
+        </button>
+      </div>
 
-    {#if entries.length === 0}
-      <p class="empty" data-patterns="empty">Nothing kept yet.</p>
-    {:else}
-      <ul class="rows" data-patterns="rows">
-        {#each entries as entry (entry.name)}
-          <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
-            <!-- Loading is the whole width the delete control leaves, so the
+      {#if entries.length === 0}
+        <p class="empty" data-patterns="empty">Nothing kept yet.</p>
+      {:else}
+        <ul class="rows" data-patterns="rows">
+          {#each entries as entry (entry.name)}
+            <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
+              <!-- Loading is the whole width the delete control leaves, so the
                  target is as wide as the panel and a thumb cannot miss it.
                  The mark is drawn rather than written — bold, on a tinted row —
                  so the eye finds it without a word of explanation. The label is
                  where it is said in words, for a reader that cannot see it. -->
-            <button
-              type="button"
-              class="load"
-              data-patterns="load"
-              data-state={askedFor === entry.name ? 'asking' : 'idle'}
-              aria-label={loadLabel(entry)}
-              onclick={() => pressLoad(entry)}
-              onblur={forgetLoad}
-            >
-              <span class="name">{entry.name}</span>
-              {#if askedFor === entry.name}
-                <span class="question">Sure?</span>
-              {:else}
-                <span class="tempo">{entry.pattern.tempo} BPM</span>
-              {/if}
-            </button>
-            <button
-              type="button"
-              class="delete"
-              data-patterns="delete"
-              data-state={asked === entry.name ? 'asking' : 'idle'}
-              aria-label={asked === entry.name
-                ? `Delete ${entry.name}? Press again to confirm`
-                : `Delete ${entry.name}`}
-              onclick={() => press(entry.name)}
-              onblur={forget}
-            >
-              {asked === entry.name ? 'Sure?' : 'Delete'}
-            </button>
-          </li>
-        {/each}
-      </ul>
+              <button
+                type="button"
+                class="load"
+                data-patterns="load"
+                data-state={askedFor === entry.name ? 'asking' : 'idle'}
+                aria-label={loadLabel(entry)}
+                onclick={() => pressLoad(entry)}
+                onblur={forgetLoad}
+              >
+                <span class="name">{entry.name}</span>
+                {#if askedFor === entry.name}
+                  <span class="question">Sure?</span>
+                {:else}
+                  <span class="tempo">{entry.pattern.tempo} BPM</span>
+                {/if}
+              </button>
+              <button
+                type="button"
+                class="delete"
+                data-patterns="delete"
+                data-state={asked === entry.name ? 'asking' : 'idle'}
+                aria-label={asked === entry.name
+                  ? `Delete ${entry.name}? Press again to confirm`
+                  : `Delete ${entry.name}`}
+                onclick={() => press(entry.name)}
+                onblur={forget}
+              >
+                {asked === entry.name ? 'Sure?' : 'Delete'}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
     {/if}
   </div>
 {/if}
@@ -364,7 +380,8 @@
   }
 
   .tempo,
-  .empty {
+  .empty,
+  .blocked {
     font-size: 0.8125rem;
     color: #6b7280;
   }
@@ -387,5 +404,10 @@
 
   .empty {
     margin: 0.75rem 0 0;
+  }
+
+  /* Alone in the panel, so it does not hang off a row that is not there. */
+  .blocked {
+    margin: 0;
   }
 </style>
