@@ -184,14 +184,14 @@ unkept work (phase 8).
 
 ### Acceptance criteria
 
-- [ ] Tapping a row replaces the pattern on the grid with a copy of that entry
-- [ ] The staff redraws to match
-- [ ] The tempo field shows the tempo the pattern was saved at
-- [ ] The panel closes after a load
-- [ ] Editing a cell after a load leaves the kept entry untouched — reopening the panel and
+- [x] Tapping a row replaces the pattern on the grid with a copy of that entry
+- [x] The staff redraws to match
+- [x] The tempo field shows the tempo the pattern was saved at
+- [x] The panel closes after a load
+- [x] Editing a cell after a load leaves the kept entry untouched — reopening the panel and
       loading it again restores what was saved
-- [ ] The loaded pattern is the current pattern after a reload
-- [ ] End-to-end tests cover loading, the tempo travelling with it, the panel closing, and
+- [x] The loaded pattern is the current pattern after a reload
+- [x] End-to-end tests cover loading, the tempo travelling with it, the panel closing, and
       the entry surviving a post-load edit
 
 ---

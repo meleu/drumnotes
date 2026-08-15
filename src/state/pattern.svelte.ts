@@ -26,7 +26,7 @@ class PatternState {
    *  exactly that without asking twice. */
   toggle(instrument: InstrumentId, step: number): Articulation {
     const next = toggleStep(this.#pattern, instrument, step);
-    this.#replace(next);
+    this.#commit(next);
     return articulationAt(next, instrument, step);
   }
 
@@ -34,23 +34,30 @@ class PatternState {
    *  audition it without asking twice. `empty` sounds as nothing. */
   write(instrument: InstrumentId, step: number, articulation: Articulation): Articulation {
     const next = withArticulation(this.#pattern, instrument, step, articulation);
-    this.#replace(next);
+    this.#commit(next);
     return articulationAt(next, instrument, step);
+  }
+
+  /** Puts a whole pattern on the grid, tempo and all — how a kept groove is
+   *  loaded. The pattern is an immutable value, so the caller's copy and this
+   *  one cannot diverge into each other: editing here never reaches there. */
+  replace(pattern: Pattern): void {
+    this.#commit(pattern);
   }
 
   /** Rubs out the groove; tempo and playback untouched — an empty pattern plays
    *  as silence, not as a stop. */
   clear(): void {
-    this.#replace(withNothingWritten(this.#pattern));
+    this.#commit(withNothingWritten(this.#pattern));
   }
 
   /** Tempo via the core's clamp: asked-for and played may differ, so read it
    *  back rather than trusting what was sent. */
   setTempo(tempo: number): void {
-    this.#replace(withTempo(this.#pattern, tempo));
+    this.#commit(withTempo(this.#pattern, tempo));
   }
 
-  #replace(pattern: Pattern): void {
+  #commit(pattern: Pattern): void {
     this.#pattern = pattern;
     saveCurrent(pattern);
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Pattern } from '../core/pattern.js';
   import { libraryState } from '../state/library.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
 
@@ -18,6 +19,15 @@
   function save(): void {
     if (name === '') return;
     libraryState.keep(name, patternState.current);
+  }
+
+  /* Loading goes the other way, through the same funnel an edit does, so the
+     loaded pattern autosaves as the current one. Then the panel closes: it has
+     done its job, and the drummer is returned to the grid and staff they came
+     here to work on. */
+  function load(pattern: Pattern): void {
+    patternState.replace(pattern);
+    open = false;
   }
 </script>
 
@@ -48,8 +58,17 @@
       <ul class="rows" data-patterns="rows">
         {#each entries as entry (entry.name)}
           <li class="row" data-pattern={entry.name}>
-            <span class="name">{entry.name}</span>
-            <span class="tempo">{entry.pattern.tempo} BPM</span>
+            <!-- The whole row is the control, so the target is as wide as the
+                 panel and a thumb cannot miss it. -->
+            <button
+              type="button"
+              class="load"
+              data-patterns="load"
+              onclick={() => load(entry.pattern)}
+            >
+              <span class="name">{entry.name}</span>
+              <span class="tempo">{entry.pattern.tempo} BPM</span>
+            </button>
           </li>
         {/each}
       </ul>
@@ -102,12 +121,28 @@
   }
 
   .row {
+    border-top: 1px solid #f3f4f6;
+  }
+
+  /* Sized to the row rather than to its text: the whole line is the target. */
+  .load {
     display: flex;
+    width: 100%;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.5rem 0.25rem;
-    border-top: 1px solid #f3f4f6;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .load:hover {
+    background: #f9fafb;
   }
 
   .tempo,
