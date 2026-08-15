@@ -26,7 +26,7 @@ export function emptyLibrary(): Library {
  * name the same pattern. Folding decides identity only — never appearance, so
  * the name a drummer typed is the name they are shown.
  */
-function sameName(one: string, other: string): boolean {
+export function sameName(one: string, other: string): boolean {
   return one.toLowerCase() === other.toLowerCase();
 }
 
@@ -56,8 +56,12 @@ export function remove(library: Library, name: string): Library {
   return kept;
 }
 
-/** Whether a name is already an identity in the library. */
-function has(library: Library, name: string): boolean {
+/**
+ * Whether a name is already an identity in the library — what a save has to ask
+ * about before it writes over a groove the drummer meant to keep, and what the
+ * series below has to step over.
+ */
+export function holds(library: Library, name: string): boolean {
   return Object.keys(library).some((existing) => sameName(existing, name));
 }
 
@@ -79,7 +83,7 @@ const SERIES = 'Pattern';
 export function freeName(library: Library): string {
   for (let number = 1; ; number += 1) {
     const candidate = `${SERIES} ${number}`;
-    if (!has(library, candidate)) return candidate;
+    if (!holds(library, candidate)) return candidate;
   }
 }
 

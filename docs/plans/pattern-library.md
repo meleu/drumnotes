@@ -351,16 +351,16 @@ the question can never be answered against a name other than the one it was aske
 
 ### Acceptance criteria
 
-- [ ] Saving under an unused name still keeps in one press
-- [ ] Saving under a name already in the library arms a Replace question instead of saving
-- [ ] A name differing only in case counts as already in the library and arms the question
-- [ ] A second press replaces the entry; the list gains no second row with that name
-- [ ] After replacing `Bossa` with `bossa`, exactly one row remains, reading `bossa`
-- [ ] The replaced row shows the newly saved pattern's tempo
-- [ ] An unanswered question withdraws itself after the timeout
-- [ ] Moving attention elsewhere withdraws it
-- [ ] Changing the name to an unused one while the question stands returns the button to Save
-- [ ] End-to-end tests cover the ask, the replace, the withdrawal, and the name change
+- [x] Saving under an unused name still keeps in one press
+- [x] Saving under a name already in the library arms a Replace question instead of saving
+- [x] A name differing only in case counts as already in the library and arms the question
+- [x] A second press replaces the entry; the list gains no second row with that name
+- [x] After replacing `Bossa` with `bossa`, exactly one row remains, reading `bossa`
+- [x] The replaced row shows the newly saved pattern's tempo
+- [x] An unanswered question withdraws itself after the timeout
+- [x] Moving attention elsewhere withdraws it
+- [x] Changing the name to an unused one while the question stands returns the button to Save
+- [x] End-to-end tests cover the ask, the replace, the withdrawal, and the name change
 
 ---
 

@@ -1,5 +1,5 @@
 import type { Entry, Library } from '../core/library.js';
-import { entriesOf, freeName, keep, remove } from '../core/library.js';
+import { entriesOf, freeName, holds, keep, remove } from '../core/library.js';
 import type { Pattern } from '../core/pattern.js';
 import { loadStore, saveLibrary } from '../adapters/storage.js';
 
@@ -23,6 +23,12 @@ class LibraryState {
    *  to open carrying. */
   get freeName(): string {
     return freeName(this.#library);
+  }
+
+  /** Whether a name is already kept, case aside — so a save can ask before it
+   *  writes over a groove rather than replacing it silently. */
+  holds(name: string): boolean {
+    return holds(this.#library, name);
   }
 
   /** Keeps a copy of a pattern under a name, replacing whatever that name held.

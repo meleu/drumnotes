@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyLibrary, entriesOf, freeName, keep, remove } from './library.js';
+import { emptyLibrary, entriesOf, freeName, holds, keep, remove, sameName } from './library.js';
 import { defaultPattern, emptyPattern, withTempo } from './pattern.js';
 
 /** Names of the entries, in the order they are listed. */
@@ -47,6 +47,34 @@ describe('keep', () => {
     const library = keep(keep(emptyLibrary(), 'Bossa', defaultPattern()), 'bossa', emptyPattern());
 
     expect(names(library)).toEqual(['bossa']);
+  });
+});
+
+describe('holds', () => {
+  it('says no of an empty library', () => {
+    expect(holds(emptyLibrary(), 'Bossa')).toBe(false);
+  });
+
+  it('says yes of a name that was kept', () => {
+    expect(holds(keep(emptyLibrary(), 'Bossa', defaultPattern()), 'Bossa')).toBe(true);
+  });
+
+  it('says yes of a name differing only in case, that being one identity', () => {
+    expect(holds(keep(emptyLibrary(), 'Bossa', defaultPattern()), 'bossa')).toBe(true);
+  });
+
+  it('says no of a name that is merely similar', () => {
+    expect(holds(keep(emptyLibrary(), 'Bossa', defaultPattern()), 'Bossa Nova')).toBe(false);
+  });
+});
+
+describe('sameName', () => {
+  it('holds of two spellings of one identity', () => {
+    expect(sameName('bossa', 'BOSSA')).toBe(true);
+  });
+
+  it('fails of two different names', () => {
+    expect(sameName('Bossa', 'Funk')).toBe(false);
   });
 });
 

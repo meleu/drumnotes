@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { MAX_NAME_LENGTH } from '../core/library.js';
+  import { MAX_NAME_LENGTH, sameName } from '../core/library.js';
   import type { Pattern } from '../core/pattern.js';
   import { hasHits } from '../core/pattern.js';
   import { libraryState } from '../state/library.svelte.js';
@@ -35,10 +35,39 @@
      second matches Clear, which is dead on an empty grid for the same reason. */
   const keepable = $derived(typed !== '' && hasHits(patternState.current));
 
+  /** How long a question stands before it is taken back. */
+  const QUESTION_MS = 5000;
+
+  /* A name already kept holds a groove the drummer meant to keep, so writing
+     over one costs two presses like every other act with nothing behind it.
+     What is armed is the name the question was asked about, not a flag: editing
+     the field to a free name takes the question back, so it can never be
+     answered against a name other than the one it was put about. */
+  let askedOver = $state<string | null>(null);
+  let withdrawSave: ReturnType<typeof setTimeout> | undefined;
+
+  const taken = $derived(libraryState.holds(typed));
+  const replacing = $derived(askedOver !== null && taken && sameName(askedOver, typed));
+
   /* Save takes a copy of what is on the grid. The panel stays open afterwards,
-     so the new row can be seen arriving. */
-  function save(): void {
+     so the new row can be seen arriving — under the name as typed, since a
+     replacement adopts the spelling that replaced it. */
+  function pressSave(): void {
+    if (taken && !replacing) {
+      askedOver = typed;
+      clearTimeout(withdrawSave);
+      withdrawSave = setTimeout(forgetSave, QUESTION_MS);
+      return;
+    }
+    forgetSave();
     libraryState.keep(typed, patternState.current);
+  }
+
+  /** Also on blur, as with every other question here: attention elsewhere is an
+   *  answer of sorts. */
+  function forgetSave(): void {
+    askedOver = null;
+    clearTimeout(withdrawSave);
   }
 
   /* Loading goes the other way, through the session seam: a wholesale
@@ -51,13 +80,11 @@
     open = false;
   }
 
-  /* Deleting is the one act in the panel with nothing behind it — no undo, and
-     the rows are as wide as a thumb — so it costs two presses, the same as
-     clearing does. The question is a name rather than a flag: only the row it
-     was asked about is armed, and asking about another takes the first back. */
+  /* Deleting has nothing behind it either — no undo, and the rows are as wide
+     as a thumb — so it costs two presses, the same as clearing does. The
+     question is a name rather than a flag: only the row it was asked about is
+     armed, and asking about another takes the first back. */
   let asked = $state<string | null>(null);
-  /** How long the question stands before it is taken back. */
-  const QUESTION_MS = 5000;
   let withdraw: ReturnType<typeof setTimeout> | undefined;
 
   function press(name: string): void {
@@ -109,7 +136,21 @@
           node.select();
         }}
       />
-      <button type="button" data-patterns="save" disabled={!keepable} onclick={save}>Save</button>
+      <!-- Asks before it writes over a name already kept, and says so where the
+           press will land. It reports its state, so a test or stylesheet need
+           not read the label. -->
+      <button
+        type="button"
+        class="save"
+        data-patterns="save"
+        data-state={replacing ? 'asking' : 'idle'}
+        aria-label={replacing ? `Replace ${typed}? Press again to confirm` : 'Save'}
+        disabled={!keepable}
+        onclick={pressSave}
+        onblur={forgetSave}
+      >
+        {replacing ? 'Replace?' : 'Save'}
+      </button>
     </div>
 
     {#if entries.length === 0}
@@ -164,6 +205,20 @@
   .keep button:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+
+  .save {
+    /* Held wide enough for either label, so the row does not shuffle when the
+       question comes up. */
+    min-width: 6rem;
+  }
+
+  /* Asking looks like what it is about to do. */
+  .save[data-state='asking'] {
+    border-color: #b91c1c;
+    background: #fee2e2;
+    color: #991b1b;
+    font-weight: 600;
   }
 
   .panel {

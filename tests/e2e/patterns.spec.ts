@@ -431,6 +431,110 @@ test('Save is dead while the grid is silent, and comes back with a hit', async (
   await expect(page.locator(save)).toBeEnabled();
 });
 
+/* A name already kept holds a groove the drummer meant to keep, so writing over
+   it costs the same two presses that clearing and deleting do. */
+test('saving over a kept name asks rather than writing over it', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await page.locator(field).fill('Bossa');
+  await page.locator(save).click();
+
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
+  await expect(page.locator(save)).toHaveAccessibleName(/press again/i);
+  await expect(listed(page)).toHaveText(['Bossa']);
+});
+
+test('a free name still keeps in one press, with nothing to answer', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await page.locator(field).fill('Bossa');
+
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'idle');
+
+  await page.locator(save).click();
+
+  await expect(listed(page)).toHaveText(['Bossa']);
+});
+
+/* Names are one identity whatever their case, so a second spelling asks about
+   the row it would write over rather than quietly making another. */
+test('a name differing only in case counts as kept, and asks too', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await page.locator(field).fill('bossa');
+  await page.locator(save).click();
+
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
+  await expect(listed(page)).toHaveText(['Bossa']);
+});
+
+/* Answering replaces the entry whole: one row, reading the name as it was just
+   typed, at the tempo it was just saved at. */
+test('a second press replaces the entry, name and tempo alike', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await retune(page, '140');
+
+  await page.locator(field).fill('bossa');
+  await page.locator(save).click();
+  await page.locator(save).click();
+
+  await expect(listed(page)).toHaveText(['bossa']);
+  await expect(page.locator(rows)).toHaveCount(1);
+  await expect(page.locator(rows)).toContainText('140 BPM');
+});
+
+test('takes the replace question back when it goes unanswered', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await retune(page, '140');
+
+  await page.locator(field).fill('Bossa');
+  await page.locator(save).click();
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
+
+  // Waits the question out rather than answering it.
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
+  await expect(row(page, 'Bossa')).toContainText(`${DEFAULT_TEMPO} BPM`);
+});
+
+test('takes the replace question back when attention moves elsewhere', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await retune(page, '140');
+
+  await page.locator(field).fill('Bossa');
+  await page.locator(save).click();
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
+
+  await page.locator(field).click();
+
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'idle');
+  await expect(row(page, 'Bossa')).toContainText(`${DEFAULT_TEMPO} BPM`);
+});
+
+/* A question is asked about a name, not about the button, so it cannot be
+   answered against a name other than the one it was put about. */
+test('naming something free while the question stands puts Save back', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await page.locator(field).fill('Bossa');
+  await page.locator(save).click();
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
+
+  await page.locator(field).fill('Funk');
+
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'idle');
+  await expect(page.locator(save)).toHaveAccessibleName('Save');
+
+  await page.locator(save).click();
+
+  await expect(listed(page)).toHaveText(['Bossa', 'Funk']);
+});
+
 /* A pattern is always in the same place, so it can be found by reading rather
    than by hunting through the order things happened to be saved in. */
 test('lists the rows in the order a drummer would count them', async ({ page }) => {
