@@ -217,20 +217,20 @@ scheduler tick, without a break.
 
 ### Acceptance criteria
 
-- [ ] `src/state/session.svelte.ts` exists and exposes both wholesale acts
-- [ ] Loading a pattern while playing stops the transport and clears the playhead
-- [ ] Clearing the grid while playing stops the transport and clears the playhead
-- [ ] Toggling a cell while playing leaves playback running, and the change is audible on the
+- [x] `src/state/session.svelte.ts` exists and exposes both wholesale acts
+- [x] Loading a pattern while playing stops the transport and clears the playhead
+- [x] Clearing the grid while playing stops the transport and clears the playhead
+- [x] Toggling a cell while playing leaves playback running, and the change is audible on the
       next tick
-- [ ] Changing the tempo while playing leaves playback running and retunes as before
-- [ ] Clear and the panel both call the seam; neither calls `patternState`'s replace path
+- [x] Changing the tempo while playing leaves playback running and retunes as before
+- [x] Clear and the panel both call the seam; neither calls `patternState`'s replace path
       directly
-- [ ] The comment in `src/state/pattern.svelte.ts` no longer claims a cleared pattern plays
+- [x] The comment in `src/state/pattern.svelte.ts` no longer claims a cleared pattern plays
       as silence
-- [ ] ADR 0006 is committed
-- [ ] End-to-end tests cover playback stopping on load and on clear, and continuing through a
+- [x] ADR 0006 is committed
+- [x] End-to-end tests cover playback stopping on load and on clear, and continuing through a
       cell edit and a tempo change
-- [ ] The existing clear tests are updated to the new rule
+- [x] The existing clear tests are updated to the new rule
 
 ---
 

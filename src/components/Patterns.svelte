@@ -2,6 +2,7 @@
   import type { Pattern } from '../core/pattern.js';
   import { libraryState } from '../state/library.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
+  import { session } from '../state/session.svelte.js';
 
   /* A disclosure, not a dialog: the panel opens under the controls row and
      pushes the grid down, so nothing is covered and nothing has to be
@@ -21,12 +22,13 @@
     libraryState.keep(name, patternState.current);
   }
 
-  /* Loading goes the other way, through the same funnel an edit does, so the
-     loaded pattern autosaves as the current one. Then the panel closes: it has
-     done its job, and the drummer is returned to the grid and staff they came
-     here to work on. */
+  /* Loading goes the other way, through the session seam: a wholesale
+     replacement stops the loop, and the pattern autosaves as the current one
+     through the same funnel an edit does. Then the panel closes: it has done
+     its job, and the drummer is returned to the grid and staff they came here
+     to work on. */
   function load(pattern: Pattern): void {
-    patternState.replace(pattern);
+    session.load(pattern);
     open = false;
   }
 </script>

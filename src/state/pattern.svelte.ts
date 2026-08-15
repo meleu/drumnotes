@@ -45,8 +45,9 @@ class PatternState {
     this.#commit(pattern);
   }
 
-  /** Rubs out the groove; tempo and playback untouched — an empty pattern plays
-   *  as silence, not as a stop. */
+  /** Rubs out the groove, keeping the tempo. Playback is not this layer's
+   *  business: like `replace`, this is a wholesale change, and the session seam
+   *  stops the loop before calling it. */
   clear(): void {
     this.#commit(withNothingWritten(this.#pattern));
   }

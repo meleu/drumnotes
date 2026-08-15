@@ -11,6 +11,8 @@ const field = '[data-patterns="name"]';
 const save = '[data-patterns="save"]';
 const rows = `${panel} .row`;
 const noteheads = '.sheet svg .vf-notehead';
+const transport = '.transport';
+const lit = '.cell.playing';
 const tempoField = 'input[aria-label="Tempo in beats per minute"]';
 
 /** Cells the grid shows as written, across every instrument. */
@@ -164,6 +166,21 @@ test('the panel closes after a load, returning the drummer to the grid', async (
 
   await expect(page.locator(panel)).toHaveCount(0);
   await expect(page.locator(toggle)).toHaveAttribute('aria-expanded', 'false');
+});
+
+/* A load is a different piece of music, not an edit to the one playing: the
+   loop stops rather than lurching into the new groove mid-pass. */
+test('loading stops the transport and clears the playhead', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await expect(page.locator(transport)).toBeEnabled();
+  await page.locator(transport).click();
+  await expect(page.locator(lit)).not.toHaveCount(0);
+
+  await load(page, 'Bossa');
+
+  await expect(page.locator(transport)).toHaveAttribute('data-state', 'stopped');
+  await expect(page.locator(lit)).toHaveCount(0);
 });
 
 test('editing after a load leaves the kept entry as it was', async ({ page }) => {

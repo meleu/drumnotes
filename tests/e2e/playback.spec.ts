@@ -111,6 +111,9 @@ test('sounds a cell enabled during playback on the next pass', async ({ page }) 
   await expect
     .poll(async () => (await scheduled(page)).length, { timeout: LOOP_MS * 2 })
     .toBeGreaterThan(0);
+  // An edit to what is playing, not a change of what is being played: the loop
+  // carries on through it, unlike a load or a clear.
+  await expect(page.locator(transport)).toHaveAttribute('data-state', 'playing');
 });
 
 test('plays a ghosted hit softer than the plain hits around it', async ({ page }) => {

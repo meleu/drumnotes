@@ -1,6 +1,7 @@
 <script lang="ts">
   import { anythingWritten } from '../core/pattern.js';
   import { patternState } from '../state/pattern.svelte.js';
+  import { session } from '../state/session.svelte.js';
 
   const written = $derived(anythingWritten(patternState.current));
 
@@ -14,7 +15,7 @@
   function press(): void {
     if (asking) {
       forget();
-      patternState.clear();
+      session.clear();
       return;
     }
     asking = true;
