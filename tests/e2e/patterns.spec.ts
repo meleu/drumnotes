@@ -32,9 +32,23 @@ async function keep(page: Page, name: string): Promise<void> {
   await page.locator(save).click();
 }
 
-/** What it takes to put a kept pattern back on the grid. */
+/** The control that puts a row back on the grid, which asks first when there is
+ *  unkept work to lose. */
+function loader(page: Page, name: string) {
+  return row(page, name).locator('[data-patterns="load"]');
+}
+
+/** What it takes to put a kept pattern back on the grid when nothing is at
+ *  stake: the grid is empty, or is itself something kept. */
 async function load(page: Page, name: string): Promise<void> {
-  await row(page, name).locator('[data-patterns="load"]').click();
+  await loader(page, name).click();
+}
+
+/** The same, over work that is kept nowhere: the first press asks, the second
+ *  answers. */
+async function loadOver(page: Page, name: string): Promise<void> {
+  await load(page, name);
+  await load(page, name);
 }
 
 /** The names the panel is showing, in the order it is showing them. */
@@ -166,7 +180,7 @@ test('tapping a row puts that groove back on the grid and staff', async ({ page 
 
   await cell.click();
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
-  await load(page, 'Bossa');
+  await loadOver(page, 'Bossa');
 
   await expect(cell).toHaveAttribute('aria-pressed', 'false');
   await expect(written(page)).toHaveCount(hits);
@@ -179,7 +193,7 @@ test('the tempo a pattern was kept at comes back with it', async ({ page }) => {
   await keep(page, 'Bossa');
   await retune(page, '80');
 
-  await load(page, 'Bossa');
+  await loadOver(page, 'Bossa');
 
   await expect(page.locator(tempoField)).toHaveValue('140');
 });
@@ -219,7 +233,7 @@ test('editing after a load leaves the kept entry as it was', async ({ page }) =>
   await cell.click();
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
   await page.locator(toggle).click();
-  await load(page, 'Bossa');
+  await loadOver(page, 'Bossa');
 
   // What comes back is what was kept, not what the grid has been doing since.
   await expect(cell).toHaveAttribute('aria-pressed', 'false');
@@ -234,7 +248,7 @@ test('the loaded pattern is the one on the grid after a reload', async ({ page }
   await cell.click();
   await retune(page, '80');
 
-  await load(page, 'Bossa');
+  await loadOver(page, 'Bossa');
   await page.reload();
 
   await expect(cell).toHaveAttribute('aria-pressed', 'false');
@@ -556,6 +570,166 @@ test('a new row arrives in its place in the list, not at the end', async ({ page
   await keep(page, 'Funk');
 
   await expect(listed(page)).toHaveText(['Bossa', 'Funk', 'Samba']);
+});
+
+/* The row holding what is on the grid says so, so a drummer can tell where they
+   are in their own library. Nothing is remembered: the answer is the pattern
+   compared against the ones kept, every time it is asked for. */
+test('saving marks the row that was just saved', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await keep(page, 'Bossa');
+
+  await expect(row(page, 'Bossa')).toHaveAttribute('data-on-grid', 'true');
+  await expect(row(page, 'Bossa').locator('[data-patterns="load"]')).toHaveAccessibleName(
+    /on the grid/i,
+  );
+});
+
+test('loading marks the row that was just loaded', async ({ page }) => {
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await cell.click();
+  await keep(page, 'Funk');
+
+  await load(page, 'Bossa');
+  await page.locator(toggle).click();
+
+  await expect(row(page, 'Bossa')).toHaveAttribute('data-on-grid', 'true');
+  await expect(row(page, 'Funk')).toHaveAttribute('data-on-grid', 'false');
+});
+
+/* The mark is a comparison, not a memory, so a single cell takes it off at
+   once — that divergence is the thing the drummer is being shown. */
+test('changing a cell takes the mark off, and putting it back brings it again', async ({
+  page,
+}) => {
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await cell.click();
+
+  await expect(row(page, 'Bossa')).toHaveAttribute('data-on-grid', 'false');
+  await expect(row(page, 'Bossa').locator('[data-patterns="load"]')).not.toHaveAccessibleName(
+    /on the grid/i,
+  );
+
+  await cell.click();
+
+  await expect(row(page, 'Bossa')).toHaveAttribute('data-on-grid', 'true');
+});
+
+/* The tempo is part of the pattern, so retuning is unkept work like any other. */
+test('changing the tempo alone takes the mark off', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await retune(page, '140');
+
+  await expect(row(page, 'Bossa')).toHaveAttribute('data-on-grid', 'false');
+
+  await retune(page, String(DEFAULT_TEMPO));
+
+  await expect(row(page, 'Bossa')).toHaveAttribute('data-on-grid', 'true');
+});
+
+test('never marks more than one row, even when a groove is kept twice', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await keep(page, 'Samba');
+  await keep(page, 'Bossa');
+
+  await expect(page.locator(`${rows}[data-on-grid="true"]`)).toHaveCount(1);
+});
+
+/* Loading throws away whatever is on the grid, so it asks when that is worth
+   something: hits that are kept nowhere. The same comparison that marks a row
+   decides it, so the two can never disagree. */
+test('tapping a row asks before loading over work kept nowhere', async ({ page }) => {
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await cell.click();
+
+  await load(page, 'Bossa');
+
+  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+  await expect(loader(page, 'Bossa')).toHaveAccessibleName(/press again/i);
+  await expect(page.locator(panel)).toBeVisible();
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+
+  await load(page, 'Bossa');
+
+  await expect(page.locator(panel)).toHaveCount(0);
+  await expect(cell).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('tapping a row loads outright when the grid is itself something kept', async ({ page }) => {
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await cell.click();
+  await keep(page, 'Funk');
+
+  await load(page, 'Bossa');
+
+  await expect(page.locator(panel)).toHaveCount(0);
+  await expect(cell).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('tapping a row loads outright when the grid is empty', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await page.locator(clear).click();
+  await page.locator(clear).click();
+  await expect(written(page)).toHaveCount(0);
+
+  await load(page, 'Bossa');
+
+  await expect(page.locator(panel)).toHaveCount(0);
+  await expect(written(page)).not.toHaveCount(0);
+});
+
+test('takes the load question back when it goes unanswered', async ({ page }) => {
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await cell.click();
+
+  await load(page, 'Bossa');
+  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+
+  // Waits the question out rather than answering it.
+  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('takes the load question back when attention moves elsewhere', async ({ page }) => {
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await cell.click();
+
+  await load(page, 'Bossa');
+  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+
+  await page.locator(field).click();
+
+  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'idle');
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+
+  // The next press asks again rather than loading on the spot.
+  await load(page, 'Bossa');
+  await expect(page.locator(panel)).toBeVisible();
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('the order is the same after a reload', async ({ page }) => {

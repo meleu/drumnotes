@@ -384,22 +384,22 @@ question uses the same two-press mechanism as the other two.
 
 ### Acceptance criteria
 
-- [ ] The row matching the current pattern is marked, reported as a data attribute and
+- [x] The row matching the current pattern is marked, reported as a data attribute and
       announced as part of the row's accessible name
-- [ ] Saving marks the row that was just saved
-- [ ] Loading marks the row that was just loaded
-- [ ] Changing any cell removes the mark immediately
-- [ ] Changing the tempo alone removes the mark, since the tempo is part of the pattern
-- [ ] Restoring the changed cell restores the mark, without anything having been remembered
-- [ ] At most one row is ever marked
-- [ ] Tapping a row while the grid holds unkept hits arms a question rather than loading
-- [ ] A second press loads
-- [ ] Tapping a row loads outright when the grid matches any kept pattern
-- [ ] Tapping a row loads outright when the grid is empty
-- [ ] The question withdraws itself on timeout and on blur
-- [ ] Unit tests cover the equality search: a match, a tempo-only difference, a lane-only
+- [x] Saving marks the row that was just saved
+- [x] Loading marks the row that was just loaded
+- [x] Changing any cell removes the mark immediately
+- [x] Changing the tempo alone removes the mark, since the tempo is part of the pattern
+- [x] Restoring the changed cell restores the mark, without anything having been remembered
+- [x] At most one row is ever marked
+- [x] Tapping a row while the grid holds unkept hits arms a question rather than loading
+- [x] A second press loads
+- [x] Tapping a row loads outright when the grid matches any kept pattern
+- [x] Tapping a row loads outright when the grid is empty
+- [x] The question withdraws itself on timeout and on blur
+- [x] Unit tests cover the equality search: a match, a tempo-only difference, a lane-only
       difference, and an empty library
-- [ ] End-to-end tests cover the mark appearing and disappearing, and each of the three load
+- [x] End-to-end tests cover the mark appearing and disappearing, and each of the three load
       cases
 
 ---

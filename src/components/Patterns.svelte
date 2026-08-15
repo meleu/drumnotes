@@ -1,7 +1,7 @@
 <script lang="ts">
+  import type { Entry } from '../core/library.js';
   import { MAX_NAME_LENGTH, sameName } from '../core/library.js';
-  import type { Pattern } from '../core/pattern.js';
-  import { hasHits } from '../core/pattern.js';
+  import { anythingWritten } from '../core/pattern.js';
   import { libraryState } from '../state/library.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
   import { session } from '../state/session.svelte.js';
@@ -33,7 +33,7 @@
   /* Dead in the two cases where pressing it could only do harm: nothing is ever
      kept under no name at all, and the library does not fill with silence. The
      second matches Clear, which is dead on an empty grid for the same reason. */
-  const keepable = $derived(typed !== '' && hasHits(patternState.current));
+  const keepable = $derived(typed !== '' && anythingWritten(patternState.current));
 
   /** How long a question stands before it is taken back. */
   const QUESTION_MS = 5000;
@@ -70,14 +70,49 @@
     clearTimeout(withdrawSave);
   }
 
+  /* Which row is the pattern on the grid — derived from the grid itself, so it
+     goes out the moment a cell or the tempo changes and comes back on its own
+     when the change is undone. Nothing is remembered, so nothing can go stale. */
+  const onGrid = $derived(libraryState.onGrid);
+
+  /* Loading throws the grid away, so it asks — but only when there is something
+     to lose. A grid that is itself kept can be had back by loading it again,
+     and an empty grid holds nothing, so in both cases the question would be an
+     interruption about nothing. Unkept hits are the case worth a press. */
+  const atStake = $derived(onGrid === null && anythingWritten(patternState.current));
+
+  let askedFor = $state<string | null>(null);
+  let withdrawLoad: ReturnType<typeof setTimeout> | undefined;
+
+  /* The row reads the same heard as seen: the mark and the question are both
+     written into the label, since neither is in the text of the button. */
+  function loadLabel(entry: Entry): string {
+    const row = `${entry.name}, ${entry.pattern.tempo} BPM`;
+    if (askedFor === entry.name) return `Load ${row} over unkept work? Press again to confirm`;
+    return onGrid === entry.name ? `${row}, on the grid` : `Load ${row}`;
+  }
+
   /* Loading goes the other way, through the session seam: a wholesale
      replacement stops the loop, and the pattern autosaves as the current one
      through the same funnel an edit does. Then the panel closes: it has done
      its job, and the drummer is returned to the grid and staff they came here
      to work on. */
-  function load(pattern: Pattern): void {
-    session.load(pattern);
+  function pressLoad(entry: Entry): void {
+    if (atStake && askedFor !== entry.name) {
+      askedFor = entry.name;
+      clearTimeout(withdrawLoad);
+      withdrawLoad = setTimeout(forgetLoad, QUESTION_MS);
+      return;
+    }
+    forgetLoad();
+    session.load(entry.pattern);
     open = false;
+  }
+
+  /** Also on blur, as with every other question here. */
+  function forgetLoad(): void {
+    askedFor = null;
+    clearTimeout(withdrawLoad);
   }
 
   /* Deleting has nothing behind it either — no undo, and the rows are as wide
@@ -158,17 +193,29 @@
     {:else}
       <ul class="rows" data-patterns="rows">
         {#each entries as entry (entry.name)}
-          <li class="row" data-pattern={entry.name}>
+          <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
             <!-- Loading is the whole width the delete control leaves, so the
-                 target is as wide as the panel and a thumb cannot miss it. -->
+                 target is as wide as the panel and a thumb cannot miss it.
+                 The mark is written into the label as well as shown, so the row
+                 reads the same whether it is seen or heard. -->
             <button
               type="button"
               class="load"
               data-patterns="load"
-              onclick={() => load(entry.pattern)}
+              data-state={askedFor === entry.name ? 'asking' : 'idle'}
+              aria-label={loadLabel(entry)}
+              onclick={() => pressLoad(entry)}
+              onblur={forgetLoad}
             >
               <span class="name">{entry.name}</span>
-              <span class="tempo">{entry.pattern.tempo} BPM</span>
+              {#if onGrid === entry.name}
+                <span class="here">on the grid</span>
+              {/if}
+              {#if askedFor === entry.name}
+                <span class="question">Sure?</span>
+              {:else}
+                <span class="tempo">{entry.pattern.tempo} BPM</span>
+              {/if}
             </button>
             <button
               type="button"
@@ -265,6 +312,7 @@
     display: flex;
     flex: 1;
     min-width: 0;
+    flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.5rem;
@@ -280,6 +328,18 @@
 
   .load:hover {
     background: #f9fafb;
+  }
+
+  /* Asking looks like what it is about to do, in the slot the tempo was in, so
+     the row keeps its shape while the question stands. */
+  .load[data-state='asking'] {
+    background: #fee2e2;
+  }
+
+  .question {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #991b1b;
   }
 
   .delete {
@@ -309,6 +369,20 @@
   .empty {
     font-size: 0.8125rem;
     color: #6b7280;
+  }
+
+  /* The mark sits with the name it belongs to rather than at the far end, so it
+     reads as something said about that row. It never breaks across lines: at a
+     narrow width the tempo drops below instead, the mark being the shorter of
+     the two and the one that reads as a phrase. */
+  .here {
+    flex: 1;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #15803d;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   .empty {

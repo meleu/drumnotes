@@ -1,7 +1,8 @@
 import type { Entry, Library } from '../core/library.js';
-import { entriesOf, freeName, holds, keep, remove } from '../core/library.js';
+import { entriesOf, freeName, holds, keep, nameOf, remove } from '../core/library.js';
 import type { Pattern } from '../core/pattern.js';
 import { loadStore, saveLibrary } from '../adapters/storage.js';
+import { patternState } from './pattern.svelte.js';
 
 /**
  * Reactive edge of the library. Runes live here and nowhere else; the core
@@ -23,6 +24,19 @@ class LibraryState {
    *  to open carrying. */
   get freeName(): string {
     return freeName(this.#library);
+  }
+
+  /**
+   * The row the pattern on the grid is, or nothing when the grid holds
+   * something kept nowhere. Read rather than stored, so it answers the moment a
+   * cell changes and there is no dirty flag to keep honest.
+   *
+   * Reaching across to the pattern is what makes this a single answer: the mark
+   * on a row and the question a load has to ask are the same comparison, and so
+   * cannot come apart.
+   */
+  get onGrid(): string | null {
+    return nameOf(this.#library, patternState.current);
   }
 
   /** Whether a name is already kept, case aside — so a save can ask before it

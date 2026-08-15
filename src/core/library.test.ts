@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyLibrary, entriesOf, freeName, holds, keep, remove, sameName } from './library.js';
-import { defaultPattern, emptyPattern, withTempo } from './pattern.js';
+import {
+  emptyLibrary,
+  entriesOf,
+  freeName,
+  holds,
+  keep,
+  nameOf,
+  remove,
+  sameName,
+} from './library.js';
+import { defaultPattern, emptyPattern, toggleStep, withTempo } from './pattern.js';
 
 /** Names of the entries, in the order they are listed. */
 function names(library: ReturnType<typeof emptyLibrary>): string[] {
@@ -121,6 +130,48 @@ describe('entriesOf', () => {
     const library = keep(emptyLibrary(), 'Funk', withTempo(emptyPattern(), 140));
 
     expect(entriesOf(library)[0]?.pattern.tempo).toBe(140);
+  });
+});
+
+describe('nameOf', () => {
+  it('names nothing when the library is empty', () => {
+    expect(nameOf(emptyLibrary(), defaultPattern())).toBe(null);
+  });
+
+  it('names the entry holding an equal pattern, though it is a separate value', () => {
+    const library = keep(emptyLibrary(), 'Bossa', defaultPattern());
+
+    expect(nameOf(library, defaultPattern())).toBe('Bossa');
+  });
+
+  it('names nothing when only the tempo differs', () => {
+    const library = keep(emptyLibrary(), 'Bossa', defaultPattern());
+
+    expect(nameOf(library, withTempo(defaultPattern(), 140))).toBe(null);
+  });
+
+  it('names nothing when only a lane differs', () => {
+    const library = keep(emptyLibrary(), 'Bossa', defaultPattern());
+
+    expect(nameOf(library, toggleStep(defaultPattern(), 'snare', 0))).toBe(null);
+  });
+
+  it('picks the entry out from among others', () => {
+    const library = keep(keep(emptyLibrary(), 'Bossa', defaultPattern()), 'Funk', emptyPattern());
+
+    expect(nameOf(library, emptyPattern())).toBe('Funk');
+  });
+
+  /* Nothing stops the same groove being kept twice under two names, and the row
+     marked has to be the same one every time it is asked about. */
+  it('names only the first in listed order when two entries are the same pattern', () => {
+    const library = keep(
+      keep(emptyLibrary(), 'Samba', defaultPattern()),
+      'Bossa',
+      defaultPattern(),
+    );
+
+    expect(nameOf(library, defaultPattern())).toBe('Bossa');
   });
 });
 

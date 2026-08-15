@@ -7,6 +7,7 @@
  */
 
 import type { Pattern } from './pattern.js';
+import { samePattern } from './pattern.js';
 
 /** Name to pattern. The name is stored exactly as it was typed. */
 export type Library = Readonly<Record<string, Pattern>>;
@@ -108,4 +109,21 @@ export function entriesOf(library: Library): readonly Entry[] {
   return Object.entries(library)
     .map(([name, pattern]) => ({ name, pattern }))
     .sort((one, other) => byName.compare(one.name, other.name));
+}
+
+/**
+ * The name this library keeps that exact pattern under, or nothing at all when
+ * it keeps no such pattern. The search is by value, so the copy on the grid
+ * finds the copy that was kept.
+ *
+ * This is the whole of "is the grid already kept?": derived on every ask rather
+ * than remembered, so a changed cell shows as a divergence the moment it is
+ * made and there is no dirty flag to keep honest.
+ *
+ * Searching the listed order rather than the stored one means an answer that
+ * does not depend on what was saved when — and so, when the same groove is kept
+ * under two names, the same single row is named every time.
+ */
+export function nameOf(library: Library, pattern: Pattern): string | null {
+  return entriesOf(library).find((entry) => samePattern(entry.pattern, pattern))?.name ?? null;
 }
