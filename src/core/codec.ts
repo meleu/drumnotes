@@ -5,7 +5,8 @@
  * beside it. Its shape is fixed and carries no version of its own; the version
  * rides on each stored pattern, so a later instrument or dynamics change is one
  * bump plus a per-entry upgrade or drop, never a wholesale migration, and a
- * mixed-version library stays readable.
+ * mixed-version library stays readable. The version is checked in one named
+ * step, `atCurrentVersion`, which is where that upgrade will go.
  *
  * Two decoding contracts, deliberately different:
  *

@@ -1,8 +1,10 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-import { MAX_NAME_LENGTH } from '../../src/core/library.js';
+import { STORAGE_KEY } from '../../src/adapters/storage.js';
+import { MAX_NAME_LENGTH, emptyLibrary, keep as kept } from '../../src/core/library.js';
 import { DEFAULT_TEMPO, defaultPattern } from '../../src/core/pattern.js';
+import { storedApp, withUnreadable } from './support/store.js';
 
 // Each test gets its own context, so the library starts empty unless seeded.
 
@@ -59,6 +61,33 @@ function listed(page: Page) {
 /** The control that drops a row, which asks before it acts. */
 function remove(page: Page, name: string) {
   return row(page, name).locator('[data-patterns="delete"]');
+}
+
+/** Puts a store in front of the app and opens the app again on it. */
+async function seed(page: Page, stored: string): Promise<void> {
+  await page.evaluate(([key, store]) => localStorage.setItem(key!, store!), [STORAGE_KEY, stored]);
+  await page.reload();
+}
+
+/** A store holding one entry this build can read beside two it cannot: rot
+ *  where a pattern should be, and a pattern kept by a later version. */
+function withRottedEntries(): string {
+  const library = kept(emptyLibrary(), 'Bossa', defaultPattern());
+  return withUnreadable(storedApp(defaultPattern(), library), {
+    Rotted: '{"version":',
+    Newer: { version: 99, tempo: DEFAULT_TEMPO, lanes: defaultPattern().lanes },
+  });
+}
+
+/** The names the store itself holds — where a dropped entry would show up again
+ *  if it had not really gone. */
+async function storedNames(page: Page): Promise<string[]> {
+  return page.evaluate((key) => {
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
+      library?: Record<string, unknown>;
+    };
+    return Object.keys(stored.library ?? {}).sort();
+  }, STORAGE_KEY);
 }
 
 async function retune(page: Page, bpm: string): Promise<void> {
@@ -742,4 +771,45 @@ test('the order is the same after a reload', async ({ page }) => {
   await page.locator(toggle).click();
 
   await expect(listed(page)).toHaveText(['apple', 'Pattern 2', 'Pattern 10']);
+});
+
+test('entries the app cannot read are left out, and the rest of the library shows', async ({
+  page,
+}) => {
+  await seed(page, withRottedEntries());
+
+  await page.locator(toggle).click();
+
+  await expect(listed(page)).toHaveText(['Bossa']);
+});
+
+test('the next write persists the pruned map', async ({ page }) => {
+  await seed(page, withRottedEntries());
+  await page.locator(toggle).click();
+
+  await keep(page, 'Funk');
+
+  expect(await storedNames(page)).toEqual(['Bossa', 'Funk']);
+
+  await page.reload();
+  await page.locator(toggle).click();
+
+  await expect(listed(page)).toHaveText(['Bossa', 'Funk']);
+});
+
+test('a wholly unreadable store opens on the default groove with nothing kept', async ({
+  page,
+}) => {
+  await seed(page, '{"version":');
+
+  await expect(written(page)).toHaveCount(
+    Object.values(defaultPattern().lanes)
+      .flat()
+      .filter((articulation) => articulation !== 'empty').length,
+  );
+
+  await page.locator(toggle).click();
+
+  await expect(page.locator(`${panel} [data-patterns="empty"]`)).toBeVisible();
+  await expect(page.locator(rows)).toHaveCount(0);
 });

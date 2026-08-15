@@ -429,21 +429,21 @@ exists to forbid.
 
 ### Acceptance criteria
 
-- [ ] A library entry with rotted JSON is absent from the list; the rest of the library shows
-- [ ] An entry with a lane of the wrong length, a missing lane or an unknown instrument id is
+- [x] A library entry with rotted JSON is absent from the list; the rest of the library shows
+- [x] An entry with a lane of the wrong length, a missing lane or an unknown instrument id is
       absent
-- [ ] An entry with a tempo outside the playable range is absent
-- [ ] An entry carrying a version *newer* than this build's is absent rather than loaded
-- [ ] An entry carrying an *older* version is absent too, there being no upgrade path yet
-- [ ] The version check is one named step with a documented contract for where an upgrader
+- [x] An entry with a tempo outside the playable range is absent
+- [x] An entry carrying a version *newer* than this build's is absent rather than loaded
+- [x] An entry carrying an *older* version is absent too, there being no upgrade path yet
+- [x] The version check is one named step with a documented contract for where an upgrader
       slots in and what it must return
-- [ ] A store mixing readable and unreadable entries lists exactly the readable ones
-- [ ] The next write persists the pruned map; the dropped entries do not return on reload
-- [ ] A corrupt *current* pattern still falls back to the default groove, as today
-- [ ] A wholly unreadable store yields the default groove and an empty library, not a crash
-- [ ] Unit tests cover both codec contracts side by side: a rotted entry, an unknown version,
+- [x] A store mixing readable and unreadable entries lists exactly the readable ones
+- [x] The next write persists the pruned map; the dropped entries do not return on reload
+- [x] A corrupt *current* pattern still falls back to the default groove, as today
+- [x] A wholly unreadable store yields the default groove and an empty library, not a crash
+- [x] Unit tests cover both codec contracts side by side: a rotted entry, an unknown version,
       and a mixed-version store
-- [ ] An end-to-end test seeds a store with a rotted entry and asserts the list
+- [x] An end-to-end test seeds a store with a rotted entry and asserts the list
 
 ---
 
