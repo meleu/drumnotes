@@ -249,17 +249,17 @@ grid is untouched, whether or not it came from the row being deleted.
 
 ### Acceptance criteria
 
-- [ ] Each row has a delete control carrying a `data-state` of `idle` or `asking`
-- [ ] One press arms the question and changes the control's accessible name; the row is not
+- [x] Each row has a delete control carrying a `data-state` of `idle` or `asking`
+- [x] One press arms the question and changes the control's accessible name; the row is not
       removed
-- [ ] A second press removes the row
-- [ ] An unanswered question withdraws itself after the timeout
-- [ ] Moving attention elsewhere withdraws the question, and the next press asks again
-- [ ] Arming one row's question does not arm another's
-- [ ] Deleting leaves the pattern on the grid and the tempo untouched
-- [ ] The deletion survives a reload
-- [ ] Unit tests cover removal from the pure library module
-- [ ] End-to-end tests cover the ask, the confirm, the timeout, the withdrawal on blur, and
+- [x] A second press removes the row
+- [x] An unanswered question withdraws itself after the timeout
+- [x] Moving attention elsewhere withdraws the question, and the next press asks again
+- [x] Arming one row's question does not arm another's
+- [x] Deleting leaves the pattern on the grid and the tempo untouched
+- [x] The deletion survives a reload
+- [x] Unit tests cover removal from the pure library module
+- [x] End-to-end tests cover the ask, the confirm, the timeout, the withdrawal on blur, and
       survival across a reload
 
 ---

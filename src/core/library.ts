@@ -38,11 +38,21 @@ function sameName(one: string, other: string): boolean {
  * travels with the pattern it names.
  */
 export function keep(library: Library, name: string, pattern: Pattern): Library {
+  return { ...remove(library, name), [name]: pattern };
+}
+
+/**
+ * The library without whatever `name` held. Input untouched, and a name that was
+ * never kept is not an error — the library is already as asked for.
+ *
+ * Removal goes by identity like everything else, so a row can be dropped under
+ * any spelling of the name it is shown under.
+ */
+export function remove(library: Library, name: string): Library {
   const kept: Record<string, Pattern> = {};
   for (const [existing, value] of Object.entries(library)) {
     if (!sameName(existing, name)) kept[existing] = value;
   }
-  kept[name] = pattern;
   return kept;
 }
 

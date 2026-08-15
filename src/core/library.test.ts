@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyLibrary, entriesOf, keep } from './library.js';
+import { emptyLibrary, entriesOf, keep, remove } from './library.js';
 import { defaultPattern, emptyPattern, withTempo } from './pattern.js';
 
 /** Names of the entries, in the order they are listed. */
@@ -47,6 +47,40 @@ describe('keep', () => {
     const library = keep(keep(emptyLibrary(), 'Bossa', defaultPattern()), 'bossa', emptyPattern());
 
     expect(names(library)).toEqual(['bossa']);
+  });
+});
+
+describe('remove', () => {
+  it('drops the entry kept under the name', () => {
+    const library = keep(emptyLibrary(), 'Bossa', defaultPattern());
+
+    expect(entriesOf(remove(library, 'Bossa'))).toEqual([]);
+  });
+
+  it('leaves the library it was given untouched', () => {
+    const before = keep(emptyLibrary(), 'Bossa', defaultPattern());
+
+    remove(before, 'Bossa');
+
+    expect(names(before)).toEqual(['Bossa']);
+  });
+
+  it('leaves every other entry where it was', () => {
+    const library = keep(keep(emptyLibrary(), 'Bossa', defaultPattern()), 'Funk', emptyPattern());
+
+    expect(names(remove(library, 'Bossa'))).toEqual(['Funk']);
+  });
+
+  it('removes by identity, so a name differing only in case still finds it', () => {
+    const library = keep(emptyLibrary(), 'Bossa', defaultPattern());
+
+    expect(names(remove(library, 'bossa'))).toEqual([]);
+  });
+
+  it('changes nothing when the name was never kept', () => {
+    const library = keep(emptyLibrary(), 'Bossa', defaultPattern());
+
+    expect(names(remove(library, 'Funk'))).toEqual(['Bossa']);
   });
 });
 

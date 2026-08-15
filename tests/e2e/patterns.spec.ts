@@ -35,6 +35,11 @@ async function load(page: Page, name: string): Promise<void> {
   await row(page, name).locator('[data-patterns="load"]').click();
 }
 
+/** The control that drops a row, which asks before it acts. */
+function remove(page: Page, name: string) {
+  return row(page, name).locator('[data-patterns="delete"]');
+}
+
 async function retune(page: Page, bpm: string): Promise<void> {
   await page.locator(tempoField).fill(bpm);
   await page.locator(tempoField).press('Enter');
@@ -241,4 +246,99 @@ test('a cell tap and a save both land: neither write loses the other', async ({ 
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
   await page.locator(toggle).click();
   await expect(row(page, 'Bossa')).toBeVisible();
+});
+
+/* A kept groove cannot be got back once it is gone, and the rows are as wide as
+   a thumb: deleting costs two presses, the same as clearing does. */
+test('one press asks rather than deleting the row', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await remove(page, 'Bossa').click();
+
+  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+  await expect(remove(page, 'Bossa')).toHaveAccessibleName(/press again/i);
+  await expect(row(page, 'Bossa')).toBeVisible();
+});
+
+test('a second press drops the row, and it stays gone across a reload', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await keep(page, 'Funk');
+
+  await remove(page, 'Bossa').click();
+  await remove(page, 'Bossa').click();
+
+  await expect(row(page, 'Bossa')).toHaveCount(0);
+  await expect(row(page, 'Funk')).toBeVisible();
+
+  await page.reload();
+  await page.locator(toggle).click();
+
+  await expect(row(page, 'Bossa')).toHaveCount(0);
+  await expect(row(page, 'Funk')).toBeVisible();
+});
+
+/* What was saved is a copy, so dropping it reaches nothing on the grid — not
+   even when the grid is playing the very groove being deleted. */
+test('deleting leaves the groove on the grid and its tempo alone', async ({ page }) => {
+  await retune(page, '140');
+  const hits = await written(page).count();
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await load(page, 'Bossa');
+  await page.locator(toggle).click();
+
+  await remove(page, 'Bossa').click();
+  await remove(page, 'Bossa').click();
+
+  await expect(row(page, 'Bossa')).toHaveCount(0);
+  await expect(written(page)).toHaveCount(hits);
+  await expect(page.locator(tempoField)).toHaveValue('140');
+});
+
+test('takes the question back when it goes unanswered', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await remove(page, 'Bossa').click();
+  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+
+  // Waits the question out rather than answering it.
+  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
+  await expect(row(page, 'Bossa')).toBeVisible();
+});
+
+test('takes the question back when attention moves elsewhere', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await remove(page, 'Bossa').click();
+  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+
+  await page.locator(field).click();
+
+  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'idle');
+  await expect(row(page, 'Bossa')).toBeVisible();
+
+  // The next press asks again rather than deleting on the spot.
+  await remove(page, 'Bossa').click();
+  await expect(row(page, 'Bossa')).toBeVisible();
+});
+
+test('asking about one row does not arm another', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await keep(page, 'Funk');
+
+  await remove(page, 'Bossa').click();
+
+  await expect(remove(page, 'Funk')).toHaveAttribute('data-state', 'idle');
+
+  // And a press on the other row asks about it rather than answering the first.
+  await remove(page, 'Funk').click();
+
+  await expect(remove(page, 'Funk')).toHaveAttribute('data-state', 'asking');
+  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'idle');
+  await expect(row(page, 'Funk')).toBeVisible();
 });

@@ -31,6 +31,33 @@
     session.load(pattern);
     open = false;
   }
+
+  /* Deleting is the one act in the panel with nothing behind it — no undo, and
+     the rows are as wide as a thumb — so it costs two presses, the same as
+     clearing does. The question is a name rather than a flag: only the row it
+     was asked about is armed, and asking about another takes the first back. */
+  let asked = $state<string | null>(null);
+  /** How long the question stands before it is taken back. */
+  const QUESTION_MS = 5000;
+  let withdraw: ReturnType<typeof setTimeout> | undefined;
+
+  function press(name: string): void {
+    if (asked === name) {
+      forget();
+      libraryState.remove(name);
+      return;
+    }
+    asked = name;
+    clearTimeout(withdraw);
+    withdraw = setTimeout(forget, QUESTION_MS);
+  }
+
+  /* Also on blur: attention elsewhere is an answer of sorts, and an armed
+     control left lying around is exactly what the question guards against. */
+  function forget(): void {
+    asked = null;
+    clearTimeout(withdraw);
+  }
 </script>
 
 <button
@@ -60,8 +87,8 @@
       <ul class="rows" data-patterns="rows">
         {#each entries as entry (entry.name)}
           <li class="row" data-pattern={entry.name}>
-            <!-- The whole row is the control, so the target is as wide as the
-                 panel and a thumb cannot miss it. -->
+            <!-- Loading is the whole width the delete control leaves, so the
+                 target is as wide as the panel and a thumb cannot miss it. -->
             <button
               type="button"
               class="load"
@@ -70,6 +97,19 @@
             >
               <span class="name">{entry.name}</span>
               <span class="tempo">{entry.pattern.tempo} BPM</span>
+            </button>
+            <button
+              type="button"
+              class="delete"
+              data-patterns="delete"
+              data-state={asked === entry.name ? 'asking' : 'idle'}
+              aria-label={asked === entry.name
+                ? `Delete ${entry.name}? Press again to confirm`
+                : `Delete ${entry.name}`}
+              onclick={() => press(entry.name)}
+              onblur={forget}
+            >
+              {asked === entry.name ? 'Sure?' : 'Delete'}
             </button>
           </li>
         {/each}
@@ -123,13 +163,17 @@
   }
 
   .row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     border-top: 1px solid #f3f4f6;
   }
 
   /* Sized to the row rather than to its text: the whole line is the target. */
   .load {
     display: flex;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.5rem;
@@ -145,6 +189,29 @@
 
   .load:hover {
     background: #f9fafb;
+  }
+
+  .delete {
+    /* Held wide enough for either label, so the row does not shuffle when the
+       question comes up. */
+    min-width: 4.5rem;
+    flex: none;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #f9fafb;
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  /* Asking looks like what it is about to do. */
+  .delete[data-state='asking'] {
+    border-color: #b91c1c;
+    background: #fee2e2;
+    color: #991b1b;
+    font-weight: 600;
   }
 
   .tempo,

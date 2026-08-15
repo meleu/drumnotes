@@ -1,5 +1,5 @@
 import type { Entry, Library } from '../core/library.js';
-import { entriesOf, keep } from '../core/library.js';
+import { entriesOf, keep, remove } from '../core/library.js';
 import type { Pattern } from '../core/pattern.js';
 import { loadStore, saveLibrary } from '../adapters/storage.js';
 
@@ -23,6 +23,12 @@ class LibraryState {
    *  The value is immutable, so editing the grid afterwards cannot reach it. */
   keep(name: string, pattern: Pattern): void {
     this.#replace(keep(this.#library, name, pattern));
+  }
+
+  /** Drops what a name held. The pattern on the grid is a copy and is not
+   *  touched, whether or not it came from the row being dropped. */
+  remove(name: string): void {
+    this.#replace(remove(this.#library, name));
   }
 
   #replace(library: Library): void {
