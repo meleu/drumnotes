@@ -90,6 +90,24 @@ async function storedNames(page: Page): Promise<string[]> {
   }, STORAGE_KEY);
 }
 
+/** Puts attention back above every control, so a tab walk starts where a
+ *  drummer arriving at the page by keyboard would start. */
+async function startOver(page: Page): Promise<void> {
+  await page.locator('h1').click();
+  await expect(page.locator('h1')).toBeVisible();
+}
+
+/** Tabs forward until the control has focus, so the way to it is exercised
+ *  rather than assumed. Throws rather than hanging if it is never reached. */
+async function tabTo(page: Page, selector: string): Promise<void> {
+  const focused = () => page.locator(selector).evaluate((node) => node === document.activeElement);
+  for (let presses = 0; presses < 40; presses += 1) {
+    if (await focused()) return;
+    await page.keyboard.press('Tab');
+  }
+  throw new Error(`${selector} was never reached by tabbing`);
+}
+
 async function retune(page: Page, bpm: string): Promise<void> {
   await page.locator(tempoField).fill(bpm);
   await page.locator(tempoField).press('Enter');
@@ -812,4 +830,199 @@ test('a wholly unreadable store opens on the default groove with nothing kept', 
 
   await expect(page.locator(`${panel} [data-patterns="empty"]`)).toBeVisible();
   await expect(page.locator(rows)).toHaveCount(0);
+});
+
+/* The library is no more a pointer's feature than the grid is: every act it
+   offers can be done with a keyboard alone, both presses of every question
+   included. */
+test('keeps a groove without a pointer', async ({ page }) => {
+  await tabTo(page, toggle);
+  await page.keyboard.press('Enter');
+
+  // Opening puts the drummer where the typing goes, with the suggestion selected.
+  await expect(page.locator(field)).toBeFocused();
+
+  await page.keyboard.type('Bossa');
+  await page.keyboard.press('Tab');
+
+  await expect(page.locator(save)).toBeFocused();
+
+  await page.keyboard.press('Enter');
+
+  await expect(row(page, 'Bossa')).toBeVisible();
+});
+
+test('puts a groove back on the grid without a pointer, question and all', async ({ page }) => {
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
+  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  // Unkept work on the grid, so loading over it asks first.
+  await cell.click();
+  await startOver(page);
+
+  await tabTo(page, `${panel} [data-patterns="load"]`);
+  await page.keyboard.press('Enter');
+
+  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator(panel)).toHaveCount(0);
+  await expect(cell).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('drops a row without a pointer, question and all', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await tabTo(page, `${panel} [data-patterns="delete"]`);
+  await page.keyboard.press('Enter');
+
+  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
+
+  await page.keyboard.press('Enter');
+
+  await expect(row(page, 'Bossa')).toHaveCount(0);
+});
+
+/* A control that vanishes under the finger takes the keyboard's place in the
+   page with it, and attention lands back at the top of the document. Both acts
+   that remove what was just pressed hand focus on deliberately. */
+test('closing the panel after a load hands focus back to the Patterns control', async ({
+  page,
+}) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await load(page, 'Bossa');
+
+  await expect(page.locator(toggle)).toBeFocused();
+});
+
+test('dropping a row leaves focus on the row that takes its place', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await keep(page, 'Funk');
+
+  await remove(page, 'Bossa').click();
+  await remove(page, 'Bossa').click();
+
+  await expect(remove(page, 'Funk')).toBeFocused();
+});
+
+test('dropping the last row leaves focus in the field, with nowhere else to be', async ({
+  page,
+}) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  await remove(page, 'Bossa').click();
+  await remove(page, 'Bossa').click();
+
+  await expect(page.locator(field)).toBeFocused();
+});
+
+/* The library is not a desktop feature. Everything in the panel has to be
+   readable and hittable on the narrowest phone the grid already serves. */
+const PHONE = { width: 390, height: 800 };
+
+test('the panel fits a phone, however long a name it is holding', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.locator(toggle).click();
+
+  await keep(page, 'x'.repeat(MAX_NAME_LENGTH));
+
+  const across = await page.evaluate(() => ({
+    page: document.documentElement.scrollWidth,
+    window: document.documentElement.clientWidth,
+  }));
+  expect(across.page).toBeLessThanOrEqual(across.window);
+});
+
+test('the row keeps its two controls apart at a phone width', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.locator(toggle).click();
+  await keep(page, 'x'.repeat(MAX_NAME_LENGTH));
+
+  const loading = await loader(page, 'x'.repeat(MAX_NAME_LENGTH)).boundingBox();
+  const dropping = await remove(page, 'x'.repeat(MAX_NAME_LENGTH)).boundingBox();
+
+  expect(loading!.x + loading!.width).toBeLessThanOrEqual(dropping!.x);
+});
+
+/* A thumb is a thumb wherever it lands: the rows are no smaller a target than
+   the controls in the row above them already are. */
+test('the panel is as tappable as the controls already in the row', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+
+  const already = (await page.locator(clear).boundingBox())!.height;
+  for (const control of [field, save, '[data-patterns="load"]', '[data-patterns="delete"]']) {
+    const box = await page.locator(`${panel} ${control}`).first().boundingBox();
+    expect(box!.height, control).toBeGreaterThanOrEqual(already);
+  }
+});
+
+/* The mark on a row is drawn, not written, so a reader that cannot see it is
+   told in words instead — along with everything else the row says. */
+test('every row says its name, its tempo and whether it is the one on the grid', async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await retune(page, '140');
+  await keep(page, 'Funk');
+
+  await expect(loader(page, 'Funk')).toHaveAccessibleName('Funk, 140 BPM, on the grid');
+  await expect(loader(page, 'Bossa')).toHaveAccessibleName(`Load Bossa, ${DEFAULT_TEMPO} BPM`);
+  await expect(remove(page, 'Bossa')).toHaveAccessibleName('Delete Bossa');
+});
+
+/** Which control the keyboard is on, said the way the panel reads. */
+async function reached(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const focused = document.activeElement;
+    if (!focused) return 'nothing';
+    const part = focused.getAttribute('data-patterns') ?? focused.className;
+    const named = focused.closest('[data-pattern]')?.getAttribute('data-pattern');
+    return named ? `${part} ${named}` : part;
+  });
+}
+
+/* Tabbing walks the panel in the order it is read: the field, the button, then
+   each row and its delete control in turn. */
+test('the panel is reached by keyboard in the order it reads', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await keep(page, 'Funk');
+  await startOver(page);
+  await tabTo(page, toggle);
+
+  const walk: string[] = [];
+  for (let presses = 0; presses < 6; presses += 1) {
+    await page.keyboard.press('Tab');
+    walk.push(await reached(page));
+  }
+
+  expect(walk).toEqual(['name', 'save', 'load Bossa', 'delete Bossa', 'load Funk', 'delete Funk']);
+});
+
+test('answers the replace question without a pointer', async ({ page }) => {
+  await page.locator(toggle).click();
+  await keep(page, 'Bossa');
+  await retune(page, '140');
+  await startOver(page);
+
+  await tabTo(page, save);
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
+
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator(rows)).toHaveCount(1);
+  await expect(row(page, 'Bossa')).toContainText('140 BPM');
 });

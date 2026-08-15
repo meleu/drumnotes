@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+
   import { canKeep } from '../adapters/storage.js';
   import type { Entry } from '../core/library.js';
   import { MAX_NAME_LENGTH, sameName } from '../core/library.js';
@@ -13,6 +15,15 @@
      did until the library is asked for. */
   let open = $state(false);
   const PANEL_ID = 'patterns-panel';
+
+  /* Every act here that answers a question destroys the control that was
+     pressed — the panel closes over a load, the row goes on a delete — and a
+     browser hands the keyboard back to the top of the document when the thing
+     holding it disappears. These are where attention is put instead, so it is
+     never dropped. */
+  let control = $state<HTMLButtonElement>();
+  let named = $state<HTMLInputElement>();
+  let list = $state<HTMLUListElement>();
 
   /* Asked once, and decides what the panel holds rather than what is greyed
      out: a store that will not keep anything never starts, so a field and a
@@ -113,6 +124,9 @@
     forgetLoad();
     session.load(entry.pattern);
     open = false;
+    /* The panel that was under the finger has gone, so attention goes back to
+       the control that opened it — the one press that would open it again. */
+    void tick().then(() => control?.focus());
   }
 
   /** Also on blur, as with every other question here. */
@@ -131,12 +145,24 @@
   function press(name: string): void {
     if (asked === name) {
       forget();
+      const at = entries.findIndex((entry) => sameName(entry.name, name));
       libraryState.remove(name);
+      void tick().then(() => handOn(at));
       return;
     }
     asked = name;
     clearTimeout(withdraw);
     withdraw = setTimeout(forget, QUESTION_MS);
+  }
+
+  /* Where the keyboard goes once the row it was on is gone: to the row that
+     took its place, so a second deletion is another press rather than another
+     tab walk, and back to the field when the last row has been dropped and
+     there is nowhere in the list to be. */
+  function handOn(at: number): void {
+    const controls = list ? [...list.querySelectorAll<HTMLButtonElement>('.delete')] : [];
+    const next = controls[Math.min(at, controls.length - 1)];
+    (next ?? named)?.focus();
   }
 
   /* Also on blur: attention elsewhere is an answer of sorts, and an armed
@@ -153,6 +179,7 @@
   data-patterns="toggle"
   aria-expanded={open}
   aria-controls={PANEL_ID}
+  bind:this={control}
   onclick={toggleOpen}
 >
   Patterns
@@ -180,6 +207,7 @@
           type="text"
           data-patterns="name"
           maxlength={MAX_NAME_LENGTH}
+          bind:this={named}
           bind:value={name}
           {@attach (node) => {
             node.focus();
@@ -206,7 +234,7 @@
       {#if entries.length === 0}
         <p class="empty" data-patterns="empty">Nothing kept yet.</p>
       {:else}
-        <ul class="rows" data-patterns="rows">
+        <ul class="rows" data-patterns="rows" bind:this={list}>
           {#each entries as entry (entry.name)}
             <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
               <!-- Loading is the whole width the delete control leaves, so the
@@ -321,13 +349,18 @@
     border-top: 1px solid #f3f4f6;
   }
 
-  /* Sized to the row rather than to its text: the whole line is the target. */
+  /* Sized to the row rather than to its text: the whole line is the target.
+     No shorter than the controls in the row above, so a thumb finds it as
+     easily on a phone; the line it holds is centred in whatever height that
+     leaves, and centred again when a long name wraps it onto two. */
   .load {
     display: flex;
     flex: 1;
     min-width: 0;
+    min-height: 2.75rem;
     flex-wrap: wrap;
     align-items: baseline;
+    align-content: center;
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.5rem 0.25rem;
@@ -358,8 +391,9 @@
 
   .delete {
     /* Held wide enough for either label, so the row does not shuffle when the
-       question comes up. */
+       question comes up, and no shorter than the control it sits beside. */
     min-width: 4.5rem;
+    min-height: 2.75rem;
     flex: none;
     padding: 0.5rem 0.6rem;
     border: 1px solid #d1d5db;
@@ -391,6 +425,14 @@
      announcing itself, and nothing shifts as the mark comes and goes. */
   .row[data-on-grid='true'] .name {
     font-weight: 600;
+  }
+
+  /* A name is the drummer's own word for their music and may run to forty
+     characters of it without a space to break at. It breaks wherever it has to
+     rather than pushing the panel — and the page with it — wider than the
+     phone it is being read on. */
+  .name {
+    overflow-wrap: anywhere;
   }
 
   .row[data-on-grid='true'] .load {

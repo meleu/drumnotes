@@ -249,3 +249,51 @@ changes because the pattern on the grid does — saving takes a copy out, loadin
 back in, and neither leaves the two joined. A name belongs to one pattern only.
 _Avoid_: shelf, collection, store, storage, presets, saved pattern (a pattern in the
 library is just a pattern)
+
+**Name**:
+A kept pattern's identity, and the only one it has. Two names differing only in case are
+one name, so keeping `bossa` where `Bossa` is already kept replaces that pattern rather
+than making a second of it. Folding decides identity only, never appearance: the spelling
+shown is the one last typed. Nothing is ever renamed — a name is chosen when a pattern is
+kept, and travels with the pattern it names.
+_Avoid_: title, label, key, id
+
+**Keep**:
+To take a copy of the pattern on the grid and hold it in the library under a name — what
+the Save button does. The copy is never joined to the grid again: editing afterwards
+cannot reach it, and it does not change because the grid does.
+_Avoid_: add, persist, store (storing is what the browser is asked to do with the whole
+store, once a keeping has changed it)
+
+**Load**:
+To take a copy the other way, putting a kept pattern back on the grid at the tempo it was
+kept at. A wholesale replacement rather than an edit, so it stops the transport (ADR 0008)
+and closes the panel behind it.
+_Avoid_: open, restore, apply, select
+
+**On the grid**:
+Whether the pattern on the grid is one the library already holds, and under which name.
+Answered by comparing patterns every time it is asked, never by remembering where the grid
+came from — so it marks a row, decides whether a load has to ask first, goes the instant a
+cell or the tempo changes, and comes back on its own when the change is undone.
+_Avoid_: dirty, unsaved, current, open, selected, active
+
+**Panel**:
+Where the library is shown: a disclosure beneath the controls row, opened by the Patterns
+control and pushing the grid down rather than covering it. Closed when the app opens,
+closed again by a load, and left open after a keeping so the new row can be seen arriving.
+_Avoid_: dialog, drawer, modal, sidebar, popup
+
+**Row**:
+One kept pattern as the panel lists it: its name, the tempo it was kept at, and whether it
+is the one on the grid. The whole line is the control that loads it, so a thumb cannot miss
+it, and it says in words what the mark says by weight.
+_Avoid_: item, preset, slot, file, lane (a lane is one instrument's steps)
+
+**Question**:
+The second press that an act with nothing behind it costs: clearing the grid, dropping a
+row, keeping over a name already used, and loading over work kept nowhere. The question
+lives in the control that was pressed rather than in a dialog, reports itself as
+`data-state`, says in its accessible name what the next press will do, takes itself back
+after a few seconds unanswered, and is withdrawn when attention moves elsewhere.
+_Avoid_: dialog, modal, prompt, alert, are-you-sure

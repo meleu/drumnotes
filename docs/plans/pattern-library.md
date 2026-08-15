@@ -495,20 +495,20 @@ without seeing the mark.
 
 ### Acceptance criteria
 
-- [ ] At a phone width the panel, the field, the button and every row are readable and
+- [x] At a phone width the panel, the field, the button and every row are readable and
       tappable, with no horizontal overflow and no overlapping controls
-- [ ] Tap targets meet the size the existing controls already use
-- [ ] The Patterns control, the name field, Save, each row and each delete control are
+- [x] Tap targets meet the size the existing controls already use
+- [x] The Patterns control, the name field, Save, each row and each delete control are
       reachable by keyboard in a sensible order
-- [ ] Every one of them is operable by keyboard, including both presses of each confirmation
-- [ ] Focus is not lost or stranded when the panel closes after a load, or when a row is
+- [x] Every one of them is operable by keyboard, including both presses of each confirmation
+- [x] Focus is not lost or stranded when the panel closes after a load, or when a row is
       deleted
-- [ ] Each row announces its name, its tempo, and whether it is the pattern on the grid
-- [ ] Each armed confirmation announces what the next press will do
-- [ ] The panel control announces whether the panel is open
-- [ ] End-to-end tests drive a save, a load and a delete entirely from the keyboard
-- [ ] An end-to-end test asserts the rows' accessible names at a narrow viewport
-- [ ] `CONTEXT.md` and the ADRs match what shipped
+- [x] Each row announces its name, its tempo, and whether it is the pattern on the grid
+- [x] Each armed confirmation announces what the next press will do
+- [x] The panel control announces whether the panel is open
+- [x] End-to-end tests drive a save, a load and a delete entirely from the keyboard
+- [x] An end-to-end test asserts the rows' accessible names at a narrow viewport
+- [x] `CONTEXT.md` and the ADRs match what shipped
 
 ---
 
