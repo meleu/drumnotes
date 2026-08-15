@@ -119,6 +119,20 @@ test('saving leaves the groove on the grid alone', async ({ page }) => {
   await expect(page.locator(tempoField)).toHaveValue(String(DEFAULT_TEMPO));
 });
 
+/* Saving copies out; it changes nothing that is being played. The loop runs on
+   through it, unlike a load or a clear. */
+test('saving leaves playback running', async ({ page }) => {
+  await page.locator(toggle).click();
+  await expect(page.locator(transport)).toBeEnabled();
+  await page.locator(transport).click();
+  await expect(page.locator(lit)).not.toHaveCount(0);
+
+  await keep(page, 'Bossa');
+
+  await expect(page.locator(transport)).toHaveAttribute('data-state', 'playing');
+  await expect(page.locator(lit)).not.toHaveCount(0);
+});
+
 test('the library is still there after a reload', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');

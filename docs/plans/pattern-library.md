@@ -151,8 +151,7 @@ name, disabled Save states, any confirmation, loading, and deleting.
 - [x] Typing a name and pressing Save adds a row showing that name and the current tempo
 - [x] The panel stays open after a save and the new row is visible
 - [x] An empty library shows a short line in place of the rows
-- [ ] Saving does not alter the pattern on the grid, its tempo, or playback
-      <!-- grid and tempo covered; playback through a save is not asserted -->
+- [x] Saving does not alter the pattern on the grid, its tempo, or playback
 - [x] Both the current pattern and the library survive a reload
 - [x] Storage lives under one key, `drumnotes:store`, in the documented shape, with each
       stored pattern carrying its own `version`
