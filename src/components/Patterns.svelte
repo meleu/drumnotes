@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { MAX_NAME_LENGTH } from '../core/library.js';
   import type { Pattern } from '../core/pattern.js';
+  import { hasHits } from '../core/pattern.js';
   import { libraryState } from '../state/library.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
   import { session } from '../state/session.svelte.js';
@@ -15,11 +17,28 @@
 
   const entries = $derived(libraryState.entries);
 
+  /* The panel opens with a free name already in the field, so keeping a groove
+     costs one press when none has been thought of. Set on opening rather than
+     derived: from then on the field is the drummer's to type in, and a
+     suggestion that rewrote itself under them would be worse than none. */
+  function toggleOpen(): void {
+    open = !open;
+    if (open) name = libraryState.freeName;
+  }
+
+  /* What the drummer typed, less the whitespace around it: the name is kept and
+     shown as it reads, not as it was padded. */
+  const typed = $derived(name.trim());
+
+  /* Dead in the two cases where pressing it could only do harm: nothing is ever
+     kept under no name at all, and the library does not fill with silence. The
+     second matches Clear, which is dead on an empty grid for the same reason. */
+  const keepable = $derived(typed !== '' && hasHits(patternState.current));
+
   /* Save takes a copy of what is on the grid. The panel stays open afterwards,
      so the new row can be seen arriving. */
   function save(): void {
-    if (name === '') return;
-    libraryState.keep(name, patternState.current);
+    libraryState.keep(typed, patternState.current);
   }
 
   /* Loading goes the other way, through the session seam: a wholesale
@@ -66,7 +85,7 @@
   data-patterns="toggle"
   aria-expanded={open}
   aria-controls={PANEL_ID}
-  onclick={() => (open = !open)}
+  onclick={toggleOpen}
 >
   Patterns
 </button>
@@ -77,8 +96,20 @@
   <div class="panel" id={PANEL_ID}>
     <div class="keep">
       <label for="pattern-name">Name</label>
-      <input id="pattern-name" type="text" data-patterns="name" bind:value={name} />
-      <button type="button" data-patterns="save" onclick={save}>Save</button>
+      <!-- The suggestion arrives selected, so typing a real name replaces it
+           rather than having to be cleared first. -->
+      <input
+        id="pattern-name"
+        type="text"
+        data-patterns="name"
+        maxlength={MAX_NAME_LENGTH}
+        bind:value={name}
+        {@attach (node) => {
+          node.focus();
+          node.select();
+        }}
+      />
+      <button type="button" data-patterns="save" disabled={!keepable} onclick={save}>Save</button>
     </div>
 
     {#if entries.length === 0}
@@ -128,6 +159,11 @@
     font: inherit;
     cursor: pointer;
     touch-action: manipulation;
+  }
+
+  .keep button:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   .panel {

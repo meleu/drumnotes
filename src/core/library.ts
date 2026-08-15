@@ -56,6 +56,33 @@ export function remove(library: Library, name: string): Library {
   return kept;
 }
 
+/** Whether a name is already an identity in the library. */
+function has(library: Library, name: string): boolean {
+  return Object.keys(library).some((existing) => sameName(existing, name));
+}
+
+/** The most a name may run to. Long enough to describe the music, short enough
+ *  that a row stays a row. */
+export const MAX_NAME_LENGTH = 40;
+
+/** What an unnamed groove is offered, numbered from one. */
+const SERIES = 'Pattern';
+
+/**
+ * The lowest `Pattern N` not already kept — the first gap, not the highest
+ * number plus one, so a library of `Pattern 9` and `Pattern 10` offers
+ * `Pattern 1` rather than counting ever upwards.
+ *
+ * The search cannot run away: one of the first `size + 1` numbers must be free,
+ * whatever else the library holds.
+ */
+export function freeName(library: Library): string {
+  for (let number = 1; ; number += 1) {
+    const candidate = `${SERIES} ${number}`;
+    if (!has(library, candidate)) return candidate;
+  }
+}
+
 /**
  * Names in the order a drummer would count them: runs of digits compare as
  * numbers, so `Pattern 2` comes before `Pattern 10`, and case is ignored, so

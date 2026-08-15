@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyLibrary, entriesOf, keep, remove } from './library.js';
+import { emptyLibrary, entriesOf, freeName, keep, remove } from './library.js';
 import { defaultPattern, emptyPattern, withTempo } from './pattern.js';
 
 /** Names of the entries, in the order they are listed. */
@@ -100,6 +100,32 @@ describe('entriesOf', () => {
 function libraryOf(...kept: string[]): ReturnType<typeof emptyLibrary> {
   return kept.reduce((library, name) => keep(library, name, defaultPattern()), emptyLibrary());
 }
+
+describe('freeName', () => {
+  it('starts the series at one when nothing is kept', () => {
+    expect(freeName(emptyLibrary())).toBe('Pattern 1');
+  });
+
+  it('offers the first gap rather than the highest number plus one', () => {
+    expect(freeName(libraryOf('Pattern 1', 'Pattern 3'))).toBe('Pattern 2');
+  });
+
+  it('goes back to the lowest free number when the high ones are taken', () => {
+    expect(freeName(libraryOf('Pattern 9', 'Pattern 10'))).toBe('Pattern 1');
+  });
+
+  it('counts past a run with no gaps in it', () => {
+    expect(freeName(libraryOf('Pattern 1', 'Pattern 2', 'Pattern 3'))).toBe('Pattern 4');
+  });
+
+  it('treats a name differing only in case as taken', () => {
+    expect(freeName(libraryOf('pattern 1', 'PATTERN 2'))).toBe('Pattern 3');
+  });
+
+  it('ignores names that are not in the series', () => {
+    expect(freeName(libraryOf('Bossa', 'Pattern', 'Pattern 1x', '1'))).toBe('Pattern 1');
+  });
+});
 
 describe('the order entries are listed in', () => {
   it('reads alphabetically when there are no digits', () => {

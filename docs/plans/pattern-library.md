@@ -313,20 +313,20 @@ same reason.
 
 ### Acceptance criteria
 
-- [ ] Opening the panel prefills the name field with the first unused `Pattern N`
-- [ ] The suggestion is selected, so typing replaces it outright
-- [ ] With `Pattern 1` and `Pattern 3` kept, the suggestion is `Pattern 2`
-- [ ] With `Pattern 9` and `Pattern 10` kept, the suggestion is `Pattern 1` — the lowest free
+- [x] Opening the panel prefills the name field with the first unused `Pattern N`
+- [x] The suggestion is selected, so typing replaces it outright
+- [x] With `Pattern 1` and `Pattern 3` kept, the suggestion is `Pattern 2`
+- [x] With `Pattern 9` and `Pattern 10` kept, the suggestion is `Pattern 1` — the lowest free
       number, not the highest plus one
-- [ ] A kept `pattern 2` is treated as taken; the series offers `Pattern 3`
-- [ ] Saving, then reopening the panel, suggests the next unused name
-- [ ] The field will not accept more than 40 characters
-- [ ] Leading and trailing whitespace is trimmed before the name is used
-- [ ] Save is disabled when the field is empty or holds only whitespace
-- [ ] Save is disabled when the grid holds no hits, and becomes enabled when one is written
-- [ ] Unit tests cover free-name generation against gaps, an empty library, and names that
+- [x] A kept `pattern 2` is treated as taken; the series offers `Pattern 3`
+- [x] Saving, then reopening the panel, suggests the next unused name
+- [x] The field will not accept more than 40 characters
+- [x] Leading and trailing whitespace is trimmed before the name is used
+- [x] Save is disabled when the field is empty or holds only whitespace
+- [x] Save is disabled when the grid holds no hits, and becomes enabled when one is written
+- [x] Unit tests cover free-name generation against gaps, an empty library, and names that
       collide with the series
-- [ ] End-to-end tests cover the prefill, the selection, both disabled states, and trimming
+- [x] End-to-end tests cover the prefill, the selection, both disabled states, and trimming
 
 ---
 

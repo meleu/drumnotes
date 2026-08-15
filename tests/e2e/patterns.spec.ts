@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { MAX_NAME_LENGTH } from '../../src/core/library.js';
 import { DEFAULT_TEMPO, defaultPattern } from '../../src/core/pattern.js';
 
 // Each test gets its own context, so the library starts empty unless seeded.
@@ -9,6 +10,7 @@ const toggle = '[data-patterns="toggle"]';
 const panel = '#patterns-panel';
 const field = '[data-patterns="name"]';
 const save = '[data-patterns="save"]';
+const clear = '.clear';
 const rows = `${panel} .row`;
 const noteheads = '.sheet svg .vf-notehead';
 const transport = '.transport';
@@ -346,6 +348,87 @@ test('asking about one row does not arm another', async ({ page }) => {
   await expect(remove(page, 'Funk')).toHaveAttribute('data-state', 'asking');
   await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'idle');
   await expect(row(page, 'Funk')).toBeVisible();
+});
+
+/* Keeping a groove costs one press when no name has been thought of yet: the
+   field arrives carrying a name that is free, so the one-press path never runs
+   into a question. */
+test('the field arrives carrying the first unused name in the series', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await expect(page.locator(field)).toHaveValue('Pattern 1');
+});
+
+test('the suggestion is selected, so typing a real name replaces it', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await page.keyboard.type('Bossa');
+
+  await expect(page.locator(field)).toHaveValue('Bossa');
+});
+
+/* The whole point of the suggestion: press Patterns, press Save, and the groove
+   is kept. Reopening moves the series on rather than offering a taken name. */
+test('keeping the suggested name and reopening offers the next one', async ({ page }) => {
+  await page.locator(toggle).click();
+  await page.locator(save).click();
+
+  await expect(row(page, 'Pattern 1')).toBeVisible();
+
+  await page.locator(toggle).click();
+  await page.locator(toggle).click();
+
+  await expect(page.locator(field)).toHaveValue('Pattern 2');
+});
+
+test('the field takes a name only so long', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await page.locator(field).fill('');
+  await page.locator(field).pressSequentially('x'.repeat(MAX_NAME_LENGTH + 5));
+
+  await expect(page.locator(field)).toHaveValue('x'.repeat(MAX_NAME_LENGTH));
+});
+
+test('a name is trimmed before it is kept', async ({ page }) => {
+  await page.locator(toggle).click();
+
+  await keep(page, '  Bossa  ');
+
+  await expect(row(page, 'Bossa')).toBeVisible();
+  await expect(listed(page)).toHaveText(['Bossa']);
+});
+
+/* Save is dead in the two cases where it could only do harm: nothing would be
+   kept under no name at all, and the library does not fill with empty grooves. */
+test('Save is dead while the field holds nothing but whitespace', async ({ page }) => {
+  await page.locator(toggle).click();
+  await expect(page.locator(save)).toBeEnabled();
+
+  await page.locator(field).fill('');
+
+  await expect(page.locator(save)).toBeDisabled();
+
+  await page.locator(field).fill('   ');
+
+  await expect(page.locator(save)).toBeDisabled();
+
+  await page.locator(field).fill('Bossa');
+
+  await expect(page.locator(save)).toBeEnabled();
+});
+
+test('Save is dead while the grid is silent, and comes back with a hit', async ({ page }) => {
+  const cell = page.locator('button[data-instrument="snare"][data-step="0"]');
+  await page.locator(clear).click();
+  await page.locator(clear).click();
+  await page.locator(toggle).click();
+
+  await expect(page.locator(save)).toBeDisabled();
+
+  await cell.click();
+
+  await expect(page.locator(save)).toBeEnabled();
 });
 
 /* A pattern is always in the same place, so it can be found by reading rather
