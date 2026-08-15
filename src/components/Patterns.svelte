@@ -196,8 +196,9 @@
           <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
             <!-- Loading is the whole width the delete control leaves, so the
                  target is as wide as the panel and a thumb cannot miss it.
-                 The mark is written into the label as well as shown, so the row
-                 reads the same whether it is seen or heard. -->
+                 The mark is drawn rather than written — bold, on a tinted row —
+                 so the eye finds it without a word of explanation. The label is
+                 where it is said in words, for a reader that cannot see it. -->
             <button
               type="button"
               class="load"
@@ -208,9 +209,6 @@
               onblur={forgetLoad}
             >
               <span class="name">{entry.name}</span>
-              {#if onGrid === entry.name}
-                <span class="here">on the grid</span>
-              {/if}
               {#if askedFor === entry.name}
                 <span class="question">Sure?</span>
               {:else}
@@ -371,18 +369,20 @@
     color: #6b7280;
   }
 
-  /* The mark sits with the name it belongs to rather than at the far end, so it
-     reads as something said about that row. It never breaks across lines: at a
-     narrow width the tempo drops below instead, the mark being the shorter of
-     the two and the one that reads as a phrase. */
-  .here {
-    flex: 1;
-    white-space: nowrap;
-    font-size: 0.75rem;
+  /* Where the drummer is in their own library, said by weight and a tint rather
+     than in words: the row stands out from the ones around it without
+     announcing itself, and nothing shifts as the mark comes and goes. */
+  .row[data-on-grid='true'] .name {
     font-weight: 600;
-    color: #15803d;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  }
+
+  .row[data-on-grid='true'] .load {
+    background: #f3f4f6;
+  }
+
+  /* Still answers to the pointer, a shade further on than it already sits. */
+  .row[data-on-grid='true'] .load:hover {
+    background: #e5e7eb;
   }
 
   .empty {
