@@ -94,7 +94,7 @@ test.describe('once the font has loaded', () => {
 
   test('toggling a cell changes the number of noteheads drawn', async ({ page }) => {
     const before = await page.locator(noteheads).count();
-    const silent = defaultPattern().lanes.snare.indexOf(false);
+    const silent = defaultPattern().lanes.snare.indexOf('empty');
     const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
 
     await cell.click();

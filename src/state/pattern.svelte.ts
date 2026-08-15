@@ -1,5 +1,5 @@
 import type { InstrumentId, Pattern } from '../core/pattern.js';
-import { isHit, toggleStep, withTempo, withoutHits } from '../core/pattern.js';
+import { isWritten, toggleStep, withNothingWritten, withTempo } from '../core/pattern.js';
 import { loadPattern, savePattern } from '../adapters/storage.js';
 
 /**
@@ -22,13 +22,13 @@ class PatternState {
   toggle(instrument: InstrumentId, step: number): boolean {
     const next = toggleStep(this.#pattern, instrument, step);
     this.#replace(next);
-    return isHit(next, instrument, step);
+    return isWritten(next, instrument, step);
   }
 
   /** Rubs out the whole groove, tempo and playback untouched — an empty pattern
    *  plays as silence rather than as a stop. */
   clear(): void {
-    this.#replace(withoutHits(this.#pattern));
+    this.#replace(withNothingWritten(this.#pattern));
   }
 
   /** Sets the tempo through the core's clamp, so what is asked for and what

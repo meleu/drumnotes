@@ -83,8 +83,22 @@ export const VOICES: readonly VoiceStyle[] = [
   { id: 'feet', stem: 'down', restPosition: 'f/4' },
 ];
 
+/**
+ * How a cell is struck — one value and never two, so an accented flam is
+ * unwritable (ADR 0005). `empty` is the whole of silence: rubbing a cell out
+ * takes its articulation with it.
+ *
+ * Ordered as the menu offers them, silence first.
+ */
+export const ARTICULATIONS = ['empty', 'normal', 'accent', 'ghost', 'flam', 'drag'] as const;
+
+export type Articulation = (typeof ARTICULATIONS)[number];
+
+/** What a tap writes, and what every cell of the landing groove holds. */
+const PLAIN: Articulation = 'normal';
+
 /** One flat lane per instrument, covering every step of the pattern. */
-export type Lanes = Readonly<Record<InstrumentId, readonly boolean[]>>;
+export type Lanes = Readonly<Record<InstrumentId, readonly Articulation[]>>;
 
 export interface Pattern {
   readonly tempo: number;
@@ -95,12 +109,12 @@ export interface Pattern {
 type Groove = Readonly<Partial<Record<InstrumentId, readonly number[]>>>;
 
 function patternFrom(groove: Groove): Pattern {
-  const lanes = {} as Record<InstrumentId, readonly boolean[]>;
+  const lanes = {} as Record<InstrumentId, readonly Articulation[]>;
   for (const { id } of INSTRUMENTS) {
-    const lane = new Array<boolean>(TOTAL_STEPS).fill(false);
+    const lane = new Array<Articulation>(TOTAL_STEPS).fill('empty');
     for (let bar = 0; bar < BARS; bar += 1) {
       for (const step of groove[id] ?? []) {
-        lane[bar * STEPS_PER_BAR + step] = true;
+        lane[bar * STEPS_PER_BAR + step] = PLAIN;
       }
     }
     lanes[id] = lane;
@@ -167,13 +181,24 @@ export function barOfStep(step: number): number {
   return Math.floor(step / STEPS_PER_BAR);
 }
 
-export function isHit(pattern: Pattern, instrument: InstrumentId, step: number): boolean {
-  return pattern.lanes[instrument][step] ?? false;
+/** What a cell holds. A step off the end of the pattern holds silence. */
+export function articulationAt(
+  pattern: Pattern,
+  instrument: InstrumentId,
+  step: number,
+): Articulation {
+  return pattern.lanes[instrument][step] ?? 'empty';
+}
+
+/** Whether a cell is written — the one question everything outside this module
+ *  asks of a cell it does not care to read. */
+export function isWritten(pattern: Pattern, instrument: InstrumentId, step: number): boolean {
+  return articulationAt(pattern, instrument, step) !== 'empty';
 }
 
 /** Everything written on one step, in row order. */
 export function instrumentsAt(pattern: Pattern, step: number): InstrumentId[] {
-  return INSTRUMENTS.filter(({ id }) => isHit(pattern, id, step)).map(({ id }) => id);
+  return INSTRUMENTS.filter(({ id }) => isWritten(pattern, id, step)).map(({ id }) => id);
 }
 
 /**
@@ -191,21 +216,38 @@ export function withTempo(pattern: Pattern, tempo: number): Pattern {
   return { ...pattern, tempo: clampTempo(tempo) };
 }
 
-/** Whether anything at all is written — one hit anywhere is enough. */
-export function hasHits(pattern: Pattern): boolean {
-  return INSTRUMENTS.some(({ id }) => pattern.lanes[id].some(Boolean));
+/** Whether anything at all is written — one cell of any articulation is enough. */
+export function anythingWritten(pattern: Pattern): boolean {
+  return INSTRUMENTS.some(({ id }) =>
+    pattern.lanes[id].some((articulation) => articulation !== 'empty'),
+  );
 }
 
 /** Rubs out the whole groove, keeping the tempo it was played at. */
-export function withoutHits(pattern: Pattern): Pattern {
+export function withNothingWritten(pattern: Pattern): Pattern {
   return { ...pattern, lanes: emptyPattern().lanes };
 }
 
-/** Flips one cell into a new `Pattern`; input untouched. */
-export function toggleStep(pattern: Pattern, instrument: InstrumentId, step: number): Pattern {
+/** Sets one cell's articulation into a new `Pattern`; input untouched. */
+export function withArticulation(
+  pattern: Pattern,
+  instrument: InstrumentId,
+  step: number,
+  articulation: Articulation,
+): Pattern {
   const lane = pattern.lanes[instrument];
   return {
     ...pattern,
-    lanes: { ...pattern.lanes, [instrument]: lane.with(step, !lane[step]) },
+    lanes: { ...pattern.lanes, [instrument]: lane.with(step, articulation) },
   };
+}
+
+/**
+ * What a tap does: an empty cell takes a plain hit, and a written cell is rubbed
+ * out whatever it held. Anything finer than that comes through the menu, which
+ * writes an articulation outright.
+ */
+export function toggleStep(pattern: Pattern, instrument: InstrumentId, step: number): Pattern {
+  const next = isWritten(pattern, instrument, step) ? 'empty' : PLAIN;
+  return withArticulation(pattern, instrument, step, next);
 }

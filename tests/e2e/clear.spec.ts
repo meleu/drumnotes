@@ -98,7 +98,7 @@ test('goes dead when there is nothing left to rub out', async ({ page }) => {
   await expect(page.locator(clear)).toBeDisabled();
 
   // Writing a single hit anywhere gives it something to do again.
-  const silent = defaultPattern().lanes.snare.indexOf(false);
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
   await page.locator(`button[data-instrument="snare"][data-step="${silent}"]`).click();
   await expect(page.locator(clear)).toBeEnabled();
 });

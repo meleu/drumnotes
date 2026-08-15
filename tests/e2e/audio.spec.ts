@@ -6,7 +6,7 @@ import { audioLog, instrumentAudio } from './support/audio-log.js';
 
 /** First cell the default groove leaves empty in a lane. */
 function silentCell(page: Page, instrument: 'hihat' | 'snare' | 'kick') {
-  const step = defaultPattern().lanes[instrument].indexOf(false);
+  const step = defaultPattern().lanes[instrument].indexOf('empty');
   return page.locator(`button[data-instrument="${instrument}"][data-step="${step}"]`);
 }
 

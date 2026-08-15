@@ -32,7 +32,7 @@ test('labels the columns with the counting, once per bar', async ({ page }) => {
 });
 
 test('toggling a cell flips its aria-pressed value', async ({ page }) => {
-  const silent = defaultPattern().lanes.snare.indexOf(false);
+  const silent = defaultPattern().lanes.snare.indexOf('empty');
   const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
 
   await expect(cell).toHaveAttribute('aria-pressed', 'false');

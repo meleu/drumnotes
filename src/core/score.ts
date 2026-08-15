@@ -10,7 +10,7 @@
  */
 
 import type { Instrument, NoteheadType, Pattern, StaffPosition, VoiceId } from './pattern.js';
-import { BARS, INSTRUMENTS, STEPS_PER_BAR, STEPS_PER_BEAT, VOICES, isHit } from './pattern.js';
+import { BARS, INSTRUMENTS, STEPS_PER_BAR, STEPS_PER_BEAT, VOICES, isWritten } from './pattern.js';
 
 /**
  * Note values reachable on this grid. The beat ceiling — nothing outlasts a
@@ -220,7 +220,7 @@ function strokeAt(
   step: number,
 ): Stroke | undefined {
   const heads = instruments
-    .filter((instrument) => isHit(pattern, instrument.id, step))
+    .filter((instrument) => isWritten(pattern, instrument.id, step))
     .map(({ position, notehead }) => ({ position, type: notehead }));
   return heads.length > 0 ? heads : undefined;
 }

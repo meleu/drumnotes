@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { hasHits } from '../core/pattern.js';
+  import { anythingWritten } from '../core/pattern.js';
   import { patternState } from '../state/pattern.svelte.js';
 
-  const written = $derived(hasHits(patternState.current));
+  const written = $derived(anythingWritten(patternState.current));
 
   /* Erasing is the one act with nothing behind it — no undo, and the autosave
      follows it straight to storage — so it costs two presses. The question
