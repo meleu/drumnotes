@@ -1,16 +1,125 @@
 <script lang="ts">
-  import type { InstrumentId } from '../core/pattern.js';
-  import { INSTRUMENTS, STEPS_PER_BAR, gridBars, isWritten } from '../core/pattern.js';
+  import type { Articulation, InstrumentId } from '../core/pattern.js';
+  import {
+    INSTRUMENTS,
+    STEPS_PER_BAR,
+    articulationAt,
+    gridBars,
+    isWritten,
+  } from '../core/pattern.js';
   import { audioState } from '../state/audio.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
   import { transportState } from '../state/transport.svelte.js';
+  import CellMenu from './CellMenu.svelte';
 
   const bars = gridBars();
 
+  /** How long a press has to last before it is a hold rather than a tap. */
+  const HOLD_MS = 500;
+  /** How far the pointer may wander before the press is a scroll or a drag. */
+  const DRIFT_PX = 10;
+
+  /** Which cell the one open menu belongs to, and what it is anchored to. */
+  interface OpenMenu {
+    readonly instrument: InstrumentId;
+    readonly step: number;
+    readonly cell: HTMLButtonElement;
+  }
+
+  let menu = $state<OpenMenu | undefined>(undefined);
+
+  let hold: ReturnType<typeof setTimeout> | undefined;
+  let origin: { x: number; y: number } | undefined;
+  /** A press that opened or dismissed a menu is not also a tap. */
+  let swallowClick = false;
+
+  function isOpen(instrument: InstrumentId, step: number): boolean {
+    return menu?.instrument === instrument && menu.step === step;
+  }
+
+  /** What a cell is called, to the cell itself and to the menu acting on it. */
+  function cellName(instrument: InstrumentId, step: number): string {
+    const { name } = INSTRUMENTS.find(({ id }) => id === instrument) ?? { name: instrument };
+    return `${name}, step ${step + 1}`;
+  }
+
+  function open(cell: HTMLButtonElement, instrument: InstrumentId, step: number): void {
+    abandonHold();
+    menu = { instrument, step, cell };
+  }
+
+  /** Every way out of the menu comes through here, so focus can only land back
+   *  on the cell it was opened from. */
+  function close(): void {
+    const opener = menu?.cell;
+    menu = undefined;
+    if (opener === undefined) return;
+
+    opener.focus();
+    /* A press that dismissed the menu moves the focus itself, once this
+       handler has returned: onto whatever it landed on, or off everything if
+       that was not focusable. The cell takes it back only in the second case —
+       a press on another control is a reader going somewhere. */
+    setTimeout(() => {
+      if (document.activeElement === document.body) opener.focus();
+    });
+  }
+
+  function choose(articulation: Articulation): void {
+    const chosen = menu;
+    close();
+    if (chosen === undefined) return;
+    if (patternState.write(chosen.instrument, chosen.step, articulation)) {
+      audioState.audition(chosen.instrument);
+    }
+  }
+
+  function pressStart(event: PointerEvent, instrument: InstrumentId, step: number): void {
+    // A press starting with the menu open is dismissing it and nothing else;
+    // the dismissal itself is the menu's business.
+    swallowClick = menu !== undefined;
+    // Secondary buttons raise a contextmenu of their own; only a primary press
+    // can become a hold.
+    if (event.button !== 0) return;
+
+    const cell = event.currentTarget as HTMLButtonElement;
+    abandonHold();
+    origin = { x: event.clientX, y: event.clientY };
+    hold = setTimeout(() => {
+      swallowClick = true;
+      open(cell, instrument, step);
+    }, HOLD_MS);
+  }
+
+  /* A finger that has started to travel is scrolling or dragging, not holding —
+     and the browser may take the gesture away entirely, which arrives as a
+     cancelled pointer. */
+  function pressMove(event: PointerEvent): void {
+    if (origin === undefined) return;
+    if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > DRIFT_PX) abandonHold();
+  }
+
+  function abandonHold(): void {
+    clearTimeout(hold);
+    hold = undefined;
+    origin = undefined;
+  }
+
   /* Writing a hit plays it; rubbing one out is silent. Every cell makes sound,
      so the grid waits for the samples rather than letting a tap land mutely. */
-  function toggle(instrument: InstrumentId, step: number): void {
+  function tap(instrument: InstrumentId, step: number): void {
+    if (swallowClick) {
+      swallowClick = false;
+      return;
+    }
     if (patternState.toggle(instrument, step)) audioState.audition(instrument);
+  }
+
+  /* One handler for right-click and for the keyboard's own way of asking — the
+     Menu key and Shift+F10 both arrive here. */
+  function contextMenu(event: MouseEvent, instrument: InstrumentId, step: number): void {
+    event.preventDefault();
+    open(event.currentTarget as HTMLButtonElement, instrument, step);
   }
 </script>
 
@@ -38,17 +147,35 @@
             class:beat={step.isBeatStart}
             class:playing={transportState.playhead === step.index}
             aria-pressed={isWritten(patternState.current, instrument.id, step.index)}
-            aria-label="{instrument.name}, step {step.index + 1}"
+            aria-label={cellName(instrument.id, step.index)}
+            aria-haspopup="menu"
+            aria-expanded={isOpen(instrument.id, step.index)}
             data-instrument={instrument.id}
             data-step={step.index}
             disabled={!audioState.ready}
-            onclick={() => toggle(instrument.id, step.index)}
+            onclick={() => tap(instrument.id, step.index)}
+            onpointerdown={(event) => pressStart(event, instrument.id, step.index)}
+            onpointermove={pressMove}
+            onpointerup={abandonHold}
+            onpointercancel={abandonHold}
+            onpointerleave={abandonHold}
+            oncontextmenu={(event) => contextMenu(event, instrument.id, step.index)}
           ></button>
         {/each}
       {/each}
     </section>
   {/each}
 </div>
+
+{#if menu}
+  <CellMenu
+    anchor={menu.cell}
+    current={articulationAt(patternState.current, menu.instrument, menu.step)}
+    label="Articulation for {cellName(menu.instrument, menu.step)}"
+    onchoose={choose}
+    onclose={close}
+  />
+{/if}
 
 <style>
   /* Bars sit side by side when two fit at a legible cell size, else stack — the
@@ -118,7 +245,14 @@
     border-radius: 3px;
     background: #f9fafb;
     cursor: pointer;
+    /* Held together on purpose: a hold on a cell is this app's gesture, and on
+       touch the platform would otherwise answer it first — with its own callout
+       and a word-selection. `manipulation` still leaves the page scrollable
+       with a finger that starts on a cell. */
     touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   /* Beat boundaries: 1, 2, 3, 4 visible at a glance. */

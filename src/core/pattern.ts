@@ -97,6 +97,23 @@ export type Articulation = (typeof ARTICULATIONS)[number];
 /** What a tap writes, and what every cell of the landing groove holds. */
 const PLAIN: Articulation = 'normal';
 
+export interface ArticulationChoice {
+  readonly id: Articulation;
+  /** What the menu calls it, and what a screen reader reads out. */
+  readonly name: string;
+}
+
+/**
+ * What the menu offers a cell, in the order it offers them. A table rather than
+ * a list built into the menu, and shorter than `ARTICULATIONS` on purpose: a
+ * value joins it in the phase that makes it writable, audible and readable at
+ * once, so the menu never promises something the app cannot deliver.
+ */
+export const ARTICULATION_CHOICES: readonly ArticulationChoice[] = [
+  { id: 'empty', name: 'Empty' },
+  { id: PLAIN, name: 'Plain' },
+];
+
 /** One flat lane per instrument, covering every step of the pattern. */
 export type Lanes = Readonly<Record<InstrumentId, readonly Articulation[]>>;
 

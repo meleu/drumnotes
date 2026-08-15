@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Articulation } from './pattern.js';
 import {
+  ARTICULATION_CHOICES,
   ARTICULATIONS,
   BARS,
   DEFAULT_TEMPO,
@@ -128,6 +129,23 @@ describe('articulationAt', () => {
   it('reads what a cell holds', () => {
     expect(articulationAt(defaultPattern(), 'snare', 4)).toBe('normal');
     expect(articulationAt(defaultPattern(), 'snare', 5)).toBe('empty');
+  });
+});
+
+describe('ARTICULATION_CHOICES', () => {
+  it('offers silence first, then a plain hit', () => {
+    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual(['empty', 'normal']);
+  });
+
+  it('offers each articulation at most once, and none the pattern cannot hold', () => {
+    const offered = ARTICULATION_CHOICES.map(({ id }) => id);
+
+    expect(new Set(offered).size).toBe(offered.length);
+    for (const id of offered) expect(ARTICULATIONS).toContain(id);
+  });
+
+  it('names every choice it offers', () => {
+    for (const { name } of ARTICULATION_CHOICES) expect(name).not.toBe('');
   });
 });
 

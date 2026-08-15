@@ -1,5 +1,11 @@
-import type { InstrumentId, Pattern } from '../core/pattern.js';
-import { isWritten, toggleStep, withNothingWritten, withTempo } from '../core/pattern.js';
+import type { Articulation, InstrumentId, Pattern } from '../core/pattern.js';
+import {
+  isWritten,
+  toggleStep,
+  withArticulation,
+  withNothingWritten,
+  withTempo,
+} from '../core/pattern.js';
 import { loadPattern, savePattern } from '../adapters/storage.js';
 
 /**
@@ -21,6 +27,14 @@ class PatternState {
    *  what was added without asking twice. */
   toggle(instrument: InstrumentId, step: number): boolean {
     const next = toggleStep(this.#pattern, instrument, step);
+    this.#replace(next);
+    return isWritten(next, instrument, step);
+  }
+
+  /** Writes one cell outright, whatever it held; reports whether it now sounds,
+   *  so a caller can audition what it wrote without asking twice. */
+  write(instrument: InstrumentId, step: number, articulation: Articulation): boolean {
+    const next = withArticulation(this.#pattern, instrument, step, articulation);
     this.#replace(next);
     return isWritten(next, instrument, step);
   }
