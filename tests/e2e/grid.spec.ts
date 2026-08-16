@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
 import { serialisePattern } from '../../src/core/codec.js';
 import {
+  ARTICULATIONS,
   BARS,
   STEPS_PER_BAR,
   TOTAL_STEPS,
@@ -244,4 +245,82 @@ test('keeps an accented cell marked as the playhead lights its column', async ({
     getComputedStyle(node).backgroundColor,
   ]);
   expect(markColour).not.toBe(cellColour);
+});
+
+/* The one pixel test in the suite, and deliberately so: whether six marks can
+   be told apart at the size a phone draws them is a claim about what reaches
+   the screen, and no count of DOM nodes answers it. Compared as the share of a
+   cell's pixels that differ — two marks that render identically, or as the same
+   tofu box under a missing font, would differ in none. */
+test('draws the six articulations as six distinguishable cells at phone size', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+
+  // Six cells of one row, none of them the first of a beat: a beat's opening
+  // cell is drawn differently on purpose, and would be told apart by that
+  // rather than by what it holds.
+  const steps = [1, 2, 3, 5, 6, 7];
+  const pattern = ARTICULATIONS.reduce(
+    (next, articulation, index) => withArticulation(next, 'snare', steps[index]!, articulation),
+    defaultPattern(),
+  );
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(pattern)],
+  );
+  await page.reload();
+
+  const shots: string[] = [];
+  for (const [index, articulation] of ARTICULATIONS.entries()) {
+    const cell = page.locator(`button[data-instrument="snare"][data-step="${steps[index]!}"]`);
+    await expect(cell).toHaveAttribute('data-articulation', articulation);
+    shots.push((await cell.screenshot()).toString('base64'));
+  }
+
+  const differences = await page.evaluate(async (images) => {
+    const shots = await Promise.all(
+      images.map(async (image) => {
+        const png = Uint8Array.from(atob(image), (character) => character.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([png], { type: 'image/png' }));
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext('2d')!;
+        context.drawImage(bitmap, 0, 0);
+        return context.getImageData(0, 0, bitmap.width, bitmap.height);
+      }),
+    );
+
+    /** The share of the cell the two are drawn differently over. Compared row
+     *  by row over what they have in common, since a cell can land a pixel
+     *  wider than its neighbour. */
+    const apart = (one: ImageData, other: ImageData): number => {
+      const width = Math.min(one.width, other.width);
+      const height = Math.min(one.height, other.height);
+      let differing = 0;
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const here = (y * one.width + x) * 4;
+          const there = (y * other.width + x) * 4;
+          // Well past antialiasing, so a fringe along one edge of a glyph is
+          // not mistaken for a mark of its own.
+          const differs = [0, 1, 2].some(
+            (channel) => Math.abs(one.data[here + channel]! - other.data[there + channel]!) > 32,
+          );
+          if (differs) differing += 1;
+        }
+      }
+      return differing / (width * height);
+    };
+
+    return shots.map((one) => shots.map((other) => apart(one, other)));
+  }, shots);
+
+  for (const [index, articulation] of ARTICULATIONS.entries()) {
+    for (const [other, against] of ARTICULATIONS.entries()) {
+      if (index === other) continue;
+      expect(differences[index]![other]!, `${articulation} against ${against}`).toBeGreaterThan(
+        0.05,
+      );
+    }
+  }
 });

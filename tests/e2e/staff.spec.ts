@@ -141,6 +141,41 @@ async function heads(page: Page): Promise<{ glyph: string; x: number; y: number 
   );
 }
 
+/**
+ * The grace notes leading the first stroke, slot by slot.
+ *
+ * A grace note is drawn as a note inside the note it leads into, so the page's
+ * own nesting says which heads are ornaments — and one slot is one element,
+ * which is what makes "one group, one stem" a count rather than a measurement.
+ */
+async function graceSlotsOfFirstStroke(page: Page): Promise<{ glyphs: string[]; xs: number[] }[]> {
+  return await page
+    .locator(`${staff} .vf-stavenote`)
+    .first()
+    .locator('.vf-stavenote')
+    .evaluateAll(
+      (slots, wanted) =>
+        slots.map((slot) => {
+          // By glyph, as everywhere else: VexFlow draws a flag inside the
+          // notehead group it belongs to, and a flag is not a head.
+          const heads = [...slot.querySelectorAll('.vf-notehead text')].filter((head) =>
+            wanted.includes(head.textContent ?? ''),
+          );
+          return {
+            glyphs: heads.map((head) => head.textContent ?? ''),
+            xs: heads.map((head) => Number(head.getAttribute('x'))),
+          };
+        }),
+      Object.values(HEAD_GLYPHS) as string[],
+    );
+}
+
+/** Stems drawn for the first stroke: its own, and one per grace slot. Beamed
+ *  slots have theirs drawn with the beam, which is still inside the stroke. */
+async function stemsOfFirstStroke(page: Page): Promise<number> {
+  return await page.locator(`${staff} .vf-stavenote`).first().locator('.vf-stem').count();
+}
+
 /** Where each accent sits vertically, so above and below can be told apart. */
 async function accentBaselines(page: Page): Promise<number[]> {
   return (await glyphAnchors(page, ACCENT_GLYPHS)).map(({ y }) => y);
@@ -160,6 +195,28 @@ async function glyphsOfFirstStroke(page: Page): Promise<{ glyph: string; x: numb
         y: Number(node.getAttribute('y')),
       })),
     );
+}
+
+/** Where the staves sit and how far the ink reaches, in the drawing's own
+ *  coordinates — the ones every notehead's `x` is written in. */
+async function drawingBounds(
+  page: Page,
+): Promise<{ staveLeft: number; staveRight: number; inkRight: number; pageWidth: number }> {
+  return await page.evaluate((selector) => {
+    const svg = document.querySelector(selector) as SVGSVGElement;
+    const staves = [...svg.querySelectorAll('.vf-stave')].map((node) =>
+      (node as unknown as SVGGraphicsElement).getBBox(),
+    );
+    // The root's box is the ink itself, whether or not the page has room for
+    // it: anything drawn past the viewBox is cut off, and shows up here.
+    const ink = (svg as unknown as SVGGraphicsElement).getBBox();
+    return {
+      staveLeft: Math.min(...staves.map((box) => box.x)),
+      staveRight: Math.max(...staves.map((box) => box.x + box.width)),
+      inkRight: ink.x + ink.width,
+      pageWidth: svg.viewBox.baseVal.width,
+    };
+  }, staff);
 }
 
 /** Measure tops, deduped into systems. */
@@ -415,10 +472,95 @@ test('beams a drag where a flam is left with a single grace note', async ({ page
   await expect(page.locator(beams)).toHaveCount(0);
 });
 
+test('leads two flams struck together with one grace group on one stem', async ({ page }) => {
+  // Hi-hat and snare both flammed on the same step: their grace hits sound at
+  // the same moment, so the page has to show one gesture — a chord on a single
+  // stem — and not two grace notes implying a sequence nobody plays.
+  const struck = patternWith({ hihat: [0], snare: [0] });
+  const pattern = withArticulation(
+    withArticulation(struck, 'hihat', 0, 'flam'),
+    'snare',
+    0,
+    'flam',
+  );
+  await load(page, pattern);
+
+  const slots = await graceSlotsOfFirstStroke(page);
+  expect(slots).toHaveLength(1);
+  expect(slots[0]!.glyphs.toSorted()).toEqual([HEAD_GLYPHS.cross, HEAD_GLYPHS.normal].toSorted());
+  // Both heads set down at one x, which is what sharing a stem looks like.
+  expect(new Set(slots[0]!.xs).size).toBe(1);
+  // The stroke's own stem and the grace group's, and nothing else.
+  expect(await stemsOfFirstStroke(page)).toBe(2);
+});
+
+test('lines a flam up with the second of a drag it is struck with', async ({ page }) => {
+  // A dragged hi-hat leads by two slots and a flammed snare by one: the drag's
+  // first grace note stands alone, and the two share the slot after it.
+  const struck = patternWith({ hihat: [0], snare: [0] });
+  const pattern = withArticulation(
+    withArticulation(struck, 'hihat', 0, 'drag'),
+    'snare',
+    0,
+    'flam',
+  );
+  await load(page, pattern);
+
+  const slots = await graceSlotsOfFirstStroke(page);
+  expect(slots).toHaveLength(2);
+  const [first, second] = slots;
+  expect(first!.glyphs).toEqual([HEAD_GLYPHS.cross]);
+  expect(second!.glyphs.toSorted()).toEqual([HEAD_GLYPHS.cross, HEAD_GLYPHS.normal].toSorted());
+  expect(new Set(second!.xs).size).toBe(1);
+  // Earliest first: the slot sounding two leads early is drawn furthest left.
+  expect(first!.xs[0]!).toBeLessThan(second!.xs[0]!);
+
+  // One group of two slots, beamed: the stroke's stem plus one for each slot.
+  expect(await stemsOfFirstStroke(page)).toBe(3);
+  await expect(page.locator(beams)).toHaveCount(1);
+});
+
 test('draws no grace note where nothing is ornamented', async ({ page }) => {
   await load(page, withArticulation(patternWith({ snare: [0] }), 'snare', 0, 'accent'));
 
   expect(await heads(page)).toHaveLength(1);
+});
+
+test('keeps a measure of sixteen ornamented sixteenths on its own stave', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  // A drag on every sixteenth — three noteheads a step, the densest measure the
+  // vocabulary can write — on a phone, where the staff has least room to write
+  // it in. Cramped is allowed; drawn past the barline, off the page, or not at
+  // all is not.
+  await page.setViewportSize({ width: 390, height: 900 });
+  const dragged = [...Array(TOTAL_STEPS).keys()].reduce(
+    (pattern, step) => withArticulation(pattern, 'hihat', step, 'drag'),
+    emptyPattern(),
+  );
+  await load(page, dragged);
+
+  const drawn = await heads(page);
+  expect(drawn).toHaveLength(TOTAL_STEPS * 3);
+
+  // Every measure is on a stave of its own at this width, so one span holds
+  // them all: no notehead outside the lines it belongs to, grace notes least of
+  // all — they are drawn ahead of their stroke and so are the first to fall off
+  // the front of a measure.
+  const { staveLeft, staveRight, inkRight, pageWidth } = await drawingBounds(page);
+  for (const { x } of drawn) {
+    expect(x).toBeGreaterThanOrEqual(staveLeft);
+    expect(x).toBeLessThanOrEqual(staveRight);
+  }
+  // And nothing at all drawn past the edge of the page, where it would simply
+  // be cut off.
+  expect(inkRight).toBeLessThanOrEqual(pageWidth);
+
+  expect(errors).toEqual([]);
 });
 
 test('engraves the hands above the staff and the feet below it', async ({ page }) => {

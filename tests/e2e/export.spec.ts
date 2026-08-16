@@ -3,8 +3,11 @@ import { readFile } from 'node:fs/promises';
 import type { Download, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { STORAGE_KEY } from '../../src/adapters/storage.js';
+import { serialisePattern } from '../../src/core/codec.js';
 import { EXPORT_SCALE, EXPORT_WIDTH, exportFilename } from '../../src/core/export.js';
-import { BARS } from '../../src/core/pattern.js';
+import type { Pattern } from '../../src/core/pattern.js';
+import { BARS, emptyPattern, toggleStep, withArticulation } from '../../src/core/pattern.js';
 
 // Browser tests assert on DOM structure and counts, never pixels — except here.
 // The exported image's size and background opacity are claims about the file
@@ -96,6 +99,24 @@ async function load(page: Page, viewport: { width: number; height: number }): Pr
 const WIDE = { width: 1280, height: 900 };
 const PHONE = { width: 390, height: 900 };
 
+/** Rewrites the stored groove and reloads onto it, rather than clicking a
+ *  pattern in cell by cell. */
+async function rewrite(page: Page, pattern: Pattern): Promise<void> {
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(pattern)],
+  );
+  await page.reload();
+  await page.waitForSelector(sheet);
+}
+
+/** Glyphs the screen draws — noteheads, marks, brackets and all. What the
+ *  picture is held against: both are the same drawing, so a mark the staff
+ *  gains is a mark the file has to gain. */
+async function screenGlyphs(page: Page): Promise<number> {
+  return await page.locator(`${sheet} text`).count();
+}
+
 test('downloads a non-empty PNG of the notation', async ({ page }) => {
   await page.goto('/');
 
@@ -149,6 +170,37 @@ test('actually draws the notation, and redraws it after an edit', async ({ page 
 
   const after = await inspect((await exportPng(page)).bytes, page);
   expect(after.ink).toBeGreaterThan(before.ink);
+});
+
+test('carries every mark the screen draws', async ({ page }) => {
+  await load(page, WIDE);
+
+  // One snare a beat, written plain: the groove every mark below is the same
+  // groove as, differing in one cell.
+  const plain = [0, 4, 8, 12].reduce(
+    (pattern, step) => toggleStep(pattern, 'snare', step),
+    emptyPattern(),
+  );
+  await rewrite(page, plain);
+
+  const bare = {
+    glyphs: await screenGlyphs(page),
+    ink: (await inspect((await exportPng(page)).bytes, page)).ink,
+  };
+
+  // Every mark the vocabulary has, one at a time: an accent on the stroke, a
+  // ghost's brackets round a head, and the grace notes of both ornaments.
+  for (const [index, articulation] of (['accent', 'ghost', 'flam', 'drag'] as const).entries()) {
+    await rewrite(page, withArticulation(plain, 'snare', index * 4, articulation));
+
+    const drawn = await screenGlyphs(page);
+    const { ink } = await inspect((await exportPng(page)).bytes, page);
+
+    // Drawn on the staff, and so drawn in the file: the mark cannot be
+    // something only the screen path knows how to engrave.
+    expect(drawn, `${articulation} on the staff`).toBeGreaterThan(bare.glyphs);
+    expect(ink, `${articulation} in the picture`).toBeGreaterThan(bare.ink);
+  }
 });
 
 test('leaves the playhead out of the export', async ({ page }) => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { placeMeasures, staffLayoutFor, staffSize } from '../core/layout.js';
-  import { BARS, barOfStep } from '../core/pattern.js';
+  import { barOfStep } from '../core/pattern.js';
   import { toScore } from '../core/score.js';
   import { loadNotationFont, renderScoreSvg } from '../adapters/notation.js';
   import { patternState } from '../state/pattern.svelte.js';
@@ -13,7 +13,7 @@
 
   /* Every musical decision is already made by the time it gets here. */
   const score = $derived(toScore(patternState.current));
-  const layout = $derived(staffLayoutFor(width, BARS));
+  const layout = $derived(staffLayoutFor(width, score));
 
   /* The measure being read, as a patch of the drawing. An overlay rather than
      part of the drawing, so the export (which shares it) carries no playhead,

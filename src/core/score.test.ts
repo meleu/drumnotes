@@ -287,6 +287,46 @@ describe('grace notes', () => {
     expect(stroke!.noteheads).toHaveLength(2);
   });
 
+  it('gathers heads sounding the same distance ahead onto one slot', () => {
+    // Hi-hat and snare flammed together: their grace hits sound at the same
+    // moment, so the page draws one gesture — a chord on one stem — rather than
+    // two grace notes implying a sequence nobody plays.
+    const struck = patternWith({ hihat: [4], snare: [4] });
+    const pattern = withArticulation(
+      withArticulation(struck, 'hihat', 4, 'flam'),
+      'snare',
+      4,
+      'flam',
+    );
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [
+        { position: 'c/5', type: 'normal', parenthesised: false },
+        { position: 'g/5', type: 'cross', parenthesised: false },
+      ],
+    ]);
+  });
+
+  it('lines a flam and a drag up on the slots they each sound on', () => {
+    // A dragged hi-hat leads by two slots, a flammed snare by one: the drag's
+    // first grace hit is alone, and the second is the moment they share.
+    const struck = patternWith({ hihat: [4], snare: [4] });
+    const pattern = withArticulation(
+      withArticulation(struck, 'hihat', 4, 'drag'),
+      'snare',
+      4,
+      'flam',
+    );
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [{ position: 'g/5', type: 'cross', parenthesised: false }],
+      [
+        { position: 'c/5', type: 'normal', parenthesised: false },
+        { position: 'g/5', type: 'cross', parenthesised: false },
+      ],
+    ]);
+  });
+
   it('leads each voice with its own ornaments and nothing of the other', () => {
     const pattern = withArticulation(patternWith({ snare: [4] }), 'kick', 4, 'flam');
 
