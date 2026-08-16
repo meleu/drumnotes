@@ -266,6 +266,17 @@ describe('grace notes', () => {
     ]);
   });
 
+  it('leads a dragged stroke with two grace notes, on slots of their own', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'drag');
+
+    // Two slots rather than one chord of two: they sound a lead apart, so the
+    // page has to draw them one after the other, each on its own stem.
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [{ position: 'c/5', type: 'normal', parenthesised: false }],
+      [{ position: 'c/5', type: 'normal', parenthesised: false }],
+    ]);
+  });
+
   it("draws a grace note at its own instrument's position and notehead", () => {
     // Hi-hat and snare struck together, only the hi-hat flammed: the grace note
     // is a cross above the staff, and the snare it is struck with leads nothing.
@@ -287,11 +298,14 @@ describe('grace notes', () => {
 
   it('changes nothing about what the measure is worth', () => {
     const plain = patternWith({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12] });
-    const flammed = withArticulation(plain, 'snare', 4, 'flam');
 
-    expect(spellAll(firstMeasureVoice(flammed, 'hands').entries)).toBe(
-      spellAll(firstMeasureVoice(plain, 'hands').entries),
-    );
+    for (const ornament of ['flam', 'drag'] as const) {
+      const ornamented = withArticulation(plain, 'snare', 4, ornament);
+
+      expect(spellAll(firstMeasureVoice(ornamented, 'hands').entries)).toBe(
+        spellAll(firstMeasureVoice(plain, 'hands').entries),
+      );
+    }
   });
 });
 

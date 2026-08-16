@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-import { defaultPattern } from '../../src/core/pattern.js';
+import { ARTICULATION_CHOICES, defaultPattern } from '../../src/core/pattern.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
 
 /** Long enough that a hold has fired, short enough to stay a quick test. */
@@ -187,6 +187,50 @@ test('writes a flam from the menu in one gesture, and auditions it as a flam', a
   expect(log.samples).toEqual(['Snare-Softest', 'Snare-Hard']);
   expect(log.starts[0]).toBeUndefined();
   expect(log.starts[1]).toBeGreaterThan(log.clocks[1]!);
+});
+
+test('writes a drag from the menu, and auditions it as three hits', async ({ page }) => {
+  const cell = silentCell(page, 'snare');
+  const menu = page.getByRole('menu');
+
+  await press(page, cell, HELD_MS);
+  await menu.getByRole('menuitemradio', { name: 'Drag' }).click();
+
+  await expect(menu).toBeHidden();
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+  await expect(cell).toHaveAttribute('aria-label', /Snare, step \d+, Drag$/);
+  await expect(cell).toBeFocused();
+
+  const log = await audioLog(page);
+  // Two grace hits and the hit they lead into, each a lead after the last: a
+  // drag heard at one moment, or as two hits, is not a drag.
+  expect(log.samples).toEqual(['Snare-Softest', 'Snare-Softest', 'Snare-Hard']);
+  expect(log.starts[0]).toBeUndefined();
+  expect(log.starts[1]).toBeGreaterThan(log.clocks[1]!);
+  expect(log.starts[2]).toBeGreaterThan(log.starts[1]!);
+});
+
+test('offers the whole vocabulary, and writes every one of it on every instrument', async ({
+  page,
+}) => {
+  const menu = page.getByRole('menu');
+  const named = ARTICULATION_CHOICES.map(({ name }) => name);
+
+  for (const instrument of ['hihat', 'snare', 'kick'] as const) {
+    const cell = silentCell(page, instrument);
+
+    for (const { id, name } of ARTICULATION_CHOICES) {
+      // Opened by right-click rather than by holding: the two are the same way
+      // in, and eighteen holds would be a minute of waiting.
+      await cell.click({ button: 'right' });
+      // The same six, in the same order, whatever the cell and whatever it
+      // holds: nothing is refused of any instrument.
+      expect(await menu.getByRole('menuitemradio').allTextContents()).toEqual(named);
+
+      await menu.getByRole('menuitemradio', { name }).click();
+      await expect(cell).toHaveAttribute('data-articulation', id);
+    }
+  }
 });
 
 test('marks the entry a cell already holds, on an accent as on an empty cell', async ({ page }) => {

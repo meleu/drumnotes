@@ -378,6 +378,43 @@ test("draws a flammed cymbal's grace note with the cymbal's own notehead", async
   expect(drawn.toSorted((a, b) => a.x - b.x)[0]!.y).toBe(drawn[0]!.y);
 });
 
+test('draws two beamed grace notes before a dragged stroke', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  // A lone quarter note in the measure, so the only beam the page can carry is
+  // the one joining the grace notes.
+  await load(page, withArticulation(patternWith({ snare: [0] }), 'snare', 0, 'drag'));
+
+  const drawn = await heads(page);
+  expect(drawn).toHaveLength(3);
+  const [first, second, main] = drawn.toSorted((a, b) => a.x - b.x);
+  // Both grace notes on the snare's own line, before the hit they lead into.
+  for (const grace of [first!, second!]) {
+    expect(grace.glyph).toBe(HEAD_GLYPHS.normal);
+    expect(grace.y).toBe(main!.y);
+    expect(grace.x).toBeLessThan(main!.x);
+  }
+  expect(first!.x).toBeLessThan(second!.x);
+
+  // Beamed, not flagged: which is what tells a drag from a flam on the page.
+  await expect(page.locator(beams)).toHaveCount(1);
+  await expect(page.locator(flags)).toHaveCount(0);
+
+  // Grace notes steal no time here either, however many of them there are.
+  expect(errors).toEqual([]);
+});
+
+test('beams a drag where a flam is left with a single grace note', async ({ page }) => {
+  await load(page, withArticulation(patternWith({ snare: [0] }), 'snare', 0, 'flam'));
+
+  expect(await heads(page)).toHaveLength(2);
+  await expect(page.locator(beams)).toHaveCount(0);
+});
+
 test('draws no grace note where nothing is ornamented', async ({ page }) => {
   await load(page, withArticulation(patternWith({ snare: [0] }), 'snare', 0, 'accent'));
 

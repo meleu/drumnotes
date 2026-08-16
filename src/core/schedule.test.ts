@@ -145,6 +145,9 @@ describe('soundsInWindow', () => {
   const flammed = (step: number): Pattern =>
     withArticulation(emptyPattern(), 'snare', step, 'flam');
 
+  const dragged = (step: number): Pattern =>
+    withArticulation(emptyPattern(), 'snare', step, 'drag');
+
   test('hands over every sound of every step the window covers, at its own time', () => {
     const found = soundsInWindow(LOOP, straight(), 0, 3 * STEP);
 
@@ -175,6 +178,35 @@ describe('soundsInWindow', () => {
     const [grace] = soundsInWindow(loop, flammed(4), 4 * step, 5 * step);
 
     expect(grace!.time).toBeGreaterThan(3 * step);
+  });
+
+  test('leads a drag by two grace leads and lands its own hit exactly on the step', () => {
+    const lead = graceLead(LOOP.tempo);
+    const found = soundsInWindow(LOOP, dragged(4), 4 * STEP, 5 * STEP);
+
+    expect(found).toEqual([
+      { instrument: 'snare', dynamic: 'softest', time: 4 * STEP - 2 * lead },
+      { instrument: 'snare', dynamic: 'softest', time: 4 * STEP - lead },
+      { instrument: 'snare', dynamic: 'hard', time: 4 * STEP },
+    ]);
+  });
+
+  test('keeps a drag at the top of the tempo range clear of the sixteenth before it', () => {
+    // The lead is capped at a third of a step, so even the further of the two
+    // grace hits stays inside the step it belongs to.
+    const loop = { tempo: MAX_TEMPO, origin: 0 };
+    const step = stepDuration(MAX_TEMPO);
+    const [earliest] = soundsInWindow(loop, dragged(4), 4 * step, 5 * step);
+
+    expect(earliest!.time).toBeGreaterThan(3 * step);
+  });
+
+  test('spaces a drag evenly, the second grace hit where a flam would have put its only one', () => {
+    const found = soundsInWindow(LOOP, dragged(4), 4 * STEP, 5 * STEP).map(({ time }) => time);
+    const [flamGrace] = soundsInWindow(LOOP, flammed(4), 4 * STEP, 5 * STEP);
+
+    expect(found[1]! - found[0]!).toBeCloseTo(found[2]! - found[1]!, 10);
+    expect(found[1]).toBe(flamGrace!.time);
   });
 
   test('gives a step on a window edge to the window opening on it, grace hit and all', () => {
@@ -274,6 +306,16 @@ describe('auditionOf', () => {
     expect(auditionOf('flam', LOOP.tempo)).toEqual([
       { dynamic: 'softest', delay: 0 },
       { dynamic: 'hard', delay: graceLead(LOOP.tempo) },
+    ]);
+  });
+
+  test('sounds a drag as a drag: two grace hits a lead apart, then the hit they lead into', () => {
+    const lead = graceLead(LOOP.tempo);
+
+    expect(auditionOf('drag', LOOP.tempo)).toEqual([
+      { dynamic: 'softest', delay: 0 },
+      { dynamic: 'softest', delay: lead },
+      { dynamic: 'hard', delay: 2 * lead },
     ]);
   });
 

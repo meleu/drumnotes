@@ -112,25 +112,30 @@ export interface ArticulationChoice {
 
 /**
  * What the menu offers a cell, in the order it offers them. A table rather than
- * a list built into the menu, and shorter than `ARTICULATIONS` on purpose: a
- * value joins it in the phase that makes it writable, audible and readable at
- * once, so the menu never promises something the app cannot deliver.
+ * a list built into the menu, so the menu counts nothing and names nothing.
+ * Now the whole of `ARTICULATIONS`: every value is writable, audible and
+ * readable, on every instrument, and nothing is refused anywhere.
  */
 export const ARTICULATION_CHOICES: readonly ArticulationChoice[] = [
   { id: 'empty', name: 'Empty' },
   { id: PLAIN, name: 'Plain' },
   { id: 'accent', name: 'Accent', mark: '\uE4A0' }, // SMuFL articAccentAbove
   // SMuFL noteheadParenthesis: the pair the staff draws around a ghosted head,
-  // as one glyph with the head's own space left empty \u2014 which on a cell is the
+  // as one glyph with the head's own space left empty — which on a cell is the
   // cell.
   { id: 'ghost', name: 'Ghost', mark: '\uE0CE' },
   // SMuFL graceNoteAppoggiaturaStemUp: the unslashed grace note the staff draws
   // before the stroke, which is the whole of what a flam looks like.
   { id: 'flam', name: 'Flam', mark: '\uE562' },
+  /* SMuFL textBlackNoteFrac8thShortStem then textBlackNoteShortStem: the pair
+     of beamed notes the staff draws before a dragged stroke, which is a drag's
+     whole written form and the one thing that tells it from a flam at a glance.
+     Two characters rather than one because SMuFL beams a group by composition —
+     the first note carries the beam, the second closes it. */
+  { id: 'drag', name: 'Drag', mark: '\uE1F2\uE1F0' },
 ];
 
-/** What one articulation is called and drawn with, or nothing if the app cannot
- *  yet write it. */
+/** What one articulation is called and drawn with. */
 export function choiceOf(articulation: Articulation): ArticulationChoice | undefined {
   return ARTICULATION_CHOICES.find(({ id }) => id === articulation);
 }
@@ -162,8 +167,9 @@ export interface Hit {
  * one place that decides an accent is `hardest` and a ghost is `softest`, and
  * it decides in rungs — no filename appears here or anywhere else in the core.
  *
- * Ornament rows are the vocabulary's, not this phase's: they are read once the
- * schedule can place a hit off its own step.
+ * An ornament is a row of several hits: the leads say how far ahead of the step
+ * each one sounds, and the count of them is the whole difference between a flam
+ * and a drag.
  */
 const HITS: Readonly<Record<Articulation, readonly Hit[]>> = {
   empty: [],

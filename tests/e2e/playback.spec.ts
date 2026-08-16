@@ -162,15 +162,51 @@ test('leads a flam with a grace hit and lands its own hit exactly on the step', 
   expect(grace!).toBeGreaterThan(first! + 3 * step);
 });
 
+test('leads a drag with two grace hits, at two leads and one lead before its step', async ({
+  page,
+}) => {
+  // The same groove as the flam's, so the two can be read against each other:
+  // plain snares fixing the steps, the second of them dragged.
+  const pattern = at(emptyPattern(), { snare: [0, 4, 8] });
+  await load(page, withArticulation(pattern, 'snare', 4, 'drag'));
+
+  await page.locator(transport).click();
+  await expect.poll(async () => (await scheduled(page)).length).toBeGreaterThanOrEqual(5);
+
+  const log = await audioLog(page);
+  // Three hits where a flam makes two, and the extra one is a grace hit —
+  // which is the whole of what tells a drag from a flam by ear.
+  expect(log.samples.slice(0, 5)).toEqual([
+    'Snare-Med',
+    'Snare-Softest',
+    'Snare-Softest',
+    'Snare-Hard',
+    'Snare-Med',
+  ]);
+
+  const [first, far, near, main, last] = (await scheduled(page)).slice(0, 5) as number[];
+  const step = stepDuration(TEMPO);
+  const lead = graceLead(TEMPO);
+  // The hit itself exactly where a plain hit would have been, and the two grace
+  // hits evenly spaced back from it.
+  expect(main! - first!).toBeCloseTo(4 * step, 4);
+  expect(last! - main!).toBeCloseTo(4 * step, 4);
+  expect(main! - near!).toBeCloseTo(lead, 4);
+  expect(main! - far!).toBeCloseTo(2 * lead, 4);
+  // At the top of the tempo range, even the further of the two stays clear of
+  // the sixteenth before.
+  expect(far!).toBeGreaterThan(first! + 3 * step);
+});
+
 test('hands nothing over as a moment already gone by, grace hits included', async ({ page }) => {
-  // A flam on every step: every sound the vocabulary can place before its own
-  // step, as often as the pattern can place it. A time already past sounds at
-  // once, which would collapse the ornament into a smear (ADR 0006).
-  const flams = [...Array(TOTAL_STEPS).keys()].reduce(
-    (pattern, step) => withArticulation(pattern, 'snare', step, 'flam'),
+  // A drag on every step: the furthest back the vocabulary reaches, as often as
+  // the pattern can place it. A time already past sounds at once, which would
+  // collapse the ornament into a smear (ADR 0006).
+  const drags = [...Array(TOTAL_STEPS).keys()].reduce(
+    (pattern, step) => withArticulation(pattern, 'snare', step, 'drag'),
     emptyPattern(),
   );
-  await load(page, flams);
+  await load(page, drags);
 
   await page.locator(transport).click();
   await expect.poll(async () => (await scheduled(page)).length).toBeGreaterThan(TOTAL_STEPS);

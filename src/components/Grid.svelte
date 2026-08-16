@@ -345,6 +345,14 @@
     padding-top: 0.45em;
   }
 
+  /* Two notes rather than one, so the pair is set smaller again to keep the
+     same ink inside the same square — and the beam standing above both stems
+     is the tallest thing any cell carries, so it comes furthest back down. */
+  .cell[data-articulation='drag'] .mark {
+    font-size: 78cqh;
+    padding-top: 0.55em;
+  }
+
   /* Samples still decoding: readable, not yet playable. */
   .cell:disabled {
     cursor: progress;

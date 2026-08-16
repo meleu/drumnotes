@@ -157,6 +157,72 @@ test('marks a flammed cell with the grace note the staff draws before it', async
   ).toHaveText('\u{E0CE}');
 });
 
+test('marks a dragged cell with the beamed pair the staff draws before it', async ({ page }) => {
+  const step = defaultPattern().lanes.snare.indexOf('normal');
+  const flammed = defaultPattern().lanes.hihat.indexOf('normal');
+  let pattern = withArticulation(defaultPattern(), 'snare', step, 'drag');
+  pattern = withArticulation(pattern, 'hihat', flammed, 'flam');
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(pattern)],
+  );
+  await page.reload();
+
+  // SMuFL textBlackNoteFrac8thShortStem then textBlackNoteShortStem: the two
+  // beamed notes of the page, composed as SMuFL beams a group — the first note
+  // carries the beam, the second closes it.
+  await expect(
+    page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
+  ).toHaveText('\u{E1F2}\u{E1F0}');
+  // And distinguishable from the ornament beside it in the menu, which is the
+  // one a drag is easiest to mistake for.
+  await expect(
+    page.locator(`button[data-instrument="hihat"][data-step="${flammed}"] .mark`),
+  ).toHaveText('\u{E562}');
+});
+
+/* Each mark is set at its own size, because Bravura draws them at wildly
+   different heights against one baseline. What no mark may do is outgrow the
+   square it is drawn in — measured as ink, from the font's own metrics for the
+   size the cell settled on, rather than off the box, which `line-height: 0`
+   collapses to nothing. */
+test('draws every mark small enough to fit the cell, at the narrowest layout', async ({ page }) => {
+  // A phone, where the grid stacks its bars and the cells are at their
+  // smallest: the size a two-character mark has to survive.
+  await page.setViewportSize({ width: 320, height: 640 });
+  const marked = ['accent', 'ghost', 'flam', 'drag'] as const;
+  const pattern = marked.reduce(
+    (next, articulation, index) => withArticulation(next, 'snare', index * 4, articulation),
+    defaultPattern(),
+  );
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(pattern)],
+  );
+  await page.reload();
+
+  for (const [index, articulation] of marked.entries()) {
+    const cell = page.locator(`button[data-instrument="snare"][data-step="${index * 4}"]`);
+    await expect(cell).toHaveAttribute('data-articulation', articulation);
+
+    const fits = await cell.evaluate((node) => {
+      const mark = node.querySelector('.mark')!;
+      const { font } = getComputedStyle(mark);
+      const context = document.createElement('canvas').getContext('2d')!;
+      context.font = font;
+      const ink = context.measureText(mark.textContent ?? '');
+      const box = node.getBoundingClientRect();
+      return {
+        width: ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight <= box.width,
+        height: ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent <= box.height,
+      };
+    });
+    expect(`${articulation}: ${JSON.stringify(fits)}`).toBe(
+      `${articulation}: {"width":true,"height":true}`,
+    );
+  }
+});
+
 test('keeps an accented cell marked as the playhead lights its column', async ({ page }) => {
   const step = defaultPattern().lanes.snare.indexOf('normal');
   await page.evaluate(

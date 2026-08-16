@@ -8,6 +8,7 @@ import {
   DEFAULT_TEMPO,
   DYNAMICS,
   INSTRUMENTS,
+  MAX_LEADS,
   MAX_TEMPO,
   MIN_TEMPO,
   STEPS_PER_BAR,
@@ -135,14 +136,8 @@ describe('articulationAt', () => {
 });
 
 describe('ARTICULATION_CHOICES', () => {
-  it('offers silence first, then the articulations the app can write', () => {
-    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual([
-      'empty',
-      'normal',
-      'accent',
-      'ghost',
-      'flam',
-    ]);
+  it('offers the whole vocabulary, in the order the cell holds it', () => {
+    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual([...ARTICULATIONS]);
   });
 
   it('offers each articulation at most once, and none the pattern cannot hold', () => {
@@ -150,6 +145,14 @@ describe('ARTICULATION_CHOICES', () => {
 
     expect(new Set(offered).size).toBe(offered.length);
     for (const id of offered) expect(ARTICULATIONS).toContain(id);
+  });
+
+  it('draws every written articulation with a mark of its own', () => {
+    const marked = ARTICULATION_CHOICES.filter(({ id }) => !['empty', 'normal'].includes(id));
+    const marks = marked.map(({ mark }) => mark);
+
+    expect(marks.every((mark) => mark !== undefined)).toBe(true);
+    expect(new Set(marks).size).toBe(marks.length);
   });
 
   it('names every choice it offers', () => {
@@ -344,6 +347,19 @@ describe('hitsAt', () => {
     ]);
   });
 
+  it('leads a drag with two grace hits, and lands the hit itself on the step', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'drag');
+
+    // One lead further out than a flam's, which is the whole difference
+    // between them: two grace hits rather than one, and the second where the
+    // flam's only one would have been.
+    expect(hitsAt(pattern, 4)).toEqual([
+      { instrument: 'snare', leads: 2, dynamic: 'softest' },
+      { instrument: 'snare', leads: 1, dynamic: 'softest' },
+      { instrument: 'snare', leads: 0, dynamic: 'hard' },
+    ]);
+  });
+
   it('plays nothing on a silent step', () => {
     expect(hitsAt(emptyPattern(), 3)).toEqual([]);
   });
@@ -370,6 +386,26 @@ describe('hitsOf', () => {
 
   it('plays a ghost note on the step, at the softest recording', () => {
     expect(hitsOf('ghost')).toEqual([{ leads: 0, dynamic: 'softest' }]);
+  });
+
+  it('leads an ornament with grace hits at the softest recording, earliest first', () => {
+    for (const ornament of ['flam', 'drag'] as const) {
+      const hits = hitsOf(ornament);
+      const graces = hits.slice(0, -1);
+
+      expect(graces.map(({ leads }) => leads)).toEqual(
+        graces.map((_, index) => graces.length - index),
+      );
+      for (const grace of graces) expect(grace.dynamic).toBe('softest');
+      expect(hits.at(-1)).toEqual({ leads: 0, dynamic: 'hard' });
+    }
+
+    // And a drag is the one led by two: the count is what tells them apart.
+    expect(hitsOf('drag')).toHaveLength(hitsOf('flam').length + 1);
+  });
+
+  it('reaches back no further than a drag does', () => {
+    expect(MAX_LEADS).toBe(2);
   });
 
   it('names a dynamic for every hit of every articulation', () => {
