@@ -12,6 +12,10 @@ export interface AudioLog {
   /** One entry per hit handed over, alongside `starts`: which recording it
    *  sounded, named as the kit names it and stripped of the build's hash. */
   samples: string[];
+  /** One entry per hit handed over, alongside `starts`: where the audio clock
+   *  stood as it was handed over, so a moment still to come can be told from
+   *  one that has already gone by. */
+  clocks: number[];
   resumes: number;
   stops: number;
   latencyHints: unknown[];
@@ -47,6 +51,7 @@ export async function instrumentAudio(page: Page): Promise<void> {
       decodes: 0,
       starts: [],
       samples: [],
+      clocks: [],
       resumes: 0,
       stops: 0,
       latencyHints: [],
@@ -97,6 +102,7 @@ export async function instrumentAudio(page: Page): Promise<void> {
     AudioBufferSourceNode.prototype.start = function (...args) {
       log.starts.push(args[0]);
       log.samples.push(sampleName(this.buffer ? urlOfBuffer.get(this.buffer) : undefined));
+      log.clocks.push(this.context.currentTime);
       return start.apply(this, args);
     };
 
@@ -114,6 +120,7 @@ export async function audioLog(page: Page): Promise<AudioLog> {
     decodes: window.__audio.decodes,
     starts: window.__audio.starts,
     samples: window.__audio.samples,
+    clocks: window.__audio.clocks,
     resumes: window.__audio.resumes,
     stops: window.__audio.stops,
     latencyHints: window.__audio.latencyHints,

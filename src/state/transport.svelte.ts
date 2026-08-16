@@ -1,6 +1,6 @@
-import { DEFAULT_TEMPO, soundsAt } from '../core/pattern.js';
+import { DEFAULT_TEMPO } from '../core/pattern.js';
 import type { Loop } from '../core/schedule.js';
-import { retune, stepAt, stepsInWindow } from '../core/schedule.js';
+import { longestLead, retune, soundsInWindow, stepAt } from '../core/schedule.js';
 import { audioState } from './audio.svelte.js';
 import { patternState } from './pattern.svelte.js';
 
@@ -15,9 +15,10 @@ const LOOKAHEAD_SECONDS = 0.1;
 /** Comfortably shorter than the lookahead, so a late tick still lands before
  *  the queued work runs out. */
 const TICK_MS = 25;
-/** Slack between Play and the first sound, so step 0 is handed over as a moment
- *  still to come. Real time, not musical: a fraction of even the fastest beat,
- *  and nobody hears it. */
+/** Slack between Play and the first sound of the pass — a grace hit, where the
+ *  downbeat is ornamented — so it is handed over as a moment still to come.
+ *  Real time, not musical: a fraction of even the fastest beat, and nobody
+ *  hears it. */
 const START_SLACK_SECONDS = 0.06;
 
 class TransportState {
@@ -46,8 +47,12 @@ class TransportState {
     if (this.#playing) return;
 
     audioState.wake();
-    const origin = audioState.now + START_SLACK_SECONDS;
-    this.#loop = { tempo: patternState.current.tempo, origin };
+    const { tempo } = patternState.current;
+    /* A step's earliest sound is a longest lead ahead of it, so step 0 is
+       anchored that much further out: what the slack measures is the gap to the
+       first sound, grace hit or not (ADR 0006). */
+    const origin = audioState.now + START_SLACK_SECONDS + longestLead(tempo);
+    this.#loop = { tempo, origin };
     this.#scheduledThrough = origin;
     this.#playing = true;
 
@@ -77,16 +82,19 @@ class TransportState {
    */
   #schedule(): void {
     const pattern = patternState.current;
-    const until = audioState.now + LOOKAHEAD_SECONDS;
-    if (until <= this.#scheduledThrough) return;
-
     if (pattern.tempo !== this.#loop.tempo) {
       this.#loop = retune(this.#loop, pattern.tempo, this.#scheduledThrough);
     }
-    for (const { step, time } of stepsInWindow(this.#loop, this.#scheduledThrough, until)) {
-      for (const { instrument, dynamic } of soundsAt(pattern, step)) {
-        audioState.schedule(instrument, dynamic, time);
-      }
+
+    /* The horizon runs a longest lead past the lookahead, and the bookkeeping
+       stays in step time: a step's grace hits are handed over with the step
+       that owns them, so nothing is reached for after its own moment has gone
+       by, and windows still tile exactly across a tempo change. */
+    const until = audioState.now + LOOKAHEAD_SECONDS + longestLead(this.#loop.tempo);
+    if (until <= this.#scheduledThrough) return;
+
+    for (const sound of soundsInWindow(this.#loop, pattern, this.#scheduledThrough, until)) {
+      audioState.schedule(sound.instrument, sound.dynamic, sound.time);
     }
     this.#scheduledThrough = until;
   }

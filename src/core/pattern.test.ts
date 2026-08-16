@@ -19,9 +19,9 @@ import {
   defaultPattern,
   emptyPattern,
   gridBars,
+  hitsAt,
   hitsOf,
   isWritten,
-  soundsAt,
   toggleStep,
   withArticulation,
   withNothingWritten,
@@ -141,6 +141,7 @@ describe('ARTICULATION_CHOICES', () => {
       'normal',
       'accent',
       'ghost',
+      'flam',
     ]);
   });
 
@@ -306,34 +307,45 @@ describe('withNothingWritten', () => {
   });
 });
 
-describe('soundsAt', () => {
-  it('sounds everything written on a step, in row order', () => {
+describe('hitsAt', () => {
+  it('plays everything written on a step, in row order', () => {
     const pattern = defaultPattern();
 
-    expect(soundsAt(pattern, 0)).toEqual([
-      { instrument: 'hihat', dynamic: 'plain' },
-      { instrument: 'kick', dynamic: 'plain' },
+    expect(hitsAt(pattern, 0)).toEqual([
+      { instrument: 'hihat', leads: 0, dynamic: 'plain' },
+      { instrument: 'kick', leads: 0, dynamic: 'plain' },
     ]);
-    expect(soundsAt(pattern, 4)).toEqual([
-      { instrument: 'hihat', dynamic: 'plain' },
-      { instrument: 'snare', dynamic: 'plain' },
+    expect(hitsAt(pattern, 4)).toEqual([
+      { instrument: 'hihat', leads: 0, dynamic: 'plain' },
+      { instrument: 'snare', leads: 0, dynamic: 'plain' },
     ]);
   });
 
-  it('sounds an accent at its own dynamic', () => {
+  it('plays an accent at its own dynamic', () => {
     const pattern = withArticulation(emptyPattern(), 'snare', 4, 'accent');
 
-    expect(soundsAt(pattern, 4)).toEqual([{ instrument: 'snare', dynamic: 'hardest' }]);
+    expect(hitsAt(pattern, 4)).toEqual([{ instrument: 'snare', leads: 0, dynamic: 'hardest' }]);
   });
 
-  it('sounds a ghost note at its own dynamic', () => {
+  it('plays a ghost note at its own dynamic', () => {
     const pattern = withArticulation(emptyPattern(), 'snare', 4, 'ghost');
 
-    expect(soundsAt(pattern, 4)).toEqual([{ instrument: 'snare', dynamic: 'softest' }]);
+    expect(hitsAt(pattern, 4)).toEqual([{ instrument: 'snare', leads: 0, dynamic: 'softest' }]);
   });
 
-  it('sounds nothing on a silent step', () => {
-    expect(soundsAt(emptyPattern(), 3)).toEqual([]);
+  it('leads a flam with a grace hit, and lands the hit itself on the step', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'flam');
+
+    // Both belong to step 4: how far ahead the grace hit sounds is the
+    // schedule's arithmetic, not the step's.
+    expect(hitsAt(pattern, 4)).toEqual([
+      { instrument: 'snare', leads: 1, dynamic: 'softest' },
+      { instrument: 'snare', leads: 0, dynamic: 'hard' },
+    ]);
+  });
+
+  it('plays nothing on a silent step', () => {
+    expect(hitsAt(emptyPattern(), 3)).toEqual([]);
   });
 });
 

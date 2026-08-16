@@ -211,8 +211,10 @@ come often enough to stay ahead of the audio hardware.
 _Avoid_: pass, poll, frame, wake (waking is what the audio context does)
 
 **Window**:
-The stretch of near-future time a tick hands over to the audio hardware. Half-open, and
-each one opens exactly where the last closed, so no hit is scheduled twice or missed.
+The stretch of near-future time a tick hands over to the audio hardware, measured in step
+time: a step belongs to the window its own moment falls in, and its grace hits go with it
+however far ahead of it they sound. Half-open, and each one opens exactly where the last
+closed, so no hit is scheduled twice or missed.
 _Avoid_: lookahead, buffer, batch, chunk
 
 **Playhead**:

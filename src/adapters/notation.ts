@@ -15,6 +15,8 @@ import {
   Beam,
   Dot,
   Font,
+  GraceNote,
+  GraceNoteGroup,
   Modifier,
   Formatter,
   Parenthesis,
@@ -27,7 +29,7 @@ import {
 
 import type { MeasureFurniture, Placement, StaffLayout } from '../core/layout.js';
 import { placeMeasures, staffSize } from '../core/layout.js';
-import type { Duration, Entry, Score, ScoreVoice } from '../core/score.js';
+import type { Duration, Entry, GraceSlot, Score, ScoreVoice } from '../core/score.js';
 import { BEATS_PER_BAR } from '../core/pattern.js';
 
 /**
@@ -74,6 +76,10 @@ const STEM_DIRECTIONS = { up: 1, down: -1 } as const;
 
 /** SMuFL accent, as VexFlow spells it. */
 const ACCENT = 'a>';
+
+/** What a grace note is drawn as. A drawing constant, not a note value: a grace
+ *  note occupies no time, so what it is worth is never asked. */
+const GRACE_DURATION = '8';
 
 /* Marks go on the far side of the stem from the staff, so a voice's accents sit
    clear of the notes and of the other voice's: hands above, feet below. Read off
@@ -173,7 +179,29 @@ function toStaveNote(entry: Entry, voice: ScoreVoice): StaveNote {
       }
     }
   }
+  if (!rest && entry.graces.length > 0) note.addModifier(graceGroup(entry.graces, voice));
   return note;
+}
+
+/**
+ * The grace notes a stroke is led into by, as one group.
+ *
+ * A slot at a time, so heads sounding the same distance ahead share a stem, and
+ * the group as a whole hangs off the note it leads into — which is what leaves
+ * the measure adding up without them. Drumset convention throughout: unslashed,
+ * no slur, and beamed as soon as there is more than one.
+ */
+function graceGroup(slots: readonly GraceSlot[], voice: ScoreVoice): GraceNoteGroup {
+  const graces = slots.map(
+    (slot) =>
+      new GraceNote({
+        keys: slot.map(keyOf),
+        duration: GRACE_DURATION,
+        slash: false,
+        stemDirection: STEM_DIRECTIONS[voice.stem],
+      }),
+  );
+  return new GraceNoteGroup(graces, false).beamNotes();
 }
 
 function keyOf(notehead: { position: string; type: keyof typeof NOTEHEAD_SUFFIX }): string {

@@ -44,6 +44,14 @@ const SAMPLE_PATTERNS: Record<string, Pattern> = {
     kick: [0, 3, 10],
   }),
   offbeats: patternWith({ hihat: [1, 5, 9, 13], kick: [15] }),
+  // Grace notes steal no time, so an ornamented groove has to spell exactly as
+  // the plain one does.
+  ornamented: withArticulation(
+    patternWith({ hihat: [0, 4, 8, 12], snare: [4, 12] }),
+    'snare',
+    4,
+    'flam',
+  ),
   // One bar silent, one not: whole rest and beat rule meet.
   secondBarOnly: patternWith({ snare: [STEPS_PER_BAR + 5], kick: [STEPS_PER_BAR + 12] }),
 };
@@ -238,6 +246,50 @@ describe('ghost notes', () => {
     const ghosted = withArticulation(plain, 'snare', 4, 'ghost');
 
     expect(spellAll(firstMeasureVoice(ghosted, 'hands').entries)).toBe(
+      spellAll(firstMeasureVoice(plain, 'hands').entries),
+    );
+  });
+});
+
+describe('grace notes', () => {
+  it('leads a plain stroke with nothing', () => {
+    const notes = notesOf(firstMeasureVoice(patternWith({ snare: [4] }), 'hands'));
+
+    expect(notes[0]!.graces).toEqual([]);
+  });
+
+  it('leads a flammed stroke with one grace note', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'flam');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [{ position: 'c/5', type: 'normal', parenthesised: false }],
+    ]);
+  });
+
+  it("draws a grace note at its own instrument's position and notehead", () => {
+    // Hi-hat and snare struck together, only the hi-hat flammed: the grace note
+    // is a cross above the staff, and the snare it is struck with leads nothing.
+    const pattern = withArticulation(patternWith({ hihat: [4], snare: [4] }), 'hihat', 4, 'flam');
+
+    const [stroke] = notesOf(firstMeasureVoice(pattern, 'hands'));
+    expect(stroke!.graces).toEqual([[{ position: 'g/5', type: 'cross', parenthesised: false }]]);
+    expect(stroke!.noteheads).toHaveLength(2);
+  });
+
+  it('leads each voice with its own ornaments and nothing of the other', () => {
+    const pattern = withArticulation(patternWith({ snare: [4] }), 'kick', 4, 'flam');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([]);
+    expect(notesOf(firstMeasureVoice(pattern, 'feet'))[0]!.graces).toEqual([
+      [{ position: 'f/4', type: 'normal', parenthesised: false }],
+    ]);
+  });
+
+  it('changes nothing about what the measure is worth', () => {
+    const plain = patternWith({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12] });
+    const flammed = withArticulation(plain, 'snare', 4, 'flam');
+
+    expect(spellAll(firstMeasureVoice(flammed, 'hands').entries)).toBe(
       spellAll(firstMeasureVoice(plain, 'hands').entries),
     );
   });

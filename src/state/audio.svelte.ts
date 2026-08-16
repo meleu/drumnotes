@@ -28,12 +28,19 @@ class AudioState {
     return this.#kit.now;
   }
 
-  /** Sounds an instrument as it is written down. Waking is deliberately not
-   *  awaited: that round trip would sit between tap and hit, and a hit started
-   *  on a context about to run sounds as soon as it does. */
-  audition(instrument: InstrumentId, dynamic: Dynamic): void {
+  /**
+   * Sounds an instrument as it is written down, at once or a sliver later —
+   * which is how an ornament auditions as itself rather than as a stack of
+   * hits at one moment. A hit due now is handed over with no time at all, so
+   * the commonest audition of all still goes straight to the hardware.
+   *
+   * Waking is deliberately not awaited: that round trip would sit between tap
+   * and hit, and a hit started on a context about to run sounds as soon as it
+   * does.
+   */
+  audition(instrument: InstrumentId, dynamic: Dynamic, delay = 0): void {
     this.wake();
-    this.#kit.play(instrument, dynamic);
+    this.#kit.play(instrument, dynamic, delay > 0 ? this.#kit.now + delay : undefined);
   }
 
   /** Hands a hit to the hardware for a moment yet to come. */

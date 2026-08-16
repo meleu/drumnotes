@@ -124,6 +124,9 @@ export const ARTICULATION_CHOICES: readonly ArticulationChoice[] = [
   // as one glyph with the head's own space left empty \u2014 which on a cell is the
   // cell.
   { id: 'ghost', name: 'Ghost', mark: '\uE0CE' },
+  // SMuFL graceNoteAppoggiaturaStemUp: the unslashed grace note the staff draws
+  // before the stroke, which is the whole of what a flam looks like.
+  { id: 'flam', name: 'Flam', mark: '\uE562' },
 ];
 
 /** What one articulation is called and drawn with, or nothing if the app cannot
@@ -182,6 +185,15 @@ const HITS: Readonly<Record<Articulation, readonly Hit[]>> = {
 export function hitsOf(articulation: Articulation): readonly Hit[] {
   return HITS[articulation];
 }
+
+/**
+ * The most grace leads any articulation asks for — a drag's first grace hit.
+ * Read off the table rather than written down, so a new ornament moves it and
+ * the schedule's horizon with it.
+ */
+export const MAX_LEADS = Math.max(
+  ...Object.values(HITS).flatMap((hits) => hits.map(({ leads }) => leads)),
+);
 
 /** One flat lane per instrument, covering every step of the pattern. */
 export type Lanes = Readonly<Record<InstrumentId, readonly Articulation[]>>;
@@ -288,18 +300,22 @@ export interface Sound {
   readonly dynamic: Dynamic;
 }
 
+/** A hit with the instrument striking it: one sound of one step. */
+export interface StepHit extends Hit {
+  readonly instrument: InstrumentId;
+}
+
 /**
- * Everything that sounds on one step, in row order — each hit already carrying
- * the rung it is struck at, so nothing downstream reads an articulation.
+ * Everything one step is played out as, in row order and each instrument's hits
+ * earliest first — every hit already carrying the rung it is struck at, so
+ * nothing downstream reads an articulation.
  *
- * Only the hits that land on the step itself: an ornament's grace hits belong
- * to the moments before it, which is a window's question rather than a step's.
+ * An ornament's grace hits belong to the step they lead into, however far ahead
+ * of it they sound: what a lead is worth in seconds is the schedule's business.
  */
-export function soundsAt(pattern: Pattern, step: number): readonly Sound[] {
+export function hitsAt(pattern: Pattern, step: number): readonly StepHit[] {
   return INSTRUMENTS.flatMap(({ id }) =>
-    hitsOf(articulationAt(pattern, id, step))
-      .filter((hit) => hit.leads === 0)
-      .map((hit) => ({ instrument: id, dynamic: hit.dynamic })),
+    hitsOf(articulationAt(pattern, id, step)).map((hit) => ({ instrument: id, ...hit })),
   );
 }
 

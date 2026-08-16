@@ -118,6 +118,29 @@ async function glyphAnchors(page: Page, glyphs: readonly string[]): Promise<Anch
   );
 }
 
+/** SMuFL noteheadBlack and noteheadXBlack — a drum's head and a cymbal's. */
+const HEAD_GLYPHS = { normal: '\u{E0A4}', cross: '\u{E0A9}' } as const;
+
+/**
+ * Every notehead drawn on the page, grace notes included: the shape it was
+ * drawn with and where it was set down. A grace note is a notehead like any
+ * other — smaller, and to the left of the stroke it leads into. Picked out by
+ * glyph, since VexFlow draws a rest as a notehead too.
+ */
+async function heads(page: Page): Promise<{ glyph: string; x: number; y: number }[]> {
+  return await page.locator(`${staff} .vf-notehead text`).evaluateAll(
+    (nodes, wanted) =>
+      nodes
+        .filter((node) => wanted.includes(node.textContent ?? ''))
+        .map((node) => ({
+          glyph: node.textContent ?? '',
+          x: Number(node.getAttribute('x')),
+          y: Number(node.getAttribute('y')),
+        })),
+    Object.values(HEAD_GLYPHS) as string[],
+  );
+}
+
 /** Where each accent sits vertically, so above and below can be told apart. */
 async function accentBaselines(page: Page): Promise<number[]> {
   return (await glyphAnchors(page, ACCENT_GLYPHS)).map(({ y }) => y);
@@ -319,6 +342,46 @@ test('brackets the ghosted head only, leaving the rest of its stroke bare', asyn
   expect(left!).toBeLessThan(ghosted.x);
   expect(right!).toBeGreaterThan(ghosted.x);
   for (const bracket of brackets) expect(bracket.y).toBe(ghosted.y);
+});
+
+test("draws a grace note before a flammed stroke, at its own drum's position", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  // Hi-hat and snare struck together, the snare flammed: one head more than the
+  // stroke has, and it is the snare's own — same line, same shape, drawn before.
+  const stroke = patternWith({ hihat: [0], snare: [0] });
+  await load(page, withArticulation(stroke, 'snare', 0, 'flam'));
+
+  const drawn = await heads(page);
+  expect(drawn).toHaveLength(3);
+
+  const snareHeads = drawn.filter(({ glyph }) => glyph === HEAD_GLYPHS.normal);
+  expect(snareHeads).toHaveLength(2);
+  const [grace, main] = snareHeads.toSorted((a, b) => a.x - b.x);
+  expect(grace!.y).toBe(main!.y);
+  expect(grace!.x).toBeLessThan(main!.x);
+
+  // A grace note steals no time, so the voice still fills its measure — which
+  // VexFlow would refuse, loudly, if it did not.
+  expect(errors).toEqual([]);
+});
+
+test("draws a flammed cymbal's grace note with the cymbal's own notehead", async ({ page }) => {
+  await load(page, withArticulation(patternWith({ hihat: [0] }), 'hihat', 0, 'flam'));
+
+  const drawn = await heads(page);
+  expect(drawn.map(({ glyph }) => glyph)).toEqual([HEAD_GLYPHS.cross, HEAD_GLYPHS.cross]);
+  expect(drawn.toSorted((a, b) => a.x - b.x)[0]!.y).toBe(drawn[0]!.y);
+});
+
+test('draws no grace note where nothing is ornamented', async ({ page }) => {
+  await load(page, withArticulation(patternWith({ snare: [0] }), 'snare', 0, 'accent'));
+
+  expect(await heads(page)).toHaveLength(1);
 });
 
 test('engraves the hands above the staff and the feet below it', async ({ page }) => {

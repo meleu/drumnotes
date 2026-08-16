@@ -3,7 +3,15 @@ import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
 import { serialisePattern } from '../../src/core/codec.js';
-import { BARS, INSTRUMENTS, STEPS_PER_BAR, defaultPattern } from '../../src/core/pattern.js';
+import type { Pattern } from '../../src/core/pattern.js';
+import {
+  BARS,
+  INSTRUMENTS,
+  STEPS_PER_BAR,
+  TOTAL_STEPS,
+  defaultPattern,
+  withArticulation,
+} from '../../src/core/pattern.js';
 import { loopDuration, stepDuration } from '../../src/core/schedule.js';
 
 /* Middling: fast enough that a bar passes inside a test, slow enough that a
@@ -20,12 +28,12 @@ const transport = '.transport';
 const lit = '.cell.playing';
 const shading = '.playhead rect';
 
-async function load(page: Page): Promise<void> {
+async function load(page: Page, pattern: Pattern = defaultPattern()): Promise<void> {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern({ ...defaultPattern(), tempo: TEMPO })],
+    [STORAGE_KEY, serialisePattern({ ...pattern, tempo: TEMPO })],
   );
   await page.reload();
   await expect(page.locator(transport)).toBeEnabled();
@@ -81,6 +89,28 @@ test('shades the one measure the playhead is reading, and moves on with it', asy
       { ...WATCHING, timeout: BAR_MS * (BARS + 1) },
     )
     .toBe(BARS);
+});
+
+test('follows steps through an ornamented groove, never a grace hit', async ({ page }) => {
+  // Every snare flammed, so a grace hit sounds a sliver before every one of
+  // them: there is no cell for it to light, and nothing should try.
+  const flammed = [...Array(TOTAL_STEPS).keys()].reduce(
+    (pattern, step) => withArticulation(pattern, 'snare', step, 'flam'),
+    defaultPattern(),
+  );
+  await load(page, flammed);
+  await page.locator(transport).click();
+
+  // Sampled across a beat: one whole column at every moment, and every lit cell
+  // in the same one — a light that followed a grace hit would show up as two.
+  for (let sample = 0; sample < 8; sample += 1) {
+    const steps = await page
+      .locator(lit)
+      .evaluateAll((nodes) => [...new Set(nodes.map((node) => node.getAttribute('data-step')))]);
+
+    expect(steps).toHaveLength(1);
+    await page.waitForTimeout(STEP_MS / 2);
+  }
 });
 
 test('clears both highlights on stop, and starts the next pass from the top', async ({ page }) => {

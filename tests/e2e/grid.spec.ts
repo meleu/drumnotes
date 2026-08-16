@@ -135,6 +135,28 @@ test('marks a ghosted cell with the pair the staff brackets it in', async ({ pag
   ).toHaveText('\u{E4A0}');
 });
 
+test('marks a flammed cell with the grace note the staff draws before it', async ({ page }) => {
+  const step = defaultPattern().lanes.snare.indexOf('normal');
+  const ghosted = defaultPattern().lanes.hihat.indexOf('normal');
+  let pattern = withArticulation(defaultPattern(), 'snare', step, 'flam');
+  pattern = withArticulation(pattern, 'hihat', ghosted, 'ghost');
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(pattern)],
+  );
+  await page.reload();
+
+  // SMuFL graceNoteAppoggiaturaStemUp: the unslashed grace note of the page,
+  // which is the whole of what a flam looks like written down.
+  await expect(
+    page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
+  ).toHaveText('\u{E562}');
+  // And distinguishable from the articulation beside it in the menu.
+  await expect(
+    page.locator(`button[data-instrument="hihat"][data-step="${ghosted}"] .mark`),
+  ).toHaveText('\u{E0CE}');
+});
+
 test('keeps an accented cell marked as the playhead lights its column', async ({ page }) => {
   const step = defaultPattern().lanes.snare.indexOf('normal');
   await page.evaluate(

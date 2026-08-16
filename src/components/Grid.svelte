@@ -6,9 +6,9 @@
     articulationAt,
     choiceOf,
     gridBars,
-    hitsOf,
     isWritten,
   } from '../core/pattern.js';
+  import { auditionOf } from '../core/schedule.js';
   import { loadNotationFont } from '../adapters/notation.js';
   import { audioState } from '../state/audio.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
@@ -86,10 +86,13 @@
   }
 
   /* What a cell sounds like the moment it is written. The core says which hits
-     an articulation makes and at which rung; `empty` makes none, which is how
-     rubbing a cell out stays silent without a special case here. */
+     an articulation makes, at which rung and how far apart — a flam auditions
+     as a flam. `empty` makes none, which is how rubbing a cell out stays silent
+     without a special case here. */
   function audition(instrument: InstrumentId, articulation: Articulation): void {
-    for (const hit of hitsOf(articulation)) audioState.audition(instrument, hit.dynamic);
+    for (const { dynamic, delay } of auditionOf(articulation, patternState.current.tempo)) {
+      audioState.audition(instrument, dynamic, delay);
+    }
   }
 
   function choose(articulation: Articulation): void {
@@ -331,6 +334,15 @@
      already straddle the baseline, so they are left where they are. */
   .cell[data-articulation='accent'] .mark {
     padding-top: 0.28em;
+  }
+
+  /* A grace note is a whole note-shape rather than a mark — head, stem and flag
+     — so it is set smaller to keep the same ink inside the cell, and pushed
+     further down: the taller the glyph stands above its baseline, the further
+     it has to come back to sit in the middle. */
+  .cell[data-articulation='flam'] .mark {
+    font-size: 105cqh;
+    padding-top: 0.45em;
   }
 
   /* Samples still decoding: readable, not yet playable. */

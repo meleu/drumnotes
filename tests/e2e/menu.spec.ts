@@ -169,6 +169,26 @@ test('writes and sounds a ghost note from the menu, at the softest rung', async 
   expect(log.samples).toEqual(['Snare-Softest']);
 });
 
+test('writes a flam from the menu in one gesture, and auditions it as a flam', async ({ page }) => {
+  const cell = silentCell(page, 'snare');
+  const menu = page.getByRole('menu');
+
+  await press(page, cell, HELD_MS);
+  await menu.getByRole('menuitemradio', { name: 'Flam' }).click();
+
+  await expect(menu).toBeHidden();
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+  await expect(cell).toHaveAttribute('aria-label', /Snare, step \d+, Flam$/);
+  await expect(cell).toBeFocused();
+
+  const log = await audioLog(page);
+  // Two hits a sliver apart, not one hit and not two at once: the grace hit
+  // sounds where the tap landed and the hit it leads into follows.
+  expect(log.samples).toEqual(['Snare-Softest', 'Snare-Hard']);
+  expect(log.starts[0]).toBeUndefined();
+  expect(log.starts[1]).toBeGreaterThan(log.clocks[1]!);
+});
+
 test('marks the entry a cell already holds, on an accent as on an empty cell', async ({ page }) => {
   const cell = silentCell(page, 'hihat');
   const menu = page.getByRole('menu');

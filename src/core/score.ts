@@ -9,7 +9,14 @@
  * voice plays next, or until its beat runs out, whichever comes first.
  */
 
-import type { Instrument, NoteheadType, Pattern, StaffPosition, VoiceId } from './pattern.js';
+import type {
+  Articulation,
+  Instrument,
+  NoteheadType,
+  Pattern,
+  StaffPosition,
+  VoiceId,
+} from './pattern.js';
 import {
   BARS,
   INSTRUMENTS,
@@ -17,6 +24,7 @@ import {
   STEPS_PER_BEAT,
   VOICES,
   articulationAt,
+  hitsOf,
 } from './pattern.js';
 
 /**
@@ -44,6 +52,12 @@ export interface Notehead {
   readonly parenthesised: boolean;
 }
 
+/**
+ * One grace note: every head landing on the same slot, low to high, on a stem
+ * of their own — exactly as a stroke's heads share theirs.
+ */
+export type GraceSlot = readonly Notehead[];
+
 /** What one voice strikes on one step, low to high — one stroke, one stem. */
 interface Stroke {
   readonly noteheads: readonly Notehead[];
@@ -51,6 +65,12 @@ interface Stroke {
    *  stroke rather than of a head, since one stem takes one mark however many
    *  heads it carries (ADR 0005). */
   readonly accented: boolean;
+  /**
+   * The grace notes the stroke is led into by, earliest first — empty unless
+   * something in it is ornamented. They occupy no steps: a measure adds up
+   * without counting them, which is what "stealing no time" means on the page.
+   */
+  readonly graces: readonly GraceSlot[];
 }
 
 interface BaseEntry {
@@ -230,6 +250,12 @@ function voiceContent(
   return { entries, beamGroups };
 }
 
+/** One instrument's share of a stroke: the drum, and how it was struck. */
+interface Struck {
+  readonly instrument: Instrument;
+  readonly articulation: Articulation;
+}
+
 /**
  * What this voice strikes on one step, low to high, or nothing.
  *
@@ -243,7 +269,7 @@ function strokeAt(
   instruments: readonly Instrument[],
   step: number,
 ): Stroke | undefined {
-  const struck = instruments.map((instrument) => ({
+  const struck: Struck[] = instruments.map((instrument) => ({
     instrument,
     articulation: articulationAt(pattern, instrument.id, step),
   }));
@@ -251,11 +277,36 @@ function strokeAt(
   if (heads.length === 0) return undefined;
 
   return {
-    noteheads: heads.map(({ instrument, articulation }) => ({
-      position: instrument.position,
-      type: instrument.notehead,
-      parenthesised: articulation === 'ghost',
-    })),
+    noteheads: heads.map(({ instrument, articulation }) =>
+      headOf(instrument, articulation === 'ghost'),
+    ),
     accented: heads.some(({ articulation }) => articulation === 'accent'),
+    graces: gracesOf(heads),
   };
+}
+
+function headOf(instrument: Instrument, parenthesised = false): Notehead {
+  return { position: instrument.position, type: instrument.notehead, parenthesised };
+}
+
+/**
+ * The grace notes leading into a stroke, earliest first.
+ *
+ * Read off how far ahead of the step each grace hit sounds: hits the same
+ * distance ahead land on one slot and so on one stem, which is what draws two
+ * ornamented drums as a single gesture rather than a sequence that is not there.
+ * The word "flam" never reaches the page — a count of slots does.
+ */
+function gracesOf(heads: readonly Struck[]): GraceSlot[] {
+  const led = heads.flatMap(({ instrument, articulation }) =>
+    hitsOf(articulation)
+      .filter(({ leads }) => leads > 0)
+      .map(({ leads }) => ({ instrument, leads })),
+  );
+
+  return [...new Set(led.map(({ leads }) => leads))]
+    .sort((a, b) => b - a)
+    .map((slot) =>
+      led.filter(({ leads }) => leads === slot).map(({ instrument }) => headOf(instrument)),
+    );
 }

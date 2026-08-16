@@ -12,7 +12,7 @@ import {
   toggleStep,
   withArticulation,
 } from '../../src/core/pattern.js';
-import { loopDuration } from '../../src/core/schedule.js';
+import { graceLead, loopDuration, stepDuration } from '../../src/core/schedule.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
 
 /* Top of the tempo range throughout, so a whole loop passes in a couple of
@@ -130,6 +130,56 @@ test('plays a ghosted hit softer than the plain hits around it', async ({ page }
     'Snare-Med',
     'Snare-Med',
   ]);
+});
+
+test('leads a flam with a grace hit and lands its own hit exactly on the step', async ({
+  page,
+}) => {
+  // Snares on the beat, the second of them flammed: the plain ones fix where
+  // the steps are, so the ornament can be measured against them.
+  const pattern = at(emptyPattern(), { snare: [0, 4, 8] });
+  await load(page, withArticulation(pattern, 'snare', 4, 'flam'));
+
+  await page.locator(transport).click();
+  await expect.poll(async () => (await scheduled(page)).length).toBeGreaterThanOrEqual(4);
+
+  const log = await audioLog(page);
+  expect(log.samples.slice(0, 4)).toEqual([
+    'Snare-Med',
+    'Snare-Softest',
+    'Snare-Hard',
+    'Snare-Med',
+  ]);
+
+  const [first, grace, main, last] = (await scheduled(page)).slice(0, 4) as number[];
+  const step = stepDuration(TEMPO);
+  // The hit itself is exactly where a plain hit would have been, and the grace
+  // hit one lead ahead of it — not a step, not a subdivision.
+  expect(main! - first!).toBeCloseTo(4 * step, 4);
+  expect(last! - main!).toBeCloseTo(4 * step, 4);
+  expect(main! - grace!).toBeCloseTo(graceLead(TEMPO), 4);
+  // At the top of the tempo range, still clear of the sixteenth before it.
+  expect(grace!).toBeGreaterThan(first! + 3 * step);
+});
+
+test('hands nothing over as a moment already gone by, grace hits included', async ({ page }) => {
+  // A flam on every step: every sound the vocabulary can place before its own
+  // step, as often as the pattern can place it. A time already past sounds at
+  // once, which would collapse the ornament into a smear (ADR 0006).
+  const flams = [...Array(TOTAL_STEPS).keys()].reduce(
+    (pattern, step) => withArticulation(pattern, 'snare', step, 'flam'),
+    emptyPattern(),
+  );
+  await load(page, flams);
+
+  await page.locator(transport).click();
+  await expect.poll(async () => (await scheduled(page)).length).toBeGreaterThan(TOTAL_STEPS);
+
+  const { starts, clocks } = await audioLog(page);
+  for (const [index, when] of starts.entries()) {
+    if (typeof when !== 'number') continue;
+    expect(`${index}: ${when >= clocks[index]!}`).toBe(`${index}: true`);
+  }
 });
 
 test('starts from the top again after a stop', async ({ page }) => {
