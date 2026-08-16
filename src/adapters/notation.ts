@@ -189,7 +189,7 @@ function toStaveNote(entry: Entry, voice: ScoreVoice): StaveNote {
  * A slot at a time, so heads sounding the same distance ahead share a stem, and
  * the group as a whole hangs off the note it leads into — which is what leaves
  * the measure adding up without them. Drumset convention throughout: unslashed,
- * no slur, and beamed as soon as there is more than one.
+ * slurred into the stroke they lead, and beamed as soon as there is more than one.
  */
 function graceGroup(slots: readonly GraceSlot[], voice: ScoreVoice): GraceNoteGroup {
   const graces = slots.map(
@@ -201,7 +201,7 @@ function graceGroup(slots: readonly GraceSlot[], voice: ScoreVoice): GraceNoteGr
         stemDirection: STEM_DIRECTIONS[voice.stem],
       }),
   );
-  return new GraceNoteGroup(graces, false).beamNotes();
+  return new GraceNoteGroup(graces, true).beamNotes();
 }
 
 function keyOf(notehead: { position: string; type: keyof typeof NOTEHEAD_SUFFIX }): string {

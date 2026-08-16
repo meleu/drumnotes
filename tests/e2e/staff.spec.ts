@@ -23,6 +23,8 @@ const noteheads = `${staff} .vf-notehead`;
 /** VexFlow gives each beam and flag its own class. */
 const beams = `${staff} .vf-beam`;
 const flags = `${staff} .vf-flag`;
+/** The slur joining a grace group to its stroke, which VexFlow draws as a tie. */
+const slurs = `${staff} .vf-stavetie`;
 
 /** A pattern from absolute step indices. */
 function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
@@ -470,6 +472,22 @@ test('beams a drag where a flam is left with a single grace note', async ({ page
 
   expect(await heads(page)).toHaveLength(2);
   await expect(page.locator(beams)).toHaveCount(0);
+});
+
+test('slurs a grace group into the stroke it leads, once however many grace notes', async ({
+  page,
+}) => {
+  // The slur belongs to the group, not to each grace note: a drag draws the one
+  // curve its pair shares, exactly as a flam draws the one its single note has.
+  const plain = patternWith({ snare: [0] });
+  await load(page, plain);
+  await expect(page.locator(slurs)).toHaveCount(0);
+
+  await load(page, withArticulation(plain, 'snare', 0, 'flam'));
+  await expect(page.locator(slurs)).toHaveCount(1);
+
+  await load(page, withArticulation(plain, 'snare', 0, 'drag'));
+  await expect(page.locator(slurs)).toHaveCount(1);
 });
 
 test('leads two flams struck together with one grace group on one stem', async ({ page }) => {
