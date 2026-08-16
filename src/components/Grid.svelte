@@ -9,7 +9,6 @@
     isWritten,
   } from '../core/pattern.js';
   import { auditionOf } from '../core/schedule.js';
-  import { loadNotationFont } from '../adapters/notation.js';
   import { audioState } from '../state/audio.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
   import { transportState } from '../state/transport.svelte.js';
@@ -40,14 +39,6 @@
     return menu?.instrument === instrument && menu.step === step;
   }
 
-  /* The marks are Bravura characters, which read as tofu until the font is in.
-     Memoised upstream, so asking here costs nothing the staff was not already
-     paying. */
-  let marksReady = $state(false);
-  void loadNotationFont().then(() => {
-    marksReady = true;
-  });
-
   /** What a cell is called, to the cell itself and to the menu acting on it —
    *  including what it holds, which is the only way a reader learns that a cell
    *  is accented rather than merely written. */
@@ -57,9 +48,10 @@
     return `${name}, step ${step + 1}, ${choiceOf(articulation)?.name ?? articulation}`;
   }
 
-  /** The mark a cell wears, if what it holds has one to wear. */
+  /** The mark a cell wears, if what it holds has one to wear. Plain characters
+   *  in the page's own font, so a cell is drawn the moment it is written —
+   *  nothing here waits on the notation font the staff is loading. */
   function cellMark(instrument: InstrumentId, step: number): string {
-    if (!marksReady) return '';
     return choiceOf(articulationAt(patternState.current, instrument, step))?.mark ?? '';
   }
 
@@ -271,6 +263,9 @@
     min-width: 0;
     aspect-ratio: 1;
     max-height: 2rem;
+    /* A button starts on the platform's own font rather than the page's, and
+       the letters below are the page's letters. */
+    font: inherit;
     /* So the mark inside can size itself off the cell it sits in, which is the
        only thing that keeps a glyph proportionate from desktop to phone. */
     container-type: size;
@@ -313,44 +308,35 @@
     background: #2563eb;
   }
 
-  /* The cell's articulation, in the same font the staff engraves it with, so
-     grid and page show one mark rather than two dialects of one. Sized off the
+  /* The cell's articulation, in the page's own characters and sized off the
      cell rather than the page: the square shrinks on a phone and the mark goes
-     with it. White on the written fill, which is the only ground it ever sits
-     on — the playhead lights an empty cell, never a marked one. */
+     with it. Bold, since a character drawn white on the fill has none of an
+     engraved glyph's weight to carry it. White on that fill, which is the only
+     ground it ever sits on — the playhead lights an empty cell, never a marked
+     one. */
   .mark {
     display: grid;
     place-items: center;
-    font-family: 'Bravura', serif;
-    font-size: 145cqh;
+    font-size: 80cqh;
+    font-weight: 700;
     line-height: 0;
     color: #fff;
     pointer-events: none;
   }
 
-  /* Bravura sets each mark against the baseline the staff would put it on, and
-     a cell has no staff to hang it from: a mark drawn wholly above the baseline
-     has to come back down to sit in the middle of its cell. The parentheses
-     already straddle the baseline, so they are left where they are. */
-  .cell[data-articulation='accent'] .mark {
-    padding-top: 0.28em;
+  /* A pair held apart where every other mark is a single character, so it is
+     set smaller to keep inside the same square. */
+  .cell[data-articulation='ghost'] .mark {
+    font-size: 50cqh;
   }
 
-  /* A grace note is a whole note-shape rather than a mark — head, stem and flag
-     — so it is set smaller to keep the same ink inside the cell, and pushed
-     further down: the taller the glyph stands above its baseline, the further
-     it has to come back to sit in the middle. */
-  .cell[data-articulation='flam'] .mark {
-    font-size: 105cqh;
-    padding-top: 0.45em;
-  }
-
-  /* Two notes rather than one, so the pair is set smaller again to keep the
-     same ink inside the same square — and the beam standing above both stems
-     is the tallest thing any cell carries, so it comes furthest back down. */
+  /* A letter's ink sits high in the em box that centres it — the space a
+     descender would take is empty — so it comes back down to sit in the middle
+     of the cell. `>` centres on the line by itself, and the parentheses
+     straddle it, so neither is moved. */
+  .cell[data-articulation='flam'] .mark,
   .cell[data-articulation='drag'] .mark {
-    font-size: 78cqh;
-    padding-top: 0.55em;
+    padding-top: 0.06em;
   }
 
   /* Samples still decoding: readable, not yet playable. */

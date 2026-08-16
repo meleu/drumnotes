@@ -104,11 +104,10 @@ test('marks an accented cell and leaves a plain one bare', async ({ page }) => {
   );
   await page.reload();
 
-  // SMuFL articAccentAbove: the same mark the staff engraves, so grid and page
-  // say one thing rather than two.
+  // The accent as a chart writes it, over the cell the staff engraves one over.
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
-  ).toHaveText('\u{E4A0}');
+  ).toHaveText('>');
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${plain}"] .mark`),
   ).toBeEmpty();
@@ -125,18 +124,18 @@ test('marks a ghosted cell with the pair the staff brackets it in', async ({ pag
   );
   await page.reload();
 
-  // SMuFL noteheadParenthesis: the parentheses of the page, as one glyph with
-  // the head's own space left empty — which on a cell is the cell.
+  // The parentheses of the page, held apart so the head's own space is visibly
+  // empty — which on a cell is the cell.
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
-  ).toHaveText('\u{E0CE}');
+  ).toHaveText('( )');
   // And not the mark of the articulation beside it in the menu.
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${accented}"] .mark`),
-  ).toHaveText('\u{E4A0}');
+  ).toHaveText('>');
 });
 
-test('marks a flammed cell with the grace note the staff draws before it', async ({ page }) => {
+test('marks a flammed cell with the letter drummers write it as', async ({ page }) => {
   const step = defaultPattern().lanes.snare.indexOf('normal');
   const ghosted = defaultPattern().lanes.hihat.indexOf('normal');
   let pattern = withArticulation(defaultPattern(), 'snare', step, 'flam');
@@ -147,18 +146,20 @@ test('marks a flammed cell with the grace note the staff draws before it', async
   );
   await page.reload();
 
-  // SMuFL graceNoteAppoggiaturaStemUp: the unslashed grace note of the page,
-  // which is the whole of what a flam looks like written down.
+  // The page's own grace note shrunk into a cell is a smudge; the letter is
+  // what a drummer pencils over the stroke instead.
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
-  ).toHaveText('\u{E562}');
+  ).toHaveText('f');
   // And distinguishable from the articulation beside it in the menu.
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${ghosted}"] .mark`),
-  ).toHaveText('\u{E0CE}');
+  ).toHaveText('( )');
 });
 
-test('marks a dragged cell with the beamed pair the staff draws before it', async ({ page }) => {
+test('marks a dragged cell with a letter of its own, not the one a flam wears', async ({
+  page,
+}) => {
   const step = defaultPattern().lanes.snare.indexOf('normal');
   const flammed = defaultPattern().lanes.hihat.indexOf('normal');
   let pattern = withArticulation(defaultPattern(), 'snare', step, 'drag');
@@ -169,24 +170,21 @@ test('marks a dragged cell with the beamed pair the staff draws before it', asyn
   );
   await page.reload();
 
-  // SMuFL textBlackNoteFrac8thShortStem then textBlackNoteShortStem: the two
-  // beamed notes of the page, composed as SMuFL beams a group — the first note
-  // carries the beam, the second closes it.
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
-  ).toHaveText('\u{E1F2}\u{E1F0}');
+  ).toHaveText('d');
   // And distinguishable from the ornament beside it in the menu, which is the
-  // one a drag is easiest to mistake for.
+  // one a drag is easiest to mistake for — two figures of grace notes are
+  // easily confused where two letters are not.
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${flammed}"] .mark`),
-  ).toHaveText('\u{E562}');
+  ).toHaveText('f');
 });
 
-/* Each mark is set at its own size, because Bravura draws them at wildly
-   different heights against one baseline. What no mark may do is outgrow the
-   square it is drawn in — measured as ink, from the font's own metrics for the
-   size the cell settled on, rather than off the box, which `line-height: 0`
-   collapses to nothing. */
+/* A mark of two characters is set smaller than a mark of one, so that what no
+   mark may do is outgrow the square it is drawn in — measured as ink, from the
+   font's own metrics for the size the cell settled on, rather than off the box,
+   which `line-height: 0` collapses to nothing. */
 test('draws every mark small enough to fit the cell, at the narrowest layout', async ({ page }) => {
   // A phone, where the grid stacks its bars and the cells are at their
   // smallest: the size a two-character mark has to survive.
@@ -239,7 +237,7 @@ test('keeps an accented cell marked as the playhead lights its column', async ({
 
   // A written cell keeps its own colour under the playhead, so the mark keeps
   // the one ground it was drawn to read against.
-  await expect(cell.locator('.mark')).toHaveText('\u{E4A0}');
+  await expect(cell.locator('.mark')).toHaveText('>');
   const [markColour, cellColour] = await cell.evaluate((node) => [
     getComputedStyle(node.querySelector('.mark')!).color,
     getComputedStyle(node).backgroundColor,
@@ -250,8 +248,8 @@ test('keeps an accented cell marked as the playhead lights its column', async ({
 /* The one pixel test in the suite, and deliberately so: whether six marks can
    be told apart at the size a phone draws them is a claim about what reaches
    the screen, and no count of DOM nodes answers it. Compared as the share of a
-   cell's pixels that differ — two marks that render identically, or as the same
-   tofu box under a missing font, would differ in none. */
+   cell's pixels that differ — two marks that render identically would differ in
+   none. */
 test('draws the six articulations as six distinguishable cells at phone size', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
 

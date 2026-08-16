@@ -102,8 +102,11 @@ export interface ArticulationChoice {
   /** What the menu calls it, and what a screen reader reads out. */
   readonly name: string;
   /**
-   * The SMuFL character a cell holding this is drawn with — the same mark the
-   * staff engraves, so the grid and the page say one thing rather than two.
+   * What a cell holding this is drawn with: the shorthand a drummer pencils
+   * onto a chart, in plain characters. The staff engraves the real thing — an
+   * accent over the head, parentheses around it, grace notes leading the stroke
+   * — and those figures shrunk into a square come out a scribble, so the cell
+   * says the same in the hand's own notation instead.
    * A plain hit and an empty cell carry no mark: the cell's own fill is the
    * whole of what they have to say.
    */
@@ -119,20 +122,14 @@ export interface ArticulationChoice {
 export const ARTICULATION_CHOICES: readonly ArticulationChoice[] = [
   { id: 'empty', name: 'Empty' },
   { id: PLAIN, name: 'Plain' },
-  { id: 'accent', name: 'Accent', mark: '\uE4A0' }, // SMuFL articAccentAbove
-  // SMuFL noteheadParenthesis: the pair the staff draws around a ghosted head,
-  // as one glyph with the head's own space left empty — which on a cell is the
-  // cell.
-  { id: 'ghost', name: 'Ghost', mark: '\uE0CE' },
-  // SMuFL graceNoteAppoggiaturaStemUp: the unslashed grace note the staff draws
-  // before the stroke, which is the whole of what a flam looks like.
-  { id: 'flam', name: 'Flam', mark: '\uE562' },
-  /* SMuFL textBlackNoteFrac8thShortStem then textBlackNoteShortStem: the pair
-     of beamed notes the staff draws before a dragged stroke, which is a drag's
-     whole written form and the one thing that tells it from a flam at a glance.
-     Two characters rather than one because SMuFL beams a group by composition —
-     the first note carries the beam, the second closes it. */
-  { id: 'drag', name: 'Drag', mark: '\uE1F2\uE1F0' },
+  { id: 'accent', name: 'Accent', mark: '>' },
+  // The parentheses the staff brackets a ghosted head in, held apart so the
+  // head's own space is visibly empty — which on a cell is the cell.
+  { id: 'ghost', name: 'Ghost', mark: '( )' },
+  // The ornaments as their initials, which is how the two are told apart on a
+  // chart and the one thing that stays legible at the size of a phone's cell.
+  { id: 'flam', name: 'Flam', mark: 'f' },
+  { id: 'drag', name: 'Drag', mark: 'd' },
 ];
 
 /** What one articulation is called and drawn with. */
