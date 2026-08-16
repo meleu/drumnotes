@@ -13,7 +13,7 @@ import {
 } from './pattern.js';
 import { SCHEMA_VERSION, parsePattern, serialisePattern } from './codec.js';
 
-/** A well-formed payload, to be corrupted one field at a time. */
+/** Well-formed payload, to be corrupted one field at a time. */
 function payload(): Record<string, unknown> {
   return JSON.parse(serialisePattern(emptyPattern()));
 }
@@ -28,7 +28,6 @@ function without(source: Record<string, unknown>, key: string): Record<string, u
   return copy;
 }
 
-/** The payload with fields replaced, serialised. */
 function corrupt(overrides: Record<string, unknown>): string {
   return JSON.stringify({ ...payload(), ...overrides });
 }
@@ -37,7 +36,7 @@ function laneOf(length: number, value: unknown): unknown[] {
   return new Array<unknown>(length).fill(value);
 }
 
-/** A version 1 payload: lanes of booleans, as v1.0.0 wrote them. */
+/** A v1 payload: boolean lanes, as v1.0.0 wrote them. */
 function version1(hits: Readonly<Record<string, readonly number[]>>): string {
   const lanes = Object.fromEntries(
     ['hihat', 'snare', 'kick'].map((id) => [
@@ -83,7 +82,7 @@ describe('a version 1 payload', () => {
   it('loads as the same groove, every written cell becoming a plain hit', () => {
     const stored = version1({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12], kick: [0, 10] });
 
-    // Bar-relative hits of the landing groove, so the first bar must match it.
+    // Bar-relative hits of the landing groove: the first bar must match.
     expect(parsePattern(stored).lanes.snare.slice(0, 16)).toEqual(
       defaultPattern().lanes.snare.slice(0, 16),
     );

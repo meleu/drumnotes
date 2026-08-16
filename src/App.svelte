@@ -13,11 +13,9 @@
     <Transport />
     <Tempo />
     <Export />
-    <!-- Last in the row: the one destructive control, kept as far from Play as
-         the row is wide. -->
+    <!-- Last: the one destructive control, kept as far from Play as possible. -->
     <Clear />
   </div>
-  <!-- Grid entirely above the staff; the views never interleave. -->
   <Grid />
   <Staff />
 </main>

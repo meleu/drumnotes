@@ -7,7 +7,7 @@ import { INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
 
 // Each test gets its own context, so storage starts empty unless seeded.
 
-/** Steps the grid shows as filled, in document order. */
+/** Steps the grid shows filled, in document order. */
 function filledCells(page: Page, instrument: InstrumentId) {
   return page
     .locator(`button[data-instrument="${instrument}"][aria-pressed="true"]`)
@@ -50,7 +50,7 @@ test('an edit survives a reload', async ({ page }) => {
 
 test('a groove stored before articulations existed loads unchanged', async ({ page }) => {
   await page.goto('/');
-  // Exactly what v1.0.0 wrote: the same groove, cells as booleans.
+  // Exactly what v1.0.0 wrote: same groove, cells as booleans.
   const version1 = JSON.stringify({
     version: 1,
     tempo: defaultPattern().tempo,

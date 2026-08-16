@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-// The other side of the offline spec: no worker in development. Nothing may sit
-// between the dev server and a reload — not for this suite, not for someone
-// with the app open while editing it.
+// The other side of the offline spec: no worker in development, so nothing sits
+// between the dev server and a reload.
 test('registers no service worker in development', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.transport')).toBeEnabled();

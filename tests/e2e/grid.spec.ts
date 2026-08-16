@@ -25,8 +25,7 @@ test('renders every step of every bar as a button per instrument row', async ({ 
 test('orders the rows hi-hat, snare, kick, matching staff height', async ({ page }) => {
   const names = page.locator('.bar').first().locator('.name');
 
-  // Abbreviated so the label column costs the cells little width; the full name
-  // is carried as the tooltip.
+  // Abbreviated to spare the cells width; full name in the tooltip.
   await expect(names).toHaveText(['HH', 'SD', 'BD']);
   for (const [row, name] of ['Hi-hat', 'Snare', 'Kick'].entries()) {
     await expect(names.nth(row)).toHaveAttribute('title', name);
@@ -77,7 +76,7 @@ test('labels the rows once when the bars sit side by side, once per bar when sta
   await page.setViewportSize({ width: 390, height: 800 });
   await expect(later).toHaveText(['HH', 'SD', 'BD']);
 
-  // Read off the bar beside it instead; the labels would only repeat.
+  // Read off the bar beside it; the labels would only repeat.
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(later.first()).toBeHidden();
 });
@@ -124,12 +123,11 @@ test('marks a ghosted cell with the pair the staff brackets it in', async ({ pag
   );
   await page.reload();
 
-  // The parentheses of the page, held apart so the head's own space is visibly
-  // empty — which on a cell is the cell.
+  // The page's parens, held apart so the head's space reads as empty.
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
   ).toHaveText('( )');
-  // And not the mark of the articulation beside it in the menu.
+  // Not the mark of the articulation beside it in the menu.
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${accented}"] .mark`),
   ).toHaveText('>');
@@ -146,12 +144,12 @@ test('marks a flammed cell with the letter drummers write it as', async ({ page 
   );
   await page.reload();
 
-  // The page's own grace note shrunk into a cell is a smudge; the letter is
-  // what a drummer pencils over the stroke instead.
+  // A grace note shrunk into a cell is a smudge; the letter is what a drummer
+  // pencils over the stroke instead.
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
   ).toHaveText('f');
-  // And distinguishable from the articulation beside it in the menu.
+  // And distinct from the articulation beside it in the menu.
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${ghosted}"] .mark`),
   ).toHaveText('( )');
@@ -173,21 +171,19 @@ test('marks a dragged cell with a letter of its own, not the one a flam wears', 
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
   ).toHaveText('d');
-  // And distinguishable from the ornament beside it in the menu, which is the
-  // one a drag is easiest to mistake for — two figures of grace notes are
-  // easily confused where two letters are not.
+  // And distinct from the ornament beside it, the one a drag is easiest to
+  // mistake for: two grace-note figures confuse where two letters do not.
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${flammed}"] .mark`),
   ).toHaveText('f');
 });
 
-/* A mark of two characters is set smaller than a mark of one, so that what no
-   mark may do is outgrow the square it is drawn in — measured as ink, from the
-   font's own metrics for the size the cell settled on, rather than off the box,
-   which `line-height: 0` collapses to nothing. */
+/* Two-character marks are set smaller so no mark outgrows its square. Measured
+   as ink, from the font's metrics at the cell's settled size, not off the box —
+   `line-height: 0` collapses that to nothing. */
 test('draws every mark small enough to fit the cell, at the narrowest layout', async ({ page }) => {
-  // A phone, where the grid stacks its bars and the cells are at their
-  // smallest: the size a two-character mark has to survive.
+  // Phone: bars stacked, cells at their smallest — what a two-character mark
+  // has to survive.
   await page.setViewportSize({ width: 320, height: 640 });
   const marked = ['accent', 'ghost', 'flam', 'drag'] as const;
   const pattern = marked.reduce(
@@ -235,8 +231,8 @@ test('keeps an accented cell marked as the playhead lights its column', async ({
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(cell).toHaveClass(/playing/);
 
-  // A written cell keeps its own colour under the playhead, so the mark keeps
-  // the one ground it was drawn to read against.
+  // A written cell keeps its colour under the playhead, so the mark keeps the
+  // one ground it was drawn to read against.
   await expect(cell.locator('.mark')).toHaveText('>');
   const [markColour, cellColour] = await cell.evaluate((node) => [
     getComputedStyle(node.querySelector('.mark')!).color,
@@ -245,17 +241,15 @@ test('keeps an accented cell marked as the playhead lights its column', async ({
   expect(markColour).not.toBe(cellColour);
 });
 
-/* The one pixel test in the suite, and deliberately so: whether six marks can
-   be told apart at the size a phone draws them is a claim about what reaches
-   the screen, and no count of DOM nodes answers it. Compared as the share of a
-   cell's pixels that differ — two marks that render identically would differ in
-   none. */
+/* The suite's one pixel test, deliberately: whether six marks are tellable
+   apart at phone size is a claim about what reaches the screen, which no DOM
+   count answers. Compared as the share of a cell's pixels that differ — two
+   marks rendering identically would differ in none. */
 test('draws the six articulations as six distinguishable cells at phone size', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
 
-  // Six cells of one row, none of them the first of a beat: a beat's opening
-  // cell is drawn differently on purpose, and would be told apart by that
-  // rather than by what it holds.
+  // Six cells of one row, none opening a beat: those are drawn differently on
+  // purpose, and would be told apart by that rather than by what they hold.
   const steps = [1, 2, 3, 5, 6, 7];
   const pattern = ARTICULATIONS.reduce(
     (next, articulation, index) => withArticulation(next, 'snare', steps[index]!, articulation),
@@ -288,9 +282,8 @@ test('draws the six articulations as six distinguishable cells at phone size', a
       }),
     );
 
-    /** The share of the cell the two are drawn differently over. Compared row
-     *  by row over what they have in common, since a cell can land a pixel
-     *  wider than its neighbour. */
+    /** Share of the cell the two differ over. Row by row across what they have
+     *  in common, since a cell can land a pixel wider than its neighbour. */
     const apart = (one: ImageData, other: ImageData): number => {
       const width = Math.min(one.width, other.width);
       const height = Math.min(one.height, other.height);
@@ -299,8 +292,7 @@ test('draws the six articulations as six distinguishable cells at phone size', a
         for (let x = 0; x < width; x += 1) {
           const here = (y * one.width + x) * 4;
           const there = (y * other.width + x) * 4;
-          // Well past antialiasing, so a fringe along one edge of a glyph is
-          // not mistaken for a mark of its own.
+          // Well past antialiasing, so a glyph's edge fringe is not a mark.
           const differs = [0, 1, 2].some(
             (channel) => Math.abs(one.data[here + channel]! - other.data[there + channel]!) > 32,
           );

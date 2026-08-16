@@ -7,7 +7,6 @@ import { audioLog, instrumentAudio } from './support/audio-log.js';
 /** Every rung of every instrument the app can sound. */
 const SAMPLE_COUNT = INSTRUMENTS.length * DYNAMICS.length;
 
-/** First cell the default groove leaves empty in a lane. */
 function silentCell(page: Page, instrument: 'hihat' | 'snare' | 'kick') {
   const step = defaultPattern().lanes[instrument].indexOf('empty');
   return page.locator(`button[data-instrument="${instrument}"][data-step="${step}"]`);
@@ -56,7 +55,7 @@ test('sounds a cell as it is written and stays silent as it is rubbed out', asyn
 
   await cell.click();
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
-  // No time handed over: an audition sounds at once, not through a queue.
+  // No time handed over: an audition sounds at once, not via a queue.
   expect((await audioLog(page)).starts).toEqual([undefined]);
 
   await cell.click();
@@ -70,8 +69,8 @@ test('sounds a plain hit at the rung its own instrument calls plain', async ({ p
 
   await silentCell(page, 'snare').click();
   await silentCell(page, 'kick').click();
-  // The closed hi-hat, and only it, reads -Soft where the others read -Med:
-  // at -Med it sits on top of the groove instead of under it.
+  // Closed hi-hat alone reads -Soft where others read -Med: at -Med it sits on
+  // top of the groove.
   await silentCell(page, 'hihat').click();
 
   expect((await audioLog(page)).samples).toEqual(['Snare-Med', 'Kick-Med', 'HatClosed-Soft']);

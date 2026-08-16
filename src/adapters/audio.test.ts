@@ -6,8 +6,7 @@ import type { Dynamic, InstrumentId } from '../core/pattern.js';
 import { DYNAMICS, INSTRUMENTS } from '../core/pattern.js';
 import { SAMPLE_URLS, createDrumKit } from './audio.js';
 
-/** Enough Web Audio to exercise the kit in node. The real `AudioContext` has
- *  the same shape; the casts are the seam to the stand-in. */
+/** Enough Web Audio to exercise the kit in node; casts are the seam. */
 class FakeSource {
   buffer: AudioBuffer | null = null;
   connectedTo: unknown = null;
@@ -63,7 +62,7 @@ class FakeContext {
   }
 }
 
-/** One url per instrument per rung — the shape the real table has. */
+/** One url per instrument per rung, as the real table is shaped. */
 const SOURCES = Object.fromEntries(
   INSTRUMENTS.map(({ id }) => [
     id,
@@ -73,12 +72,12 @@ const SOURCES = Object.fromEntries(
 
 const SAMPLE_COUNT = INSTRUMENTS.length * DYNAMICS.length;
 
-/** Where the kit is committed, and what the app is entitled to reference. */
+/** Where the kit is committed, and all the app may reference. */
 const KIT_DIR = 'src/assets/samples/GMRockKit';
 
 /**
- * The kit as committed: four rungs for every instrument the app plays or has
- * left room to play, plus the closed hi-hat's `-Soft`, which is its plain rung.
+ * The kit as committed: four rungs per instrument the app plays or may yet play,
+ * plus the closed hi-hat's `-Soft`, its plain rung.
  */
 const KIT_INSTRUMENTS = [
   'HatClosed',
@@ -109,8 +108,8 @@ test('references a subset of what is committed, so the build carries no more', (
     Object.values(rungs).map((url) => basename(url)),
   );
 
-  // Static imports, one per rung: an unreferenced file cannot reach the bundle,
-  // and a glob over the directory would drag all forty-one in.
+  // Static imports, one per rung: unreferenced files stay out of the bundle,
+  // where a directory glob would drag all forty-one in.
   expect(referenced).toHaveLength(INSTRUMENTS.length * DYNAMICS.length);
   expect(new Set(referenced).size).toBe(referenced.length);
   for (const file of referenced) expect(committed).toContain(file);
@@ -126,9 +125,8 @@ test('names a recording for every instrument at every rung', () => {
 });
 
 test('reads the closed hi-hat plainly as Soft, the one instrument that does', () => {
-  // The kit's own -Med closed hi-hat is louder than the groove wants under it;
-  // -Soft is the plain rung here and nowhere else. A fact about these files,
-  // which is why it lives in this table and not in the core.
+  // -Med closed hi-hat is louder than the groove wants; -Soft is the plain rung
+  // here and nowhere else. A fact about these files, hence not in the core.
   expect(SAMPLE_URLS.hihat.plain).toMatch(/HatClosed-Soft[-.]/);
   expect(SAMPLE_URLS.snare.plain).toMatch(/Snare-Med[-.]/);
   expect(SAMPLE_URLS.kick.plain).toMatch(/Kick-Med[-.]/);

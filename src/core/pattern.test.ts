@@ -29,7 +29,7 @@ import {
   withTempo,
 } from './pattern.js';
 
-/** The steps a lane is written on, bar-relative, per bar. */
+/** Steps a lane is written on, bar-relative, per bar. */
 function hitsPerBar(lane: readonly Articulation[]): number[][] {
   return Array.from({ length: BARS }, (_, bar) =>
     lane
@@ -339,8 +339,7 @@ describe('hitsAt', () => {
   it('leads a flam with a grace hit, and lands the hit itself on the step', () => {
     const pattern = withArticulation(emptyPattern(), 'snare', 4, 'flam');
 
-    // Both belong to step 4: how far ahead the grace hit sounds is the
-    // schedule's arithmetic, not the step's.
+    // Both belong to step 4; how far ahead is the schedule's arithmetic.
     expect(hitsAt(pattern, 4)).toEqual([
       { instrument: 'snare', leads: 1, dynamic: 'softest' },
       { instrument: 'snare', leads: 0, dynamic: 'hard' },
@@ -350,8 +349,7 @@ describe('hitsAt', () => {
   it('leads a drag with two grace hits, and lands the hit itself on the step', () => {
     const pattern = withArticulation(emptyPattern(), 'snare', 4, 'drag');
 
-    // One lead further out than a flam's, which is the whole difference
-    // between them: two grace hits rather than one, and the second where the
+    // One lead further out than a flam: two grace hits, the second where the
     // flam's only one would have been.
     expect(hitsAt(pattern, 4)).toEqual([
       { instrument: 'snare', leads: 2, dynamic: 'softest' },
@@ -400,7 +398,7 @@ describe('hitsOf', () => {
       expect(hits.at(-1)).toEqual({ leads: 0, dynamic: 'hard' });
     }
 
-    // And a drag is the one led by two: the count is what tells them apart.
+    // A drag is led by two: the count tells them apart.
     expect(hitsOf('drag')).toHaveLength(hitsOf('flam').length + 1);
   });
 

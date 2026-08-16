@@ -25,7 +25,7 @@ import {
   stepsInWindow,
 } from './schedule.js';
 
-/** At 120 BPM a sixteenth is exactly an eighth of a second: arithmetic by eye. */
+/** At 120 BPM a sixteenth is exactly 1/8 s: arithmetic by eye. */
 const LOOP = { tempo: 120, origin: 0 };
 const STEP = 0.125;
 
@@ -41,21 +41,18 @@ describe('durations', () => {
 });
 
 describe('graceLead', () => {
-  /** Every playable tempo, since the whole question is where the cap bites. */
+  /** Every playable tempo, since the question is where the cap bites. */
   const TEMPOS = Array.from({ length: MAX_TEMPO - MIN_TEMPO + 1 }, (_, i) => MIN_TEMPO + i);
 
   test('is the same sliver of real time at every playable tempo', () => {
-    // A flam is a gesture of the hand: it does not scale with the tempo. The
-    // lead is short enough that no step in the range is too short to hold it —
-    // barely, at the top of it — so the cap never bites on anything a drummer
-    // can play.
+    // A flam is a hand gesture: it does not scale with tempo. The lead fits
+    // every step in the range — barely, at the top — so the cap never bites.
     for (const tempo of TEMPOS) expect(graceLead(tempo)).toBeCloseTo(0.02);
   });
 
   test('tightens to a third of a step where a step is too short to hold it', () => {
-    // Faster than the range allows, which is the only place the cap can bite
-    // now — it stays as the guard that keeps the arithmetic sound whatever a
-    // later tempo range or a wider ornament asks for.
+    // Faster than the range allows: the only place the cap bites now. It stays
+    // as a guard for a later tempo range or a wider ornament.
     const tempo = 4 * MAX_TEMPO;
 
     expect(graceLead(tempo)).toBeCloseTo(stepDuration(tempo) / 3);
@@ -63,7 +60,7 @@ describe('graceLead', () => {
   });
 
   test('never asks for more than a third of a step, at any tempo', () => {
-    // Which is what keeps a drag's two leads clear of the sixteenth before.
+    // Which keeps a drag's two leads clear of the sixteenth before.
     for (const tempo of TEMPOS) {
       expect(`${tempo}: ${graceLead(tempo) <= stepDuration(tempo) / 3}`).toBe(`${tempo}: true`);
     }
@@ -117,8 +114,8 @@ describe('stepsInWindow', () => {
     const step = stepDuration(loop.tempo);
     const passes = 5;
 
-    /* Ragged windows, as a wobbling timer produces, but never overlapping or
-     * gapping: each opens where the last closed. */
+    // Ragged windows, as a wobbling timer produces, never overlapping or
+    // gapping: each opens where the last closed.
     const played: number[] = [];
     let cursor = loop.origin;
     let width = 0.02;
@@ -140,8 +137,7 @@ describe('stepsInWindow', () => {
 });
 
 describe('soundsInWindow', () => {
-  /** A hi-hat on every step: one plain sound per step, so the window's own
-   *  arithmetic is all that can vary. */
+  /** Hi-hat on every step: one plain sound each, so only window arithmetic varies. */
   const straight = (): Pattern =>
     [...Array(TOTAL_STEPS).keys()].reduce(
       (pattern, step) => withArticulation(pattern, 'hihat', step, 'normal'),
@@ -198,8 +194,8 @@ describe('soundsInWindow', () => {
   });
 
   test('keeps a drag at the top of the tempo range clear of the sixteenth before it', () => {
-    // The lead is capped at a third of a step, so even the further of the two
-    // grace hits stays inside the step it belongs to.
+    // Lead capped at a third of a step, so even the further grace hit stays
+    // inside the step it belongs to.
     const loop = { tempo: MAX_TEMPO, origin: 0 };
     const step = stepDuration(MAX_TEMPO);
     const [earliest] = soundsInWindow(loop, dragged(4), 4 * step, 5 * step);
@@ -220,9 +216,8 @@ describe('soundsInWindow', () => {
     const opening = soundsInWindow(LOOP, flammed(4), 3 * STEP, 4 * STEP);
     const next = soundsInWindow(LOOP, flammed(4), 4 * STEP, 5 * STEP);
 
-    // The grace hit sounds before the window that hands it over: a sound
-    // belongs to the window that owns its step, never to the window its own
-    // time falls in (ADR 0006).
+    // The grace hit sounds before the window handing it over: a sound belongs to
+    // the window owning its step, not the one its time falls in (ADR 0006).
     expect(opening).toEqual([]);
     expect(next.map(({ time }) => time)).toEqual([4 * STEP - lead, 4 * STEP]);
   });
@@ -234,8 +229,8 @@ describe('soundsInWindow', () => {
     const pattern = withArticulation(straight(), 'snare', 4, 'flam');
     const passes = 3;
 
-    /* Ragged windows, as a wobbling timer produces, but never overlapping or
-     * gapping: each opens where the last closed. */
+    // Ragged windows, as a wobbling timer produces, never overlapping or
+    // gapping: each opens where the last closed.
     const played: ScheduledSound[] = [];
     let cursor = loop.origin;
     let width = 0.02;
@@ -254,8 +249,8 @@ describe('soundsInWindow', () => {
       })),
     )
       .flat()
-      // Earliest first, as they are handed over: a grace hit precedes the plain
-      // hits of its own step.
+      // Earliest first, as handed over: a grace hit precedes its own step's
+      // plain hits.
       .sort((a, b) => a.time - b.time);
 
     expect(played.slice(0, expected.length)).toEqual(expected);
@@ -267,12 +262,12 @@ describe('soundsInWindow', () => {
     const pattern = withArticulation(straight(), 'snare', 4, 'flam');
     const before = soundsInWindow(LOOP, pattern, 0, at);
     const faster = retune(LOOP, 200, at);
-    // Half a step past the fourth, so the window's far edge lands nowhere near
-    // a step and the seam is the only boundary under test.
+    // Half a step past the fourth, so the far edge lands nowhere near a step and
+    // the seam is the only boundary under test.
     const after = soundsInWindow(faster, pattern, at, at + 3.5 * stepDuration(200));
 
-    // Four plain steps, then the flammed one — its grace hit ahead of the
-    // hi-hat it is struck with — then three more.
+    // Four plain steps, the flammed one (grace hit ahead of the hi-hat it is
+    // struck with), then three more.
     expect([...before, ...after].map(({ dynamic }) => dynamic)).toEqual([
       'plain',
       'plain',
@@ -307,8 +302,8 @@ describe('auditionOf', () => {
   });
 
   test('sounds a flam as a flam: the grace hit at once, the hit it leads into a lead later', () => {
-    // An audition has no step coming to sound before, so the ornament starts
-    // where the tap did and the hit it leads into follows.
+    // No step to anchor to, so the ornament starts at the tap and the hit it
+    // leads into follows.
     expect(auditionOf('flam', LOOP.tempo)).toEqual([
       { dynamic: 'softest', delay: 0 },
       { dynamic: 'hard', delay: graceLead(LOOP.tempo) },
@@ -360,8 +355,7 @@ describe('stepAt', () => {
   });
 
   test('names the step whose hits a moment falls among', () => {
-    /* Eye and ear shown the same thing: the step the scheduler gave this moment
-     * is the step lit at it. */
+    // Eye and ear agree: the step the scheduler gave this moment is the one lit.
     const [hit] = stepsInWindow(LOOP, 7 * STEP, 8 * STEP);
 
     expect(stepAt(LOOP, hit!.time)).toBe(hit!.step);

@@ -1,20 +1,18 @@
 import type { Page } from '@playwright/test';
 
 /**
- * What the page did to the audio hardware. Recorded by wrapping the Web Audio
- * entry points before any app code runs, so tests can assert on what was played
- * without listening.
+ * What the page did to the audio hardware. Web Audio entry points are wrapped
+ * before any app code runs, so tests assert on what played without listening.
  */
 export interface AudioLog {
   decodes: number;
-  /** One entry per hit handed over: the time it was given, if any. */
+  /** Per hit handed over: the time it was given, if any. */
   starts: (number | undefined)[];
-  /** One entry per hit handed over, alongside `starts`: which recording it
-   *  sounded, named as the kit names it and stripped of the build's hash. */
+  /** Per hit, alongside `starts`: which recording sounded, under the kit's own
+   *  name minus the build hash. */
   samples: string[];
-  /** One entry per hit handed over, alongside `starts`: where the audio clock
-   *  stood as it was handed over, so a moment still to come can be told from
-   *  one that has already gone by. */
+  /** Per hit, alongside `starts`: the audio clock as it was handed over, so a
+   *  moment still to come is tellable from one gone by. */
   clocks: number[];
   resumes: number;
   stops: number;
@@ -36,8 +34,7 @@ declare global {
 export async function instrumentAudio(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const contexts: AudioContext[] = [];
-    /* Which file each decoded buffer came from, carried across the two steps
-       that separate a url from a sound: fetch → decode → play. */
+    // Which file each buffer came from, carried across fetch → decode → play.
     const urlOfBytes = new WeakMap<ArrayBuffer, string>();
     const urlOfBuffer = new WeakMap<AudioBuffer, string>();
 
@@ -114,7 +111,6 @@ export async function instrumentAudio(page: Page): Promise<void> {
   });
 }
 
-/** Reads the recording out of the page. */
 export async function audioLog(page: Page): Promise<AudioLog> {
   return await page.evaluate(() => ({
     decodes: window.__audio.decodes,

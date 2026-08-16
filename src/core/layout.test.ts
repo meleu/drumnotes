@@ -6,16 +6,14 @@ import { exportStaffLayout, placeMeasures, staffLayoutFor, staffSize } from './l
 import { STEPS_PER_BAR } from './pattern.js';
 import type { Measure, Score } from './score.js';
 
-/** A score of plain measures: layout reads the measure count and what is
- *  ornamented in them, and nothing else. */
+/** Plain measures: layout reads only the count and what's ornamented. */
 function scoreOf(measures: number): Score {
   return { measures: Array.from({ length: measures }, (_, index) => ({ index, voices: [] })) };
 }
 
 /**
- * A measure of sixteenths, one voice per argument, each written as the grace
- * slots leading its stroke on every step. Layout reads nothing else off an
- * entry — not its heads, not what it is worth.
+ * A measure of sixteenths, one voice per argument, each given as the grace slots
+ * leading its stroke on every step. Layout reads nothing else off an entry.
  */
 function measureOf(...voices: readonly (readonly number[])[]): Measure {
   return {
@@ -37,8 +35,7 @@ function measureOf(...voices: readonly (readonly number[])[]): Measure {
   };
 }
 
-/** Sixteen steps of one articulation, as grace slots: none for a plain hit, one
- *  for a flam, two for a drag. */
+/** A bar of one articulation, as grace slots: 0 plain, 1 flam, 2 drag. */
 function everyStep(slots: number): readonly number[] {
   return Array.from({ length: STEPS_PER_BAR }, () => slots);
 }
@@ -47,8 +44,7 @@ function scoreWith(...measures: readonly Measure[]): Score {
   return { measures: measures.map((measure, index) => ({ ...measure, index })) };
 }
 
-/** Wider than any minimum this staff has, so the container is never the
- *  constraint. */
+/** Wider than any minimum here, so the container never constrains. */
 const ROOMY = 5000;
 
 describe('staffLayoutFor', () => {
@@ -57,8 +53,7 @@ describe('staffLayoutFor', () => {
   });
 
   test('wraps to one measure a system in a container only one is legible in', () => {
-    // What a lone measure is drawn at when the container offers nothing: the
-    // narrowest one system can be, and so too narrow for two.
+    // Narrowest one system can be, hence too narrow for two.
     const oneMeasure = staffLayoutFor(0, scoreOf(1)).width;
 
     expect(staffLayoutFor(oneMeasure, scoreOf(2)).measuresPerSystem).toBe(1);
@@ -72,7 +67,7 @@ describe('staffLayoutFor', () => {
     const cramped = staffLayoutFor(50, scoreOf(2));
 
     expect(cramped.width).toBeGreaterThan(50);
-    // Below the floor the container stops mattering at all.
+    // Below the floor the container stops mattering.
     expect(staffLayoutFor(10, scoreOf(2)).width).toBe(cramped.width);
   });
 
@@ -91,7 +86,7 @@ describe('staffLayoutFor', () => {
   });
 
   test('asks for more room the more a measure is ornamented', () => {
-    // The narrowest each is legible at, with the container out of the way.
+    // Narrowest each is legible at, container out of the way.
     const widths = [0, 1, 2].map(
       (slots) => staffLayoutFor(0, scoreWith(measureOf(everyStep(slots)))).width,
     );
@@ -104,18 +99,17 @@ describe('staffLayoutFor', () => {
     const oneVoice = scoreWith(measureOf(everyStep(2)));
     const both = scoreWith(measureOf(everyStep(2), everyStep(2)));
 
-    // Grace notes on the same step of both voices are drawn one above the
-    // other, so the second voice costs the measure no width at all.
+    // Both voices' graces on a step stack, so the second costs no width.
     expect(staffLayoutFor(0, both).width).toBe(staffLayoutFor(0, oneVoice).width);
   });
 
   test('wraps sooner when the measures are ornamented than when they are plain', () => {
     const plain = scoreWith(measureOf(everyStep(0)), measureOf(everyStep(0)));
-    // Twice what a lone measure asks for, which is more than a system of two
-    // needs: the clef and the time signature are paid for once, not twice.
+    // Twice a lone measure — more than a system of two needs, since clef and
+    // time signature are paid once.
     const room = 2 * staffLayoutFor(0, plain).width;
 
-    // A container that holds two plain measures holds only one of drags.
+    // Room for two plain measures holds only one of drags.
     expect(staffLayoutFor(room, plain).measuresPerSystem).toBe(2);
     expect(
       staffLayoutFor(room, scoreWith(measureOf(everyStep(2)), measureOf(everyStep(2))))
@@ -157,9 +151,9 @@ describe('placeMeasures', () => {
     const opensThePiece = placed[0]!.width - placed[1]!.width;
     const opensASystem = placed[2]!.width - placed[3]!.width;
 
-    // A clef costs the measure that carries it...
+    // A clef costs the measure carrying it...
     expect(opensASystem).toBeGreaterThan(0);
-    // ...and the first measure of all pays for the time signature on top.
+    // ...and the first measure pays the time signature on top.
     expect(opensThePiece).toBeGreaterThan(opensASystem);
   });
 
@@ -169,8 +163,8 @@ describe('placeMeasures', () => {
       layout,
     );
 
-    // And more even though the plain one opens the system and is paid for the
-    // clef and the time signature on top: the drags have to be drawn somewhere.
+    // More even though the plain one opens the system and is paid clef plus
+    // time signature: the drags must be drawn somewhere.
     expect(ornamented!.width).toBeGreaterThan(plain!.width);
   });
 
@@ -187,7 +181,7 @@ describe('placeMeasures', () => {
       const placed = placeMeasures(scoreOf(3), { width: 1000, measuresPerSystem });
 
       expect(placed).toHaveLength(3);
-      // One a system: each starts at the margin, one band below the last.
+      // One per system: each at the margin, one band below the last.
       expect(placed.map(({ x }) => x)).toEqual([placed[0]!.x, placed[0]!.x, placed[0]!.x]);
       expect(placed[1]!.y).toBe(placed[0]!.y + placed[0]!.height);
       expect(placed[2]!.y).toBe(placed[1]!.y + placed[1]!.height);
@@ -224,7 +218,7 @@ describe('exportStaffLayout', () => {
 
     const { width, measuresPerSystem } = exportStaffLayout(dragged);
     expect(width).toBeGreaterThan(EXPORT_WIDTH);
-    // Still one system: a wider picture, not a taller one.
+    // Still one system: wider picture, not taller.
     expect(measuresPerSystem).toBe(dragged.measures.length);
   });
 });

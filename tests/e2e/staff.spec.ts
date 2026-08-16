@@ -14,19 +14,17 @@ import {
   withArticulation,
 } from '../../src/core/pattern.js';
 
-// Browser tests assert on DOM structure and counts, never pixels — except for
-// which side of the staff a mark landed on, which is a fact about the page and
-// nothing else.
+// Browser tests assert on DOM structure and counts, never pixels — except which
+// side of the staff a mark landed on, a fact about the page and nothing else.
 
 const staff = '.sheet svg';
 const noteheads = `${staff} .vf-notehead`;
 /** VexFlow gives each beam and flag its own class. */
 const beams = `${staff} .vf-beam`;
 const flags = `${staff} .vf-flag`;
-/** The slur joining a grace group to its stroke, which VexFlow draws as a tie. */
+/** The grace group's slur into its stroke; VexFlow draws it as a tie. */
 const slurs = `${staff} .vf-stavetie`;
 
-/** A pattern from absolute step indices. */
 function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
   return Object.entries(hits).reduce(
     (pattern, [id, steps]) =>
@@ -46,8 +44,8 @@ async function load(page: Page, pattern: Pattern): Promise<void> {
   await page.waitForSelector(staff);
 }
 
-/** Augmentation dots on the staff. The font draws one as the SMuFL glyph below,
- *  so counting them is structural, not pixels. */
+/** Augmentation dots. Drawn as the SMuFL glyph below, so counting is
+ *  structural, not pixels. */
 const AUGMENTATION_DOT = '\u{E1E7}';
 
 async function augmentationDots(page: Page): Promise<number> {
@@ -59,12 +57,10 @@ async function augmentationDots(page: Page): Promise<number> {
     );
 }
 
-/** SMuFL articAccentAbove and articAccentBelow — one mark, drawn as the mirror
- *  of itself depending on which side of the stroke it sits. */
+/** SMuFL articAccentAbove/Below — one mark, mirrored by which side it sits. */
 const ACCENT_GLYPHS = ['\u{E4A0}', '\u{E4A1}'];
 
-/** SMuFL noteheadParenthesisLeft and noteheadParenthesisRight — the pair a
- *  ghosted head is bracketed with, drawn one either side of it. */
+/** SMuFL noteheadParenthesisLeft/Right — one either side of a ghosted head. */
 const PARENTHESIS_GLYPHS = ['\u{E0F5}', '\u{E0F6}'];
 
 interface Ink {
@@ -73,9 +69,8 @@ interface Ink {
 }
 
 /**
- * Where a group of paths draws, in the page's own coordinates. `getBBox` bounds
- * it in the element's own space, so it has to be put through the transform that
- * places that space on the page.
+ * Where a group of paths draws, in page coordinates. `getBBox` bounds it in the
+ * element's own space, so it goes through the transform placing that space.
  */
 async function inkOf(page: Page, selector: string): Promise<Ink[]> {
   return await page.locator(selector).evaluateAll((nodes) =>
@@ -91,17 +86,16 @@ async function inkOf(page: Page, selector: string): Promise<Ink[]> {
   );
 }
 
-/** Where a glyph is set down on the page: its origin, not its box. */
+/** Where a glyph is set down: its origin, not its box. */
 interface Anchor {
   x: number;
   y: number;
 }
 
 /**
- * Where each of a set of glyphs is drawn, so one mark can be told from another
- * and above from below. A glyph's origin rather than its box: a text node's box
- * is the whole font's ascent and descent, which for a mark this small says
- * almost nothing about where the mark is.
+ * Where each glyph is drawn, so marks are tellable apart and above from below.
+ * Origin, not box: a text node's box is the whole font's ascent and descent,
+ * which for a mark this small says almost nothing.
  */
 async function glyphAnchors(page: Page, glyphs: readonly string[]): Promise<Anchor[]> {
   return await page.locator(`${staff} text`).evaluateAll(
@@ -124,10 +118,9 @@ async function glyphAnchors(page: Page, glyphs: readonly string[]): Promise<Anch
 const HEAD_GLYPHS = { normal: '\u{E0A4}', cross: '\u{E0A9}' } as const;
 
 /**
- * Every notehead drawn on the page, grace notes included: the shape it was
- * drawn with and where it was set down. A grace note is a notehead like any
- * other — smaller, and to the left of the stroke it leads into. Picked out by
- * glyph, since VexFlow draws a rest as a notehead too.
+ * Every notehead on the page, grace notes included: its shape and where it was
+ * set down. A grace note is a notehead like any other, smaller and left of the
+ * stroke. Picked by glyph, since VexFlow draws a rest as a notehead too.
  */
 async function heads(page: Page): Promise<{ glyph: string; x: number; y: number }[]> {
   return await page.locator(`${staff} .vf-notehead text`).evaluateAll(
@@ -144,11 +137,9 @@ async function heads(page: Page): Promise<{ glyph: string; x: number; y: number 
 }
 
 /**
- * The grace notes leading the first stroke, slot by slot.
- *
- * A grace note is drawn as a note inside the note it leads into, so the page's
- * own nesting says which heads are ornaments — and one slot is one element,
- * which is what makes "one group, one stem" a count rather than a measurement.
+ * Grace notes leading the first stroke, slot by slot. Each is drawn inside the
+ * note it leads into, so the page's nesting says which heads are ornaments — and
+ * one slot is one element, making "one group, one stem" a count.
  */
 async function graceSlotsOfFirstStroke(page: Page): Promise<{ glyphs: string[]; xs: number[] }[]> {
   return await page
@@ -158,8 +149,8 @@ async function graceSlotsOfFirstStroke(page: Page): Promise<{ glyphs: string[]; 
     .evaluateAll(
       (slots, wanted) =>
         slots.map((slot) => {
-          // By glyph, as everywhere else: VexFlow draws a flag inside the
-          // notehead group it belongs to, and a flag is not a head.
+          // By glyph: VexFlow draws a flag inside its notehead group, and a
+          // flag is not a head.
           const heads = [...slot.querySelectorAll('.vf-notehead text')].filter((head) =>
             wanted.includes(head.textContent ?? ''),
           );
@@ -172,19 +163,19 @@ async function graceSlotsOfFirstStroke(page: Page): Promise<{ glyphs: string[]; 
     );
 }
 
-/** Stems drawn for the first stroke: its own, and one per grace slot. Beamed
- *  slots have theirs drawn with the beam, which is still inside the stroke. */
+/** Stems of the first stroke: its own plus one per grace slot. Beamed slots
+ *  have theirs drawn with the beam, still inside the stroke. */
 async function stemsOfFirstStroke(page: Page): Promise<number> {
   return await page.locator(`${staff} .vf-stavenote`).first().locator('.vf-stem').count();
 }
 
-/** Where each accent sits vertically, so above and below can be told apart. */
+/** Each accent's vertical position, so above and below are tellable apart. */
 async function accentBaselines(page: Page): Promise<number[]> {
   return (await glyphAnchors(page, ACCENT_GLYPHS)).map(({ y }) => y);
 }
 
-/** Every glyph drawn for the first stroke on the page, where it was set down.
- *  Stave coordinates, which is all a comparison within one stroke needs. */
+/** Every glyph of the first stroke, and where it was set down. Stave
+ *  coordinates: all a comparison within one stroke needs. */
 async function glyphsOfFirstStroke(page: Page): Promise<{ glyph: string; x: number; y: number }[]> {
   return await page
     .locator(`${staff} .vf-stavenote`)
@@ -200,7 +191,7 @@ async function glyphsOfFirstStroke(page: Page): Promise<{ glyph: string; x: numb
 }
 
 /** Where the staves sit and how far the ink reaches, in the drawing's own
- *  coordinates — the ones every notehead's `x` is written in. */
+ *  coordinates — the ones every notehead's `x` uses. */
 async function drawingBounds(
   page: Page,
 ): Promise<{ staveLeft: number; staveRight: number; inkRight: number; pageWidth: number }> {
@@ -209,8 +200,8 @@ async function drawingBounds(
     const staves = [...svg.querySelectorAll('.vf-stave')].map((node) =>
       (node as unknown as SVGGraphicsElement).getBBox(),
     );
-    // The root's box is the ink itself, whether or not the page has room for
-    // it: anything drawn past the viewBox is cut off, and shows up here.
+    // The root's box is the ink itself, room or not: anything past the viewBox
+    // is cut off and shows up here.
     const ink = (svg as unknown as SVGGraphicsElement).getBBox();
     return {
       staveLeft: Math.min(...staves.map((box) => box.x)),
@@ -221,7 +212,6 @@ async function drawingBounds(
   }, staff);
 }
 
-/** Measure tops, deduped into systems. */
 async function systemCount(page: Page): Promise<number> {
   const staves = page.locator(`${staff} .vf-stave`);
   await expect(staves).toHaveCount(BARS);
@@ -244,7 +234,7 @@ test('draws no staff at all until the music font has loaded', async ({ page }) =
 
   await page.goto('/', { waitUntil: 'commit' });
 
-  // The grid is usable while the notation still waits on its font.
+  // The grid is usable while the notation waits on its font.
   await expect(page.locator('button[data-instrument="kick"]').first()).toBeVisible();
   await expect(page.locator(staff)).toHaveCount(0);
 
@@ -283,7 +273,7 @@ test.describe('once the font has loaded', () => {
       const grid = document.querySelector('.grid')!;
       const notation = document.querySelector('.staff')!;
       return {
-        // DOCUMENT_POSITION_FOLLOWING: the staff comes after the grid.
+        // DOCUMENT_POSITION_FOLLOWING: staff after grid.
         documentOrder: grid.compareDocumentPosition(notation) & Node.DOCUMENT_POSITION_FOLLOWING,
         gridBottom: grid.getBoundingClientRect().bottom,
         staffTop: notation.getBoundingClientRect().top,
@@ -328,7 +318,7 @@ test.describe('once the font has loaded', () => {
 
   test('leaves a lone flagged note its flag', async ({ page }) => {
     // A lone hi-hat on the second sixteenth is `16r 8.`: one flagged note with
-    // nothing to beam it to.
+    // nothing to beam to.
     await load(page, patternWith({ hihat: [1] }));
 
     await expect(page.locator(flags)).toHaveCount(1);
@@ -344,9 +334,9 @@ test.describe('once the font has loaded', () => {
 
     expect(await augmentationDots(page)).toBe(0);
 
-    // The feet play nothing on beat 2, so a kick on that beat's last sixteenth
-    // follows three silent ones: a dotted-eighth rest — the shortest route from
-    // the default groove to a dotted value.
+    // The feet play nothing on beat 2, so a kick on its last sixteenth follows
+    // three silent ones: a dotted-eighth rest, the shortest route from the
+    // default groove to a dotted value.
     await page.locator('button[data-instrument="kick"][data-step="7"]').click();
 
     await expect.poll(async () => await augmentationDots(page)).toBe(1);
@@ -363,8 +353,8 @@ test('engraves no accent on a groove that has none', async ({ page }) => {
 });
 
 test('engraves one accent per accented stroke, however many heads share it', async ({ page }) => {
-  // Hi-hat and snare struck together on step 4, the snare accented: one stem,
-  // one mark. A second, unaccompanied accent on step 8.
+  // Struck together on step 4, snare accented: one stem, one mark. A second,
+  // unaccompanied accent on step 8.
   let pattern = patternWith({ hihat: [0, 4, 8], snare: [4] });
   pattern = withArticulation(pattern, 'snare', 4, 'accent');
   pattern = withArticulation(pattern, 'hihat', 8, 'accent');
@@ -381,8 +371,8 @@ test('engraves no parentheses on a groove with no ghost note', async ({ page }) 
 });
 
 test('brackets the ghosted head only, leaving the rest of its stroke bare', async ({ page }) => {
-  // Hi-hat and snare struck together, the snare ghosted: unlike an accent, the
-  // mark names its own drum, so it goes round one head and not round the stem.
+  // Struck together, snare ghosted: unlike an accent the mark names its own
+  // drum, so it goes round one head, not the stem.
   await load(page, withArticulation(patternWith({ hihat: [0], snare: [0] }), 'snare', 0, 'ghost'));
 
   const stroke = await glyphsOfFirstStroke(page);
@@ -392,11 +382,10 @@ test('brackets the ghosted head only, leaving the rest of its stroke bare', asyn
   expect(heads).toHaveLength(2);
   expect(brackets).toHaveLength(2);
 
-  // The snare sits lower on the staff than the hi-hat, so the head further down
-  // the page is the one the brackets have to be bound to.
+  // The snare sits lower than the hi-hat, so the lower head is the bracketed one.
   const ghosted = heads.reduce((lowest, head) => (head.y > lowest.y ? head : lowest));
-  // One either side of that head, which is what makes them read as parentheses
-  // round it rather than as two marks that happen to be nearby.
+  // One either side of it, so they read as parentheses round the head rather
+  // than two marks that happen to be nearby.
   const [left, right] = brackets.map(({ x }) => x).sort((a, b) => a - b);
   expect(left!).toBeLessThan(ghosted.x);
   expect(right!).toBeGreaterThan(ghosted.x);
@@ -410,8 +399,8 @@ test("draws a grace note before a flammed stroke, at its own drum's position", a
   });
   page.on('pageerror', (error) => errors.push(error.message));
 
-  // Hi-hat and snare struck together, the snare flammed: one head more than the
-  // stroke has, and it is the snare's own — same line, same shape, drawn before.
+  // Struck together, snare flammed: one head more than the stroke, and it is the
+  // snare's own — same line, same shape, drawn before.
   const stroke = patternWith({ hihat: [0], snare: [0] });
   await load(page, withArticulation(stroke, 'snare', 0, 'flam'));
 
@@ -424,8 +413,8 @@ test("draws a grace note before a flammed stroke, at its own drum's position", a
   expect(grace!.y).toBe(main!.y);
   expect(grace!.x).toBeLessThan(main!.x);
 
-  // A grace note steals no time, so the voice still fills its measure — which
-  // VexFlow would refuse, loudly, if it did not.
+  // A grace note steals no time, so the voice still fills its measure — VexFlow
+  // would refuse loudly otherwise.
   expect(errors).toEqual([]);
 });
 
@@ -444,14 +433,13 @@ test('draws two beamed grace notes before a dragged stroke', async ({ page }) =>
   });
   page.on('pageerror', (error) => errors.push(error.message));
 
-  // A lone quarter note in the measure, so the only beam the page can carry is
-  // the one joining the grace notes.
+  // A lone quarter in the measure, so the only possible beam joins the graces.
   await load(page, withArticulation(patternWith({ snare: [0] }), 'snare', 0, 'drag'));
 
   const drawn = await heads(page);
   expect(drawn).toHaveLength(3);
   const [first, second, main] = drawn.toSorted((a, b) => a.x - b.x);
-  // Both grace notes on the snare's own line, before the hit they lead into.
+  // Both grace notes on the snare's line, before the hit they lead into.
   for (const grace of [first!, second!]) {
     expect(grace.glyph).toBe(HEAD_GLYPHS.normal);
     expect(grace.y).toBe(main!.y);
@@ -459,11 +447,11 @@ test('draws two beamed grace notes before a dragged stroke', async ({ page }) =>
   }
   expect(first!.x).toBeLessThan(second!.x);
 
-  // Beamed, not flagged: which is what tells a drag from a flam on the page.
+  // Beamed, not flagged: what tells a drag from a flam on the page.
   await expect(page.locator(beams)).toHaveCount(1);
   await expect(page.locator(flags)).toHaveCount(0);
 
-  // Grace notes steal no time here either, however many of them there are.
+  // Grace notes steal no time here either, however many.
   expect(errors).toEqual([]);
 });
 
@@ -477,8 +465,8 @@ test('beams a drag where a flam is left with a single grace note', async ({ page
 test('slurs a grace group into the stroke it leads, once however many grace notes', async ({
   page,
 }) => {
-  // The slur belongs to the group, not to each grace note: a drag draws the one
-  // curve its pair shares, exactly as a flam draws the one its single note has.
+  // The slur belongs to the group, not each grace note: a drag draws one curve
+  // for its pair, as a flam draws one for its single note.
   const plain = patternWith({ snare: [0] });
   await load(page, plain);
   await expect(page.locator(slurs)).toHaveCount(0);
@@ -491,9 +479,8 @@ test('slurs a grace group into the stroke it leads, once however many grace note
 });
 
 test('leads two flams struck together with one grace group on one stem', async ({ page }) => {
-  // Hi-hat and snare both flammed on the same step: their grace hits sound at
-  // the same moment, so the page has to show one gesture — a chord on a single
-  // stem — and not two grace notes implying a sequence nobody plays.
+  // Both flammed on one step: their grace hits share a moment, so the page shows
+  // one gesture — a chord on a single stem — not a sequence nobody plays.
   const struck = patternWith({ hihat: [0], snare: [0] });
   const pattern = withArticulation(
     withArticulation(struck, 'hihat', 0, 'flam'),
@@ -506,15 +493,15 @@ test('leads two flams struck together with one grace group on one stem', async (
   const slots = await graceSlotsOfFirstStroke(page);
   expect(slots).toHaveLength(1);
   expect(slots[0]!.glyphs.toSorted()).toEqual([HEAD_GLYPHS.cross, HEAD_GLYPHS.normal].toSorted());
-  // Both heads set down at one x, which is what sharing a stem looks like.
+  // Both heads at one x: what sharing a stem looks like.
   expect(new Set(slots[0]!.xs).size).toBe(1);
-  // The stroke's own stem and the grace group's, and nothing else.
+  // The stroke's own stem and the grace group's, nothing else.
   expect(await stemsOfFirstStroke(page)).toBe(2);
 });
 
 test('lines a flam up with the second of a drag it is struck with', async ({ page }) => {
-  // A dragged hi-hat leads by two slots and a flammed snare by one: the drag's
-  // first grace note stands alone, and the two share the slot after it.
+  // Drag leads by two slots, flam by one: the drag's first grace note stands
+  // alone, the two share the slot after.
   const struck = patternWith({ hihat: [0], snare: [0] });
   const pattern = withArticulation(
     withArticulation(struck, 'hihat', 0, 'drag'),
@@ -530,10 +517,10 @@ test('lines a flam up with the second of a drag it is struck with', async ({ pag
   expect(first!.glyphs).toEqual([HEAD_GLYPHS.cross]);
   expect(second!.glyphs.toSorted()).toEqual([HEAD_GLYPHS.cross, HEAD_GLYPHS.normal].toSorted());
   expect(new Set(second!.xs).size).toBe(1);
-  // Earliest first: the slot sounding two leads early is drawn furthest left.
+  // Earliest first: the slot two leads early is drawn furthest left.
   expect(first!.xs[0]!).toBeLessThan(second!.xs[0]!);
 
-  // One group of two slots, beamed: the stroke's stem plus one for each slot.
+  // One group of two slots, beamed: the stroke's stem plus one per slot.
   expect(await stemsOfFirstStroke(page)).toBe(3);
   await expect(page.locator(beams)).toHaveCount(1);
 });
@@ -551,10 +538,9 @@ test('keeps a measure of sixteen ornamented sixteenths on its own stave', async 
   });
   page.on('pageerror', (error) => errors.push(error.message));
 
-  // A drag on every sixteenth — three noteheads a step, the densest measure the
-  // vocabulary can write — on a phone, where the staff has least room to write
-  // it in. Cramped is allowed; drawn past the barline, off the page, or not at
-  // all is not.
+  // A drag every sixteenth — three heads a step, the densest measure writable —
+  // on a phone, where the staff has least room. Cramped is allowed; past the
+  // barline, off the page, or missing is not.
   await page.setViewportSize({ width: 390, height: 900 });
   const dragged = [...Array(TOTAL_STEPS).keys()].reduce(
     (pattern, step) => withArticulation(pattern, 'hihat', step, 'drag'),
@@ -565,24 +551,22 @@ test('keeps a measure of sixteen ornamented sixteenths on its own stave', async 
   const drawn = await heads(page);
   expect(drawn).toHaveLength(TOTAL_STEPS * 3);
 
-  // Every measure is on a stave of its own at this width, so one span holds
-  // them all: no notehead outside the lines it belongs to, grace notes least of
-  // all — they are drawn ahead of their stroke and so are the first to fall off
-  // the front of a measure.
+  // Every measure has its own stave at this width, so one span holds them all:
+  // no notehead outside its lines, grace notes least of all — drawn ahead of
+  // their stroke, they fall off the front of a measure first.
   const { staveLeft, staveRight, inkRight, pageWidth } = await drawingBounds(page);
   for (const { x } of drawn) {
     expect(x).toBeGreaterThanOrEqual(staveLeft);
     expect(x).toBeLessThanOrEqual(staveRight);
   }
-  // And nothing at all drawn past the edge of the page, where it would simply
-  // be cut off.
+  // And nothing past the page edge, where it would be cut off.
   expect(inkRight).toBeLessThanOrEqual(pageWidth);
 
   expect(errors).toEqual([]);
 });
 
 test('engraves the hands above the staff and the feet below it', async ({ page }) => {
-  /** The first system's five lines, in the same coordinates as the accents. */
+  /** The first system's five lines, in the accents' coordinates. */
   const staveEdges = async (): Promise<Ink> => (await inkOf(page, `${staff} .vf-stave`))[0]!;
 
   await load(page, withArticulation(patternWith({ hihat: [0] }), 'hihat', 0, 'accent'));

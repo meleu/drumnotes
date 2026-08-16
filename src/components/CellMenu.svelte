@@ -3,11 +3,11 @@
   import { ARTICULATION_CHOICES } from '../core/pattern.js';
 
   interface Props {
-    /** The cell the menu belongs to: what it points at, and where focus goes. */
+    /** The cell it points at, and where focus returns. */
     anchor: HTMLElement;
-    /** Marked as chosen, on an empty cell as much as a written one. */
+    /** Marked as chosen, on empty cells as much as written ones. */
     current: Articulation;
-    /** Names the menu, so it says which cell it is acting on. */
+    /** Names the menu, saying which cell it acts on. */
     label: string;
     onchoose: (articulation: Articulation) => void;
     onclose: () => void;
@@ -15,16 +15,15 @@
 
   const { anchor, current, label, onchoose, onclose }: Props = $props();
 
-  /** Kept off the viewport edge, so a cell in the last column stays reachable. */
+  /** Keeps it off the viewport edge, so last-column cells stay reachable. */
   const MARGIN_PX = 8;
 
   let menu = $state<HTMLDivElement>();
   let left = $state(0);
   let top = $state(0);
 
-  /* Anchored to the cell rather than to the pointer, so a hold, a right-click
-     and the Menu key all put it in the same place. Measured after it is drawn:
-     its size depends on the entries it happens to be offering. */
+  // Anchored to the cell, not the pointer, so hold, right-click and Menu key
+  // agree. Measured after drawing: size depends on the entries offered.
   $effect(() => {
     if (menu === undefined) return;
     const cell = anchor.getBoundingClientRect();
@@ -36,8 +35,8 @@
     top = room(cell.bottom + MARGIN_PX / 2, box.height, window.innerHeight);
   });
 
-  /* Focus lands on the entry the cell already holds, so the menu opens where
-     the reader is and Enter alone changes nothing. */
+  // Focus the entry the cell holds: the menu opens where the reader is, and
+  // Enter alone changes nothing.
   $effect(() => {
     const held = ARTICULATION_CHOICES.findIndex(({ id }) => id === current);
     entries()[Math.max(held, 0)]?.focus();
@@ -47,7 +46,7 @@
     return [...(menu?.querySelectorAll('button') ?? [])];
   }
 
-  /** Roving focus: a menu is one stop, walked with the arrows and wrapping. */
+  /** Roving focus: one tab stop, arrows walk and wrap. */
   function step(by: number): void {
     const items = entries();
     const from = items.findIndex((item) => item === document.activeElement);
@@ -68,8 +67,8 @@
     event.preventDefault();
   }
 
-  /* A press anywhere else is a dismissal, whatever it lands on — including the
-     cell that opened the menu, which would otherwise reopen it. */
+  // Any press elsewhere dismisses, including on the opening cell, which would
+  // otherwise reopen it.
   function pressedOutside(event: PointerEvent): void {
     if (menu !== undefined && !menu.contains(event.target as Node)) onclose();
   }
@@ -77,8 +76,8 @@
 
 <svelte:window onkeydown={keydown} onpointerdown={pressedOutside} />
 
-<!-- Fixed, not absolute: the grid scrolls and the cells are its own layout, so
-     the menu is positioned against the viewport it is measured in. -->
+<!-- Fixed, not absolute: the grid scrolls, so position against the viewport
+     the menu is measured in. -->
 <div
   class="menu"
   role="menu"
@@ -115,8 +114,7 @@
   }
 
   .menu button {
-    /* Room for the mark, so the entries' labels line up whether or not one of
-       them is the chosen one. */
+    /* Room for the mark, so labels line up chosen or not. */
     padding: 0.5rem 0.75rem 0.5rem 1.75rem;
     border: 0;
     border-radius: 4px;
@@ -132,11 +130,10 @@
     background: #eef2f7;
   }
 
-  /* The one it already holds, marked rather than merely highlighted: focus
-     starts here, and the two must stay tellable apart. */
+  /* Marked, not just highlighted: focus starts here and the two must differ. */
   .menu button[aria-checked='true']::before {
     content: '✓';
-    /* Pulled back into the padding, so the label does not shift when marked. */
+    /* Into the padding, so the label does not shift when marked. */
     margin-left: -1.25rem;
     padding-right: 0.5rem;
     font-weight: 700;

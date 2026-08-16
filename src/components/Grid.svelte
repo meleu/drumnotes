@@ -16,12 +16,12 @@
 
   const bars = gridBars();
 
-  /** How long a press has to last before it is a hold rather than a tap. */
+  /** Press duration that makes a hold rather than a tap. */
   const HOLD_MS = 500;
-  /** How far the pointer may wander before the press is a scroll or a drag. */
+  /** Pointer drift that makes the press a scroll or drag. */
   const DRIFT_PX = 10;
 
-  /** Which cell the one open menu belongs to, and what it is anchored to. */
+  /** Which cell the open menu belongs to, and its anchor. */
   interface OpenMenu {
     readonly instrument: InstrumentId;
     readonly step: number;
@@ -39,18 +39,16 @@
     return menu?.instrument === instrument && menu.step === step;
   }
 
-  /** What a cell is called, to the cell itself and to the menu acting on it —
-   *  including what it holds, which is the only way a reader learns that a cell
-   *  is accented rather than merely written. */
+  /** Name for the cell and the menu acting on it, including what it holds — the
+   *  only way a reader learns a cell is accented, not merely written. */
   function cellName(instrument: InstrumentId, step: number): string {
     const { name } = INSTRUMENTS.find(({ id }) => id === instrument) ?? { name: instrument };
     const articulation = articulationAt(patternState.current, instrument, step);
     return `${name}, step ${step + 1}, ${choiceOf(articulation)?.name ?? articulation}`;
   }
 
-  /** The mark a cell wears, if what it holds has one to wear. Plain characters
-   *  in the page's own font, so a cell is drawn the moment it is written —
-   *  nothing here waits on the notation font the staff is loading. */
+  /** The cell's mark, if it has one. Page font, so a cell is drawn the moment
+   *  it is written — nothing waits on the staff's notation font. */
   function cellMark(instrument: InstrumentId, step: number): string {
     return choiceOf(articulationAt(patternState.current, instrument, step))?.mark ?? '';
   }
@@ -60,27 +58,23 @@
     menu = { instrument, step, cell };
   }
 
-  /** Every way out of the menu comes through here, so focus can only land back
-   *  on the cell it was opened from. */
+  /** Every way out of the menu, so focus lands back on the opening cell. */
   function close(): void {
     const opener = menu?.cell;
     menu = undefined;
     if (opener === undefined) return;
 
     opener.focus();
-    /* A press that dismissed the menu moves the focus itself, once this
-       handler has returned: onto whatever it landed on, or off everything if
-       that was not focusable. The cell takes it back only in the second case —
-       a press on another control is a reader going somewhere. */
+    // A dismissing press moves focus itself after this returns. Take it back
+    // only if it landed nowhere — a press on another control is deliberate.
     setTimeout(() => {
       if (document.activeElement === document.body) opener.focus();
     });
   }
 
-  /* What a cell sounds like the moment it is written. The core says which hits
-     an articulation makes, at which rung and how far apart — a flam auditions
-     as a flam. `empty` makes none, which is how rubbing a cell out stays silent
-     without a special case here. */
+  // What a cell sounds like when written. The core says which hits, at which
+  // rung, how far apart — a flam auditions as a flam. `empty` makes none, so
+  // rubbing out is silent with no special case here.
   function audition(instrument: InstrumentId, articulation: Articulation): void {
     for (const { dynamic, delay } of auditionOf(articulation, patternState.current.tempo)) {
       audioState.audition(instrument, dynamic, delay);
@@ -95,11 +89,9 @@
   }
 
   function pressStart(event: PointerEvent, instrument: InstrumentId, step: number): void {
-    // A press starting with the menu open is dismissing it and nothing else;
-    // the dismissal itself is the menu's business.
+    // A press with the menu open only dismisses it; that's the menu's business.
     swallowClick = menu !== undefined;
-    // Secondary buttons raise a contextmenu of their own; only a primary press
-    // can become a hold.
+    // Secondary buttons raise their own contextmenu; only primary holds.
     if (event.button !== 0) return;
 
     const cell = event.currentTarget as HTMLButtonElement;
@@ -111,9 +103,8 @@
     }, HOLD_MS);
   }
 
-  /* A finger that has started to travel is scrolling or dragging, not holding —
-     and the browser may take the gesture away entirely, which arrives as a
-     cancelled pointer. */
+  // A travelling finger is scrolling or dragging, not holding — and the browser
+  // may take the gesture entirely, arriving as a cancelled pointer.
   function pressMove(event: PointerEvent): void {
     if (origin === undefined) return;
     if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > DRIFT_PX) abandonHold();
@@ -125,8 +116,8 @@
     origin = undefined;
   }
 
-  /* Writing a hit plays it; rubbing one out is silent. Every cell makes sound,
-     so the grid waits for the samples rather than letting a tap land mutely. */
+  // Writing a hit plays it, rubbing out is silent. Every cell makes sound, so
+  // the grid waits for samples rather than letting a tap land mutely.
   function tap(instrument: InstrumentId, step: number): void {
     if (swallowClick) {
       swallowClick = false;
@@ -135,8 +126,7 @@
     audition(instrument, patternState.toggle(instrument, step));
   }
 
-  /* One handler for right-click and for the keyboard's own way of asking — the
-     Menu key and Shift+F10 both arrive here. */
+  // Right-click, Menu key and Shift+F10 all arrive here.
   function contextMenu(event: MouseEvent, instrument: InstrumentId, step: number): void {
     event.preventDefault();
     open(event.currentTarget as HTMLButtonElement, instrument, step);
@@ -157,8 +147,8 @@
       {/each}
 
       {#each INSTRUMENTS as instrument (instrument.id)}
-        <!-- Abbreviated so the label column costs the cells little width; the
-             full name is a hover away, and names every cell in the row. -->
+        <!-- Abbreviated to spare the cells width; full name on hover, and it
+             names every cell in the row. -->
         <span class="name" title={instrument.name}>{instrument.abbreviation}</span>
         {#each bar.steps as step (step.index)}
           <button
@@ -201,9 +191,9 @@
 {/if}
 
 <style>
-  /* Bars sit side by side when two fit at a legible cell size, else stack — the
-     breakpoint comes from this grid's content, not a shared constant.
-     `min(..., 100%)` keeps one bar from overflowing a narrower phone. */
+  /* Side by side when two fit at a legible cell size, else stacked — breakpoint
+     from this grid's content, not a shared constant. `min(..., 100%)` keeps one
+     bar from overflowing a narrow phone. */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(23rem, 100%), 1fr));
@@ -215,8 +205,7 @@
   .bar {
     display: grid;
     grid-template-columns: auto repeat(var(--steps), 1fr);
-    /* Hairline: every point between cells is a point off their width, and each
-       cell's border already separates it from its neighbour. */
+    /* Hairline: gap is width off the cells, and their borders already separate. */
     gap: 1px;
     align-items: center;
   }
@@ -239,11 +228,10 @@
     white-space: nowrap;
   }
 
-  /* Side by side, one set of labels names the rows of every bar in the row, so
-     the repeat is noise — the cells take back the width instead. The leading
-     column goes with the labels, keeping the counts over their own cells.
-     47.5rem is where auto-fit above fits a second 23rem bar past the 1.5rem
-     gap: the two numbers move together. */
+  /* Side by side, one set of labels names every bar's rows, so the repeat is
+     noise and the cells take the width back. The leading column goes with them,
+     keeping counts over their own cells. 47.5rem is where auto-fit above fits a
+     second 23rem bar past the 1.5rem gap: the numbers move together. */
   @container (min-width: 47.5rem) {
     .bar:not(:first-of-type) {
       grid-template-columns: repeat(var(--steps), 1fr);
@@ -255,44 +243,38 @@
     }
   }
 
-  /* Square wherever the step column is narrower than the comfortable height,
-     which on a phone is everywhere: squares read as a grid, tall thin slots
-     read as bars. Capped rather than fixed, so a wide screen keeps a short row
-     instead of growing squares the size of the label column. */
+  /* Square wherever the step column is narrower than the comfortable height —
+     on a phone, everywhere: squares read as a grid, thin slots as bars. Capped,
+     not fixed, so a wide screen keeps a short row instead of huge squares. */
   .cell {
     min-width: 0;
     aspect-ratio: 1;
     max-height: 2rem;
-    /* A button starts on the platform's own font rather than the page's, and
-       the letters below are the page's letters. */
+    /* Buttons default to the platform font; the marks below are the page's. */
     font: inherit;
-    /* So the mark inside can size itself off the cell it sits in, which is the
-       only thing that keeps a glyph proportionate from desktop to phone. */
+    /* Lets the mark size off the cell, keeping it proportionate phone to desktop. */
     container-type: size;
     padding: 0;
     border: 1px solid #d1d5db;
     border-radius: 3px;
     background: #f9fafb;
     cursor: pointer;
-    /* Held together on purpose: a hold on a cell is this app's gesture, and on
-       touch the platform would otherwise answer it first — with its own callout
-       and a word-selection. `manipulation` still leaves the page scrollable
-       with a finger that starts on a cell. */
+    /* A hold is this app's gesture; without these, touch answers first with a
+       callout and a selection. `manipulation` still allows scrolling from a cell. */
     touch-action: manipulation;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
   }
 
-  /* Beat boundaries: 1, 2, 3, 4 visible at a glance. */
+  /* Beat boundaries: 1, 2, 3, 4 at a glance. */
   .cell.beat {
     border-left: 3px solid #9ca3af;
     background: #eef2f7;
   }
 
-  /* Lights the whole column. Above the filled-cell rule on purpose: a written
-     hit keeps its colour as the playhead passes, and the ring marks the column
-     on filled and empty cells alike. */
+  /* Lights the column. Above the filled-cell rule on purpose: a written hit
+     keeps its colour, and the ring marks filled and empty cells alike. */
   .cell.playing {
     background: #fef3c7;
     box-shadow: inset 0 0 0 2px #f59e0b;
@@ -308,12 +290,10 @@
     background: #2563eb;
   }
 
-  /* The cell's articulation, in the page's own characters and sized off the
-     cell rather than the page: the square shrinks on a phone and the mark goes
-     with it. Bold, since a character drawn white on the fill has none of an
-     engraved glyph's weight to carry it. White on that fill, which is the only
-     ground it ever sits on — the playhead lights an empty cell, never a marked
-     one. */
+  /* The articulation, in page characters sized off the cell, so it shrinks with
+     the square on a phone. Bold, since a plain character lacks an engraved
+     glyph's weight. White on the fill, the only ground it sits on — the playhead
+     lights empty cells, never marked ones. */
   .mark {
     display: grid;
     place-items: center;
@@ -324,16 +304,13 @@
     pointer-events: none;
   }
 
-  /* A pair held apart where every other mark is a single character, so it is
-     set smaller to keep inside the same square. */
+  /* A pair where every other mark is one character: set smaller to fit. */
   .cell[data-articulation='ghost'] .mark {
     font-size: 50cqh;
   }
 
-  /* A letter's ink sits high in the em box that centres it — the space a
-     descender would take is empty — so it comes back down to sit in the middle
-     of the cell. `>` centres on the line by itself, and the parentheses
-     straddle it, so neither is moved. */
+  /* A letter's ink sits high in its em box (the descender space is empty), so
+     nudge it down to the cell's middle. `>` and the parens already centre. */
   .cell[data-articulation='flam'] .mark,
   .cell[data-articulation='drag'] .mark {
     padding-top: 0.06em;

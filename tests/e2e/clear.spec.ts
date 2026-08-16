@@ -5,12 +5,12 @@ import { INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
 
 const clear = '.clear';
 
-/** Cells the grid shows as written, across every instrument. */
+/** Cells the grid shows written, across every instrument. */
 function written(page: Page) {
   return page.locator('button[data-instrument][aria-pressed="true"]');
 }
 
-/** Ask, then answer — what it takes to actually rub the pattern out. */
+/** Ask, then answer — what rubbing the pattern out takes. */
 async function clearPattern(page: Page): Promise<void> {
   await page.locator(clear).click();
   await page.locator(clear).click();
@@ -48,7 +48,7 @@ test('takes the question back when it goes unanswered', async ({ page }) => {
   await page.locator(clear).click();
   await expect(page.locator(clear)).toHaveAttribute('data-state', 'asking');
 
-  // Waits out the question rather than answering it.
+  // Waits the question out rather than answering.
   await expect(page.locator(clear)).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
   await expect(page.locator(clear)).toHaveText('Clear');
   await expect(written(page)).toHaveCount(before);
@@ -65,7 +65,7 @@ test('takes the question back when attention moves elsewhere', async ({ page }) 
   await expect(page.locator(clear)).toHaveAttribute('data-state', 'idle');
   await expect(written(page)).toHaveCount(before);
 
-  // The next press asks again rather than erasing on the spot.
+  // The next press asks again rather than erasing.
   await page.locator(clear).click();
   await expect(written(page)).toHaveCount(before);
 });
@@ -97,7 +97,7 @@ test('goes dead when there is nothing left to rub out', async ({ page }) => {
   await clearPattern(page);
   await expect(page.locator(clear)).toBeDisabled();
 
-  // Writing a single hit anywhere gives it something to do again.
+  // One hit anywhere gives it something to do again.
   const silent = defaultPattern().lanes.snare.indexOf('empty');
   await page.locator(`button[data-instrument="snare"][data-step="${silent}"]`).click();
   await expect(page.locator(clear)).toBeEnabled();

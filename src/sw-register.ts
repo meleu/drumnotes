@@ -1,19 +1,18 @@
 /**
- * The page's half of the offline story. Two quiet jobs: register the worker (in
- * production only, so nothing sits between the dev server and a reload), and
- * report every same-origin resource the page loaded.
+ * The page's half of offline. Registers the worker (production only, so nothing
+ * sits between the dev server and a reload) and reports every same-origin
+ * resource the page loaded.
  *
- * That report is why the worker needs no asset list. On a first visit the
- * bundle, font and samples are all requested before the worker has control, so
- * its fetch handler never sees them — but the browser's resource timeline knows
- * their hashed URLs. One online visit caches everything, no filenames written
- * down at build time.
+ * That report is why the worker needs no asset list: on a first visit bundle,
+ * font and samples are requested before the worker has control, so its fetch
+ * handler never sees them — but the resource timeline knows their hashed URLs.
+ * One online visit caches everything, no filenames written at build time.
  */
 
 /**
- * The worker sits next to the entry document, wherever that is — site root, or a
- * subdirectory on GitHub Pages. Scope follows its own location, so this path is
- * all that needs to know the difference.
+ * The worker sits beside the entry document — site root, or a GitHub Pages
+ * subdirectory. Scope follows its location, so only this path knows the
+ * difference.
  */
 const WORKER = `${import.meta.env.BASE_URL}sw.js`;
 
@@ -27,7 +26,7 @@ export function registerServiceWorker(): void {
   if (!import.meta.env.PROD) return;
   if (!('serviceWorker' in navigator)) return;
 
-  // After load, so registering never competes with the first paint.
+  // After load, so registering never competes with first paint.
   window.addEventListener('load', () => void register());
 }
 
@@ -37,12 +36,11 @@ async function register(): Promise<void> {
     reportLoadedResources(await navigator.serviceWorker.ready);
   } catch {
     // No worker means no offline support — no reason to break the app for
-    // someone who is online right now.
+    // someone online right now.
   }
 }
 
-/** Streams every fetched URL to the worker, starting with those fetched before
- *  this ran. */
+/** Streams every fetched URL to the worker, including pre-existing ones. */
 function reportLoadedResources(registration: ServiceWorkerRegistration): void {
   const worker = registration.active;
   if (!worker) return;

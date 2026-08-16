@@ -40,8 +40,8 @@ test('corrects a typed tempo outside the range instead of trusting it', async ({
 });
 
 test('advertises the range to the browser as well as enforcing it', async ({ page }) => {
-  // Attributes hint to the spinner and phone keypad; the core clamp above is
-  // what holds the tempo in range.
+  // Attributes hint the spinner and phone keypad; the core clamp above is what
+  // holds the tempo in range.
   await page.goto('/');
 
   await expect(page.locator(field)).toHaveAttribute('min', String(MIN_TEMPO));
@@ -58,8 +58,8 @@ test('the tempo survives a reload', async ({ page }) => {
 });
 
 test('changes the rate mid-playback without stopping', async ({ page }) => {
-  // A hit every step, so gaps between scheduled times read the tempo straight
-  // off the audio clock.
+  // A hit every step, so gaps between scheduled times read the tempo off the
+  // audio clock.
   await instrumentAudio(page);
   await page.goto('/');
   await page.evaluate(
@@ -82,7 +82,7 @@ test('changes the rate mid-playback without stopping', async ({ page }) => {
 
   await type(page, String(MAX_TEMPO));
 
-  // Still playing, now handing over hits a step apart at the new tempo.
+  // Still playing, now a step apart at the new tempo.
   await expect(page.locator(transport)).toHaveAttribute('data-state', 'playing');
   const before = (await audioLog(page)).starts.length;
   await expect

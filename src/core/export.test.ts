@@ -12,7 +12,7 @@ describe('exportFilename', () => {
   });
 
   test('reads the local day, not the UTC one', () => {
-    // Late enough that any timezone east of UTC has turned the page already.
+    // Late enough that anywhere east of UTC has turned the page.
     const local = new Date(2026, 11, 31, 23, 30);
 
     expect(exportFilename(local)).toBe('drumnotes-2026-12-31.png');

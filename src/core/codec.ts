@@ -1,11 +1,7 @@
 /**
  * Persistence codec: `Pattern` ↔ versioned payload. Pure — strings, not storage.
- *
- * Parsing never throws: anything unreadable, mis-shaped or of an unknown schema
- * resolves to the default pattern, so rotted data still lands on a groove.
- *
- * One version back is lifted rather than discarded: a groove written before
- * articulations existed is still that groove, every written cell a plain hit.
+ * Parsing never throws: unreadable, mis-shaped or unknown-schema data resolves
+ * to the default pattern. One version back is lifted, not discarded.
  */
 
 import type { Articulation, InstrumentId, Lanes, Pattern } from './pattern.js';
@@ -18,11 +14,10 @@ import {
   defaultPattern,
 } from './pattern.js';
 
-/** Bump on payload shape change, and give the old version a lift below — or
- *  older payloads are discarded. */
+/** Bump on shape change, and lift the old version below, else it's discarded. */
 export const SCHEMA_VERSION = 2;
 
-/** Cells were booleans here; everything else about the payload is unchanged. */
+/** Cells were booleans; rest of the payload unchanged. */
 const BOOLEAN_CELLS_VERSION = 1;
 
 interface StoredPattern {
@@ -40,7 +35,7 @@ export function serialisePattern(pattern: Pattern): string {
   return JSON.stringify(stored);
 }
 
-/** How each readable version spells one cell. */
+/** How each readable version spells a cell. */
 const CELL_READERS: ReadonlyMap<number, (value: unknown) => Articulation | undefined> = new Map([
   [SCHEMA_VERSION, readArticulation],
   [BOOLEAN_CELLS_VERSION, liftBoolean],
@@ -84,20 +79,20 @@ function isInRange(tempo: number): boolean {
   return tempo >= MIN_TEMPO && tempo <= MAX_TEMPO;
 }
 
-/** A name outside the vocabulary rejects the payload rather than resolving to
- *  silence: a lane the app cannot read is not a lane it should half-play. */
+/** Unknown name rejects the payload, not resolves to silence: an unreadable
+ *  lane should not be half-played. */
 function readArticulation(value: unknown): Articulation | undefined {
   return ARTICULATIONS.find((articulation) => articulation === value);
 }
 
-/** Version 1's cell: written meant a plain hit, and nothing else existed. */
+/** Version 1's cell: written = plain hit, nothing else existed. */
 function liftBoolean(value: unknown): Articulation | undefined {
   if (typeof value !== 'boolean') return undefined;
   return value ? 'normal' : 'empty';
 }
 
-/** Exactly one lane per known instrument: an unknown id, a missing lane or a
- *  wrong length rejects the whole payload. */
+/** Exactly one lane per known instrument; unknown id, missing lane or wrong
+ *  length rejects the whole payload. */
 function readLanes(
   value: unknown,
   readCell: (cell: unknown) => Articulation | undefined,

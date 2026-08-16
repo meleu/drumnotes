@@ -15,12 +15,11 @@ import {
 import { graceLead, loopDuration, stepDuration } from '../../src/core/schedule.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
 
-/* Top of the tempo range throughout, so a whole loop passes in a couple of
-   seconds and a test can watch one wrap around. */
+/* Top of the range throughout, so a loop passes in a couple of seconds and a
+   test can watch one wrap around. */
 const TEMPO = MAX_TEMPO;
 const LOOP_MS = loopDuration(TEMPO) * 1000;
 
-/** The one transport button, whatever it reads. */
 const transport = '.transport';
 
 function at(pattern: Pattern, hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
@@ -51,7 +50,7 @@ async function scheduled(page: Page): Promise<number[]> {
 test('starts and stops the transport', async ({ page }) => {
   await load(page, defaultPattern());
 
-  // The button names what pressing it does, not what the transport is doing.
+  // The button names what pressing it does, not the transport's state.
   await expect(page.locator(transport)).toHaveAttribute('data-state', 'stopped');
   await expect(page.locator(transport)).toHaveText('Play');
 
@@ -115,9 +114,9 @@ test('sounds a cell enabled during playback on the next pass', async ({ page }) 
 });
 
 test('plays a ghosted hit softer than the plain hits around it', async ({ page }) => {
-  // A snare on every beat, the second of them ghosted: the hardware is handed
-  // the softest recording for that one and the plain rung for its neighbours,
-  // which is the whole of what makes a ghost note quieter (ADR 0006).
+  // Snare on every beat, the second ghosted: the hardware gets the softest
+  // recording for it and the plain rung for its neighbours — the whole of what
+  // makes a ghost quieter (ADR 0006).
   const pattern = at(emptyPattern(), { snare: [0, 4, 8, 12] });
   await load(page, withArticulation(pattern, 'snare', 4, 'ghost'));
 
@@ -135,8 +134,8 @@ test('plays a ghosted hit softer than the plain hits around it', async ({ page }
 test('leads a flam with a grace hit and lands its own hit exactly on the step', async ({
   page,
 }) => {
-  // Snares on the beat, the second of them flammed: the plain ones fix where
-  // the steps are, so the ornament can be measured against them.
+  // Snares on the beat, the second flammed: the plain ones fix the steps, so the
+  // ornament can be measured against them.
   const pattern = at(emptyPattern(), { snare: [0, 4, 8] });
   await load(page, withArticulation(pattern, 'snare', 4, 'flam'));
 
@@ -153,20 +152,20 @@ test('leads a flam with a grace hit and lands its own hit exactly on the step', 
 
   const [first, grace, main, last] = (await scheduled(page)).slice(0, 4) as number[];
   const step = stepDuration(TEMPO);
-  // The hit itself is exactly where a plain hit would have been, and the grace
-  // hit one lead ahead of it — not a step, not a subdivision.
+  // The hit exactly where a plain one would be, the grace hit a lead ahead —
+  // not a step, not a subdivision.
   expect(main! - first!).toBeCloseTo(4 * step, 4);
   expect(last! - main!).toBeCloseTo(4 * step, 4);
   expect(main! - grace!).toBeCloseTo(graceLead(TEMPO), 4);
-  // At the top of the tempo range, still clear of the sixteenth before it.
+  // At the top of the range, still clear of the sixteenth before.
   expect(grace!).toBeGreaterThan(first! + 3 * step);
 });
 
 test('leads a drag with two grace hits, at two leads and one lead before its step', async ({
   page,
 }) => {
-  // The same groove as the flam's, so the two can be read against each other:
-  // plain snares fixing the steps, the second of them dragged.
+  // Same groove as the flam's, so the two read against each other: plain snares
+  // fixing the steps, the second dragged.
   const pattern = at(emptyPattern(), { snare: [0, 4, 8] });
   await load(page, withArticulation(pattern, 'snare', 4, 'drag'));
 
@@ -174,8 +173,8 @@ test('leads a drag with two grace hits, at two leads and one lead before its ste
   await expect.poll(async () => (await scheduled(page)).length).toBeGreaterThanOrEqual(5);
 
   const log = await audioLog(page);
-  // Three hits where a flam makes two, and the extra one is a grace hit —
-  // which is the whole of what tells a drag from a flam by ear.
+  // Three hits where a flam makes two, the extra a grace hit — the whole of what
+  // tells a drag from a flam by ear.
   expect(log.samples.slice(0, 5)).toEqual([
     'Snare-Med',
     'Snare-Softest',
@@ -187,21 +186,21 @@ test('leads a drag with two grace hits, at two leads and one lead before its ste
   const [first, far, near, main, last] = (await scheduled(page)).slice(0, 5) as number[];
   const step = stepDuration(TEMPO);
   const lead = graceLead(TEMPO);
-  // The hit itself exactly where a plain hit would have been, and the two grace
-  // hits evenly spaced back from it.
+  // The hit exactly where a plain one would be, the two grace hits evenly spaced
+  // back from it.
   expect(main! - first!).toBeCloseTo(4 * step, 4);
   expect(last! - main!).toBeCloseTo(4 * step, 4);
   expect(main! - near!).toBeCloseTo(lead, 4);
   expect(main! - far!).toBeCloseTo(2 * lead, 4);
-  // At the top of the tempo range, even the further of the two stays clear of
-  // the sixteenth before.
+  // At the top of the range, even the further stays clear of the sixteenth
+  // before.
   expect(far!).toBeGreaterThan(first! + 3 * step);
 });
 
 test('hands nothing over as a moment already gone by, grace hits included', async ({ page }) => {
-  // A drag on every step: the furthest back the vocabulary reaches, as often as
-  // the pattern can place it. A time already past sounds at once, which would
-  // collapse the ornament into a smear (ADR 0006).
+  // A drag every step: the furthest the vocabulary reaches, as often as it can
+  // be placed. A time already past sounds at once, smearing the ornament
+  // (ADR 0006).
   const drags = [...Array(TOTAL_STEPS).keys()].reduce(
     (pattern, step) => withArticulation(pattern, 'snare', step, 'drag'),
     emptyPattern(),
@@ -219,8 +218,8 @@ test('hands nothing over as a moment already gone by, grace hits included', asyn
 });
 
 test('starts from the top again after a stop', async ({ page }) => {
-  // Only the downbeat is written, so a pass's first hit arrives at once if
-  // playback rewound, and up to a loop later if not.
+  // Only the downbeat written: a pass's first hit arrives at once if playback
+  // rewound, up to a loop later if not.
   await load(page, at(emptyPattern(), { kick: [0] }));
 
   await page.locator(transport).click();

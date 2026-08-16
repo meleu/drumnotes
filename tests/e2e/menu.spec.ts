@@ -4,16 +4,14 @@ import { expect, test } from '@playwright/test';
 import { ARTICULATION_CHOICES, defaultPattern } from '../../src/core/pattern.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
 
-/** Long enough that a hold has fired, short enough to stay a quick test. */
+/** Past the hold threshold, short enough to keep the test quick. */
 const HELD_MS = 700;
 
-/** First cell the default groove leaves empty in a lane. */
 function silentCell(page: Page, instrument: 'hihat' | 'snare' | 'kick'): Locator {
   const step = defaultPattern().lanes[instrument].indexOf('empty');
   return page.locator(`button[data-instrument="${instrument}"][data-step="${step}"]`);
 }
 
-/** First cell the default groove writes in a lane. */
 function writtenCell(page: Page, instrument: 'hihat' | 'snare' | 'kick'): Locator {
   const step = defaultPattern().lanes[instrument].indexOf('normal');
   return page.locator(`button[data-instrument="${instrument}"][data-step="${step}"]`);
@@ -126,7 +124,7 @@ test('writes and sounds a plain hit from the menu, and rubs one out in silence',
   await expect(menu).toBeHidden();
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
   await expect(cell).toBeFocused();
-  // No time handed over: an audition sounds at once, not through a queue.
+  // No time handed over: an audition sounds at once, not via a queue.
   expect((await audioLog(page)).starts).toEqual([undefined]);
 
   await press(page, cell, HELD_MS);
@@ -182,8 +180,8 @@ test('writes a flam from the menu in one gesture, and auditions it as a flam', a
   await expect(cell).toBeFocused();
 
   const log = await audioLog(page);
-  // Two hits a sliver apart, not one hit and not two at once: the grace hit
-  // sounds where the tap landed and the hit it leads into follows.
+  // Two hits a sliver apart, not one and not two at once: the grace hit sounds
+  // at the tap, the hit it leads into follows.
   expect(log.samples).toEqual(['Snare-Softest', 'Snare-Hard']);
   expect(log.starts[0]).toBeUndefined();
   expect(log.starts[1]).toBeGreaterThan(log.clocks[1]!);
@@ -202,8 +200,8 @@ test('writes a drag from the menu, and auditions it as three hits', async ({ pag
   await expect(cell).toBeFocused();
 
   const log = await audioLog(page);
-  // Two grace hits and the hit they lead into, each a lead after the last: a
-  // drag heard at one moment, or as two hits, is not a drag.
+  // Two grace hits then the hit they lead into, each a lead apart: a drag heard
+  // at one moment, or as two hits, is not a drag.
   expect(log.samples).toEqual(['Snare-Softest', 'Snare-Softest', 'Snare-Hard']);
   expect(log.starts[0]).toBeUndefined();
   expect(log.starts[1]).toBeGreaterThan(log.clocks[1]!);
@@ -220,11 +218,11 @@ test('offers the whole vocabulary, and writes every one of it on every instrumen
     const cell = silentCell(page, instrument);
 
     for (const { id, name } of ARTICULATION_CHOICES) {
-      // Opened by right-click rather than by holding: the two are the same way
-      // in, and eighteen holds would be a minute of waiting.
+      // Right-click, not a hold: same way in, and eighteen holds would be a
+      // minute of waiting.
       await cell.click({ button: 'right' });
-      // The same six, in the same order, whatever the cell and whatever it
-      // holds: nothing is refused of any instrument.
+      // The same six in the same order, whatever the cell holds: nothing is
+      // refused of any instrument.
       expect(await menu.getByRole('menuitemradio').allTextContents()).toEqual(named);
 
       await menu.getByRole('menuitemradio', { name }).click();
@@ -292,16 +290,15 @@ test('advertises the menu without losing written from empty', async ({ page }) =
 
   await press(page, written, HELD_MS);
 
-  // Only the cell that opened it says so, and the menu says whose it is.
+  // Only the opening cell says so, and the menu says whose it is.
   await expect(written).toHaveAttribute('aria-expanded', 'true');
   await expect(empty).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('menu')).toHaveAttribute('aria-label', /Hi-hat, step \d+/);
 });
 
-/* Whether iOS honours these is deliberately untested: the callout is an iOS
-   Safari behaviour, and neither Chromium nor headless WebKit on Linux
-   reproduces it. What is asserted is that all three are declared on the cell
-   together, so none can be dropped without this failing. */
+/* Whether iOS honours these is untested: the callout is iOS Safari behaviour
+   that neither Chromium nor headless WebKit on Linux reproduces. Asserted
+   instead: all three are declared together, so none can be dropped silently. */
 test('suppresses the platform callout with all three properties on the cell', async ({ page }) => {
   const rule = await page.evaluate(() => {
     const cell = document.querySelector('button.cell');
@@ -325,8 +322,8 @@ test.describe('with a finger', () => {
   test('never opens the menu when the press becomes a scroll', async ({ page }) => {
     const cell = silentCell(page, 'hihat');
     const { x, y } = await centre(cell);
-    // Real touches, so the browser takes the gesture for the scroll itself —
-    // which is what a finger starting on a cell has to be allowed to do.
+    // Real touches, so the browser takes the gesture for the scroll — what a
+    // finger starting on a cell must be allowed to do.
     const input = await page.context().newCDPSession(page);
     const finger = async (type: 'touchStart' | 'touchMove' | 'touchEnd', dy?: number) =>
       await input.send('Input.dispatchTouchEvent', {
@@ -339,7 +336,7 @@ test.describe('with a finger', () => {
       await finger('touchMove', dy);
       await page.waitForTimeout(80);
     }
-    // Held past the hold: a scroll under way outlasting it opens nothing.
+    // Held past the threshold: a scroll under way opens nothing.
     await page.waitForTimeout(HELD_MS);
     await finger('touchEnd');
 
