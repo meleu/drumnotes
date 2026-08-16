@@ -272,3 +272,6 @@ $RECYCLE.BIN/
 /test-results/
 /blob-report/
 /playwright/.cache/
+
+# PRDs and implementation plans stay local, out of history
+/docs/plans/
