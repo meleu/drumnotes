@@ -136,7 +136,12 @@ describe('articulationAt', () => {
 
 describe('ARTICULATION_CHOICES', () => {
   it('offers silence first, then the articulations the app can write', () => {
-    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual(['empty', 'normal', 'accent']);
+    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual([
+      'empty',
+      'normal',
+      'accent',
+      'ghost',
+    ]);
   });
 
   it('offers each articulation at most once, and none the pattern cannot hold', () => {
@@ -321,6 +326,12 @@ describe('soundsAt', () => {
     expect(soundsAt(pattern, 4)).toEqual([{ instrument: 'snare', dynamic: 'hardest' }]);
   });
 
+  it('sounds a ghost note at its own dynamic', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'ghost');
+
+    expect(soundsAt(pattern, 4)).toEqual([{ instrument: 'snare', dynamic: 'softest' }]);
+  });
+
   it('sounds nothing on a silent step', () => {
     expect(soundsAt(emptyPattern(), 3)).toEqual([]);
   });
@@ -343,6 +354,10 @@ describe('hitsOf', () => {
 
   it('plays an accent on the step, at the hardest recording', () => {
     expect(hitsOf('accent')).toEqual([{ leads: 0, dynamic: 'hardest' }]);
+  });
+
+  it('plays a ghost note on the step, at the softest recording', () => {
+    expect(hitsOf('ghost')).toEqual([{ leads: 0, dynamic: 'softest' }]);
   });
 
   it('names a dynamic for every hit of every articulation', () => {

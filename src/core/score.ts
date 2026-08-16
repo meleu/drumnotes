@@ -38,6 +38,10 @@ const STEPS_PER_DURATION: Readonly<Record<Duration, number>> = {
 export interface Notehead {
   readonly position: StaffPosition;
   readonly type: NoteheadType;
+  /** Bracketed off as struck softer than what surrounds it. A property of the
+   *  head rather than of the stroke, unlike an accent: the parentheses sit
+   *  around one notehead, which is how the page says *which* drum was ghosted. */
+  readonly parenthesised: boolean;
 }
 
 /** What one voice strikes on one step, low to high — one stroke, one stem. */
@@ -229,8 +233,10 @@ function voiceContent(
 /**
  * What this voice strikes on one step, low to high, or nothing.
  *
- * The mark is the stroke's: one accented head accents the stem it shares with
- * the rest, because a stem cannot be half struck harder.
+ * Where a mark lands is decided by what it says. An accent is the stroke's: one
+ * accented head accents the stem it shares with the rest, because a stem cannot
+ * be half struck harder. A ghost's parentheses are one head's, because they say
+ * which drum was struck softly and a stroke has no way to say that.
  */
 function strokeAt(
   pattern: Pattern,
@@ -245,9 +251,10 @@ function strokeAt(
   if (heads.length === 0) return undefined;
 
   return {
-    noteheads: heads.map(({ instrument }) => ({
+    noteheads: heads.map(({ instrument, articulation }) => ({
       position: instrument.position,
       type: instrument.notehead,
+      parenthesised: articulation === 'ghost',
     })),
     accented: heads.some(({ articulation }) => articulation === 'accent'),
   };

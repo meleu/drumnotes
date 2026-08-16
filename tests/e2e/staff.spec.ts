@@ -61,6 +61,10 @@ async function augmentationDots(page: Page): Promise<number> {
  *  of itself depending on which side of the stroke it sits. */
 const ACCENT_GLYPHS = ['\u{E4A0}', '\u{E4A1}'];
 
+/** SMuFL noteheadParenthesisLeft and noteheadParenthesisRight — the pair a
+ *  ghosted head is bracketed with, drawn one either side of it. */
+const PARENTHESIS_GLYPHS = ['\u{E0F5}', '\u{E0F6}'];
+
 interface Ink {
   top: number;
   bottom: number;
@@ -85,26 +89,54 @@ async function inkOf(page: Page, selector: string): Promise<Ink[]> {
   );
 }
 
+/** Where a glyph is set down on the page: its origin, not its box. */
+interface Anchor {
+  x: number;
+  y: number;
+}
+
 /**
- * Where each drawn accent sits, so above and below can be told apart. A glyph's
- * baseline rather than its box: a text node's box is the whole font's ascent and
- * descent, which for a mark this small says almost nothing about where the mark
- * is.
+ * Where each of a set of glyphs is drawn, so one mark can be told from another
+ * and above from below. A glyph's origin rather than its box: a text node's box
+ * is the whole font's ascent and descent, which for a mark this small says
+ * almost nothing about where the mark is.
  */
-async function accentBaselines(page: Page): Promise<number[]> {
+async function glyphAnchors(page: Page, glyphs: readonly string[]): Promise<Anchor[]> {
   return await page.locator(`${staff} text`).evaluateAll(
-    (nodes, glyphs) =>
+    (nodes, wanted) =>
       nodes
-        .filter((node) => glyphs.includes(node.textContent ?? ''))
+        .filter((node) => wanted.includes(node.textContent ?? ''))
         .map((element) => {
           const node = element as unknown as SVGGraphicsElement;
           const ctm = node.getScreenCTM();
-          if (ctm === null) throw new Error('accent is not rendered');
+          if (ctm === null) throw new Error('glyph is not rendered');
           const at = new DOMPoint(Number(node.getAttribute('x')), Number(node.getAttribute('y')));
-          return at.matrixTransform(ctm).y;
+          const { x, y } = at.matrixTransform(ctm);
+          return { x, y };
         }),
-    ACCENT_GLYPHS,
+    [...glyphs],
   );
+}
+
+/** Where each accent sits vertically, so above and below can be told apart. */
+async function accentBaselines(page: Page): Promise<number[]> {
+  return (await glyphAnchors(page, ACCENT_GLYPHS)).map(({ y }) => y);
+}
+
+/** Every glyph drawn for the first stroke on the page, where it was set down.
+ *  Stave coordinates, which is all a comparison within one stroke needs. */
+async function glyphsOfFirstStroke(page: Page): Promise<{ glyph: string; x: number; y: number }[]> {
+  return await page
+    .locator(`${staff} .vf-stavenote`)
+    .first()
+    .locator('text')
+    .evaluateAll((nodes) =>
+      nodes.map((node) => ({
+        glyph: node.textContent ?? '',
+        x: Number(node.getAttribute('x')),
+        y: Number(node.getAttribute('y')),
+      })),
+    );
 }
 
 /** Measure tops, deduped into systems. */
@@ -257,6 +289,36 @@ test('engraves one accent per accented stroke, however many heads share it', asy
   await load(page, pattern);
 
   expect(await accentBaselines(page)).toHaveLength(2);
+});
+
+test('engraves no parentheses on a groove with no ghost note', async ({ page }) => {
+  const pattern = patternWith({ hihat: [0, 4], snare: [4] });
+  await load(page, withArticulation(pattern, 'snare', 4, 'accent'));
+
+  expect(await glyphAnchors(page, PARENTHESIS_GLYPHS)).toEqual([]);
+});
+
+test('brackets the ghosted head only, leaving the rest of its stroke bare', async ({ page }) => {
+  // Hi-hat and snare struck together, the snare ghosted: unlike an accent, the
+  // mark names its own drum, so it goes round one head and not round the stem.
+  await load(page, withArticulation(patternWith({ hihat: [0], snare: [0] }), 'snare', 0, 'ghost'));
+
+  const stroke = await glyphsOfFirstStroke(page);
+  const brackets = stroke.filter(({ glyph }) => PARENTHESIS_GLYPHS.includes(glyph));
+  const heads = stroke.filter(({ glyph }) => !PARENTHESIS_GLYPHS.includes(glyph));
+
+  expect(heads).toHaveLength(2);
+  expect(brackets).toHaveLength(2);
+
+  // The snare sits lower on the staff than the hi-hat, so the head further down
+  // the page is the one the brackets have to be bound to.
+  const ghosted = heads.reduce((lowest, head) => (head.y > lowest.y ? head : lowest));
+  // One either side of that head, which is what makes them read as parentheses
+  // round it rather than as two marks that happen to be nearby.
+  const [left, right] = brackets.map(({ x }) => x).sort((a, b) => a - b);
+  expect(left!).toBeLessThan(ghosted.x);
+  expect(right!).toBeGreaterThan(ghosted.x);
+  for (const bracket of brackets) expect(bracket.y).toBe(ghosted.y);
 });
 
 test('engraves the hands above the staff and the feet below it', async ({ page }) => {

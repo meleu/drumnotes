@@ -10,6 +10,7 @@ import {
   defaultPattern,
   emptyPattern,
   toggleStep,
+  withArticulation,
 } from '../../src/core/pattern.js';
 import { loopDuration } from '../../src/core/schedule.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
@@ -111,6 +112,24 @@ test('sounds a cell enabled during playback on the next pass', async ({ page }) 
   await expect
     .poll(async () => (await scheduled(page)).length, { timeout: LOOP_MS * 2 })
     .toBeGreaterThan(0);
+});
+
+test('plays a ghosted hit softer than the plain hits around it', async ({ page }) => {
+  // A snare on every beat, the second of them ghosted: the hardware is handed
+  // the softest recording for that one and the plain rung for its neighbours,
+  // which is the whole of what makes a ghost note quieter (ADR 0006).
+  const pattern = at(emptyPattern(), { snare: [0, 4, 8, 12] });
+  await load(page, withArticulation(pattern, 'snare', 4, 'ghost'));
+
+  await page.locator(transport).click();
+  await expect.poll(async () => (await audioLog(page)).samples.length).toBeGreaterThanOrEqual(4);
+
+  expect((await audioLog(page)).samples.slice(0, 4)).toEqual([
+    'Snare-Med',
+    'Snare-Softest',
+    'Snare-Med',
+    'Snare-Med',
+  ]);
 });
 
 test('starts from the top again after a stop', async ({ page }) => {

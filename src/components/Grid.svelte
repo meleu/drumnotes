@@ -177,6 +177,7 @@
             aria-expanded={isOpen(instrument.id, step.index)}
             data-instrument={instrument.id}
             data-step={step.index}
+            data-articulation={articulationAt(patternState.current, instrument.id, step.index)}
             disabled={!audioState.ready}
             onclick={() => tap(instrument.id, step.index)}
             onpointerdown={(event) => pressStart(event, instrument.id, step.index)}
@@ -321,10 +322,15 @@
     font-size: 145cqh;
     line-height: 0;
     color: #fff;
-    /* Bravura hangs articulation marks below the origin; centring the box is
-       not centring the glyph. */
-    padding-top: 0.28em;
     pointer-events: none;
+  }
+
+  /* Bravura sets each mark against the baseline the staff would put it on, and
+     a cell has no staff to hang it from: a mark drawn wholly above the baseline
+     has to come back down to sit in the middle of its cell. The parentheses
+     already straddle the baseline, so they are left where they are. */
+  .cell[data-articulation='accent'] .mark {
+    padding-top: 0.28em;
   }
 
   /* Samples still decoding: readable, not yet playable. */

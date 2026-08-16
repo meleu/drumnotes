@@ -82,8 +82,8 @@ describe('toScore', () => {
     expect(notes).toHaveLength(1);
     // Low to high, as drawn.
     expect(notes[0]!.noteheads).toEqual([
-      { position: 'c/5', type: 'normal' },
-      { position: 'g/5', type: 'cross' },
+      { position: 'c/5', type: 'normal', parenthesised: false },
+      { position: 'g/5', type: 'cross', parenthesised: false },
     ]);
   });
 
@@ -93,11 +93,11 @@ describe('toScore', () => {
     const feet = notesOf(firstMeasureVoice(pattern, 'feet'));
 
     expect(hands.map((note) => note.noteheads)).toEqual([
-      [{ position: 'g/5', type: 'cross' }], // hi-hat: above top line
-      [{ position: 'c/5', type: 'normal' }], // snare: 3rd space
+      [{ position: 'g/5', type: 'cross', parenthesised: false }], // hi-hat: above top line
+      [{ position: 'c/5', type: 'normal', parenthesised: false }], // snare: 3rd space
     ]);
     expect(feet.map((note) => note.noteheads)).toEqual([
-      [{ position: 'f/4', type: 'normal' }], // kick: 1st space
+      [{ position: 'f/4', type: 'normal', parenthesised: false }], // kick: 1st space
     ]);
   });
 
@@ -197,6 +197,47 @@ describe('accents', () => {
     const accented = withArticulation(plain, 'hihat', 4, 'accent');
 
     expect(spellAll(firstMeasureVoice(accented, 'hands').entries)).toBe(
+      spellAll(firstMeasureVoice(plain, 'hands').entries),
+    );
+  });
+});
+
+describe('ghost notes', () => {
+  it('leaves a plain head bare', () => {
+    const notes = notesOf(firstMeasureVoice(patternWith({ snare: [4] }), 'hands'));
+
+    expect(notes[0]!.noteheads).toEqual([
+      { position: 'c/5', type: 'normal', parenthesised: false },
+    ]);
+  });
+
+  it('parenthesises the head a ghosted cell is drawn as', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'ghost');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.noteheads).toEqual([
+      { position: 'c/5', type: 'normal', parenthesised: true },
+    ]);
+  });
+
+  it('parenthesises only the ghosted head of a stroke, leaving the rest bare', () => {
+    // Hi-hat and snare struck together, the snare ghosted: unlike an accent, the
+    // mark names its own instrument, so the other head keeps nothing of it.
+    const pattern = withArticulation(patternWith({ hihat: [4], snare: [4] }), 'snare', 4, 'ghost');
+
+    const [stroke] = notesOf(firstMeasureVoice(pattern, 'hands'));
+    expect(stroke!.noteheads).toEqual([
+      { position: 'c/5', type: 'normal', parenthesised: true },
+      { position: 'g/5', type: 'cross', parenthesised: false },
+    ]);
+    // The stroke itself is untouched: a ghost is not a dynamic mark on the stem.
+    expect(stroke!.accented).toBe(false);
+  });
+
+  it('changes nothing about what the measure is worth', () => {
+    const plain = patternWith({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12] });
+    const ghosted = withArticulation(plain, 'snare', 4, 'ghost');
+
+    expect(spellAll(firstMeasureVoice(ghosted, 'hands').entries)).toBe(
       spellAll(firstMeasureVoice(plain, 'hands').entries),
     );
   });

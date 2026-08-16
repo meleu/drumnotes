@@ -144,7 +144,8 @@ _Avoid_: silence, gap, pause
 
 **Notehead**:
 Where one head of a note sits on the staff, and what shape it is drawn with — a cross
-for cymbals, a plain head otherwise.
+for cymbals, a plain head otherwise — together with whether it is bracketed as a ghost
+note, which is the one mark a head carries on its own rather than sharing with its stroke.
 _Avoid_: head, glyph, notation symbol
 
 **Staff position**:

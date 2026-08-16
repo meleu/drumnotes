@@ -113,6 +113,28 @@ test('marks an accented cell and leaves a plain one bare', async ({ page }) => {
   ).toBeEmpty();
 });
 
+test('marks a ghosted cell with the pair the staff brackets it in', async ({ page }) => {
+  const step = defaultPattern().lanes.snare.indexOf('normal');
+  const accented = defaultPattern().lanes.hihat.indexOf('normal');
+  let pattern = withArticulation(defaultPattern(), 'snare', step, 'ghost');
+  pattern = withArticulation(pattern, 'hihat', accented, 'accent');
+  await page.evaluate(
+    ([key, stored]) => localStorage.setItem(key!, stored!),
+    [STORAGE_KEY, serialisePattern(pattern)],
+  );
+  await page.reload();
+
+  // SMuFL noteheadParenthesis: the parentheses of the page, as one glyph with
+  // the head's own space left empty — which on a cell is the cell.
+  await expect(
+    page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
+  ).toHaveText('\u{E0CE}');
+  // And not the mark of the articulation beside it in the menu.
+  await expect(
+    page.locator(`button[data-instrument="hihat"][data-step="${accented}"] .mark`),
+  ).toHaveText('\u{E4A0}');
+});
+
 test('keeps an accented cell marked as the playhead lights its column', async ({ page }) => {
   const step = defaultPattern().lanes.snare.indexOf('normal');
   await page.evaluate(

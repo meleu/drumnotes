@@ -120,6 +120,10 @@ export const ARTICULATION_CHOICES: readonly ArticulationChoice[] = [
   { id: 'empty', name: 'Empty' },
   { id: PLAIN, name: 'Plain' },
   { id: 'accent', name: 'Accent', mark: '\uE4A0' }, // SMuFL articAccentAbove
+  // SMuFL noteheadParenthesis: the pair the staff draws around a ghosted head,
+  // as one glyph with the head's own space left empty \u2014 which on a cell is the
+  // cell.
+  { id: 'ghost', name: 'Ghost', mark: '\uE0CE' },
 ];
 
 /** What one articulation is called and drawn with, or nothing if the app cannot

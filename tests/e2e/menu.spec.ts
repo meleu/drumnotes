@@ -153,6 +153,22 @@ test('writes and sounds an accent from the menu, at the hardest rung', async ({ 
   expect(log.samples).toEqual(['Snare-Hardest']);
 });
 
+test('writes and sounds a ghost note from the menu, at the softest rung', async ({ page }) => {
+  const cell = silentCell(page, 'snare');
+  const menu = page.getByRole('menu');
+
+  await press(page, cell, HELD_MS);
+  await menu.getByRole('menuitemradio', { name: 'Ghost' }).click();
+
+  await expect(menu).toBeHidden();
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+  await expect(cell).toHaveAttribute('aria-label', /Snare, step \d+, Ghost$/);
+
+  const log = await audioLog(page);
+  expect(log.starts).toEqual([undefined]);
+  expect(log.samples).toEqual(['Snare-Softest']);
+});
+
 test('marks the entry a cell already holds, on an accent as on an empty cell', async ({ page }) => {
   const cell = silentCell(page, 'hihat');
   const menu = page.getByRole('menu');

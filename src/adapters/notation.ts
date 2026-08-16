@@ -17,6 +17,7 @@ import {
   Font,
   Modifier,
   Formatter,
+  Parenthesis,
   Renderer,
   Stave,
   StaveNote,
@@ -160,6 +161,17 @@ function toStaveNote(entry: Entry, voice: ScoreVoice): StaveNote {
   // One mark for the stroke, however many heads share the stem.
   if (!rest && entry.accented) {
     note.addModifier(new Articulation(ACCENT).setPosition(MARK_POSITIONS[voice.stem]));
+  }
+  if (!rest) {
+    // Bound to a head by index rather than to the note, which is what keeps a
+    // ghosted snare's brackets off the hi-hat it is struck with. VexFlow's own
+    // `buildAndAttach` parenthesises every head, so the pair is built here.
+    for (const [index, notehead] of entry.noteheads.entries()) {
+      if (!notehead.parenthesised) continue;
+      for (const side of [Modifier.Position.LEFT, Modifier.Position.RIGHT]) {
+        note.addModifier(new Parenthesis(side), index);
+      }
+    }
   }
   return note;
 }
