@@ -21,8 +21,13 @@ export function loopDuration(tempo: number): number {
   return TOTAL_STEPS * stepDuration(tempo);
 }
 
-/** The lead a grace hit keeps wherever a step is long enough to hold it. */
-const GRACE_LEAD_SECONDS = 0.03;
+/**
+ * The lead a grace hit keeps wherever a step is long enough to hold it. Tight
+ * enough that a flam is one gesture rather than two sounds, which leaves a
+ * drag's two leads audibly wider than it without the hit they lead into being
+ * heard arriving late.
+ */
+const GRACE_LEAD_SECONDS = 0.02;
 /** So a drag's two leads cannot reach back past the sixteenth before. */
 const GRACE_LEAD_SHARE_OF_STEP = 1 / 3;
 

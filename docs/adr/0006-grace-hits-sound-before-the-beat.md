@@ -20,11 +20,19 @@ sound is worse than one that waits.
 ## Grace hits precede their own step
 
 A flam leads its hit with one grace hit, a drag with two, at a lead of
-`min(30ms, step ÷ 3)`. The lead is real time rather than a subdivision: a flam is a
+`min(20ms, step ÷ 3)`. The lead is real time rather than a subdivision: a flam is a
 gesture of the hand and does not scale with tempo, so a proportional lead would read as a
 written 32nd at 40 BPM and be inaudible at 240. The ceiling exists only because a drag's
-two grace hits at a fixed lead would reach back past the previous sixteenth at the top of
-the tempo range.
+two grace hits at a fixed lead would otherwise reach back past the previous sixteenth at
+some tempo; at 20ms the fastest playable step still holds one, with almost nothing to
+spare, and the cap stays as the guard.
+
+The lead was 30ms to begin with, which is a flam a drummer would recognise but a drag
+whose accent is heard arriving late: the ear takes the first stroke of an ornament as the
+beat, and 60ms of grace hits ahead of the step is enough to hear the backbeat lagging.
+Tightening it to 20ms keeps the drag twice the flam's width — which is what tells the two
+apart by ear — inside a span the beat survives. Tightening it further, to 15ms, starts
+shading a drag into a buzz.
 
 This dents the tiling invariant ADR 0003 rests on. Windows were half-open and abutting so
 that every hit was handed over exactly once; a grace hit belonging to the step at a
@@ -55,6 +63,6 @@ the step duration and the grace lead both derive from tempo, and a retune moves 
 lead is bounded by a third of a step, so it can never swallow a whole step however the
 tempo is driven.
 
-Playback and the playhead part company by up to 30ms on ornamented steps, by design: the
+Playback and the playhead part company by up to a drag's two leads on ornamented steps, by design: the
 playhead follows steps, and a grace hit belongs to a step it sounds before. Nothing
 highlights a grace hit, and nothing should — there is no cell for it to light up.

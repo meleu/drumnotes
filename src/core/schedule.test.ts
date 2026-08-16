@@ -44,16 +44,22 @@ describe('graceLead', () => {
   /** Every playable tempo, since the whole question is where the cap bites. */
   const TEMPOS = Array.from({ length: MAX_TEMPO - MIN_TEMPO + 1 }, (_, i) => MIN_TEMPO + i);
 
-  test('is the same sliver of real time wherever a step is long enough to hold it', () => {
-    // A flam is a gesture of the hand: it does not scale with the tempo.
-    expect(graceLead(MIN_TEMPO)).toBeCloseTo(0.03);
-    expect(graceLead(90)).toBeCloseTo(0.03);
-    expect(graceLead(120)).toBeCloseTo(0.03);
+  test('is the same sliver of real time at every playable tempo', () => {
+    // A flam is a gesture of the hand: it does not scale with the tempo. The
+    // lead is short enough that no step in the range is too short to hold it —
+    // barely, at the top of it — so the cap never bites on anything a drummer
+    // can play.
+    for (const tempo of TEMPOS) expect(graceLead(tempo)).toBeCloseTo(0.02);
   });
 
-  test('tightens to a third of a step at the top of the range', () => {
-    expect(graceLead(MAX_TEMPO)).toBeCloseTo(stepDuration(MAX_TEMPO) / 3);
-    expect(graceLead(MAX_TEMPO)).toBeLessThan(0.03);
+  test('tightens to a third of a step where a step is too short to hold it', () => {
+    // Faster than the range allows, which is the only place the cap can bite
+    // now — it stays as the guard that keeps the arithmetic sound whatever a
+    // later tempo range or a wider ornament asks for.
+    const tempo = 4 * MAX_TEMPO;
+
+    expect(graceLead(tempo)).toBeCloseTo(stepDuration(tempo) / 3);
+    expect(graceLead(tempo)).toBeLessThan(0.02);
   });
 
   test('never asks for more than a third of a step, at any tempo', () => {
