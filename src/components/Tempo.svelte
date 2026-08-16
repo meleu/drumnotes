@@ -5,10 +5,9 @@
   const tempo = $derived(patternState.current.tempo);
 
   /**
-   * The core may correct a typed number, and the field has to be told. Svelte
-   * only rewrites the field when the state itself changed, so typing 999 against
-   * a tempo already at the ceiling would leave 999 on screen while 240 plays.
-   * Writing back unconditionally keeps the number honest.
+   * The core may correct a typed number and the field must be told. Svelte only
+   * rewrites on state change, so typing 999 at an already-capped tempo would
+   * leave 999 on screen while 240 plays. Write back unconditionally.
    */
   function commit(event: Event & { currentTarget: HTMLInputElement }): void {
     patternState.setTempo(event.currentTarget.valueAsNumber);

@@ -1,25 +1,38 @@
 /**
- * The `Score` IR, and the translation from a `Pattern` into it.
+ * The `Score` IR and `Pattern`→`Score` translation. Every musical decision —
+ * note values, voices, positions, beaming — is made here as plain data; the
+ * renderer decides nothing musical.
  *
- * Every musical decision — note values, voices, staff positions, beaming — is
- * made here, as plain data. No Svelte, DOM or notation lib; the renderer
- * downstream decides nothing musical.
- *
- * The rhythm rule, for notes and silence alike: a symbol lasts until its own
- * voice plays next, or until its beat runs out, whichever comes first.
+ * Rhythm rule (notes and rests alike): a symbol lasts until its own voice plays
+ * next, or its beat runs out, whichever comes first.
  */
 
-import type { Instrument, NoteheadType, Pattern, StaffPosition, VoiceId } from './pattern.js';
-import { BARS, INSTRUMENTS, STEPS_PER_BAR, STEPS_PER_BEAT, VOICES, isHit } from './pattern.js';
+import type {
+  Articulation,
+  Instrument,
+  NoteheadType,
+  Pattern,
+  StaffPosition,
+  VoiceId,
+} from './pattern.js';
+import {
+  BARS,
+  INSTRUMENTS,
+  STEPS_PER_BAR,
+  STEPS_PER_BEAT,
+  VOICES,
+  articulationAt,
+  hitsOf,
+} from './pattern.js';
 
 /**
- * Note values reachable on this grid. The beat ceiling — nothing outlasts a
- * quarter or crosses a beat — keeps the list short and makes ties impossible.
- * `whole` only ever spells a completely silent measure's rest.
+ * Note values reachable on this grid. Beat ceiling (nothing outlasts a quarter
+ * or crosses a beat) keeps it short and makes ties impossible. `whole` only ever
+ * spells a silent measure's rest.
  */
 export type Duration = 'whole' | 'quarter' | 'eighth' | 'sixteenth';
 
-/** Steps per undotted value, derived from the constants. */
+/** Steps per undotted value, derived. */
 const STEPS_PER_DURATION: Readonly<Record<Duration, number>> = {
   whole: STEPS_PER_BAR,
   quarter: STEPS_PER_BEAT,
@@ -27,25 +40,37 @@ const STEPS_PER_DURATION: Readonly<Record<Duration, number>> = {
   sixteenth: STEPS_PER_BEAT / 4,
 };
 
-/** One head of a stroke: where it sits, what shape it is drawn with. */
+/** One head of a stroke: position and shape. */
 export interface Notehead {
   readonly position: StaffPosition;
   readonly type: NoteheadType;
+  /** Ghosted. Per-head, unlike an accent: the parens say *which* drum. */
+  readonly parenthesised: boolean;
 }
 
-/** What one voice strikes on one step, low to high — one stroke, one stem. */
-type Stroke = readonly Notehead[];
+/** One grace note: heads on the same slot, low to high, sharing a stem. */
+export type GraceSlot = readonly Notehead[];
+
+/** What one voice strikes on one step, low to high: one stroke, one stem. */
+interface Stroke {
+  readonly noteheads: readonly Notehead[];
+  /** Accented. Per-stroke, not per-head: one stem takes one mark (ADR 0005). */
+  readonly accented: boolean;
+  /** Leading grace notes, earliest first; empty unless ornamented. They occupy
+   *  no steps — a measure adds up without counting them. */
+  readonly graces: readonly GraceSlot[];
+}
 
 interface BaseEntry {
-  /** Absolute step index into the lanes — the entry's identity. */
+  /** Absolute lane step index — the entry's identity. */
   readonly startStep: number;
   readonly duration: Duration;
   readonly dots: number;
 }
 
-export interface NoteEntry extends BaseEntry {
+export interface NoteEntry extends BaseEntry, Stroke {
   readonly kind: 'note';
-  /** Simultaneous hits in one voice: one chord on one stem, low to high. */
+  /** Simultaneous hits in one voice: one chord, one stem, low to high. */
   readonly noteheads: readonly Notehead[];
 }
 
@@ -60,8 +85,7 @@ export interface ScoreVoice {
   readonly id: VoiceId;
   readonly stem: 'up' | 'down';
   readonly entries: readonly Entry[];
-  /** Beams as indices into `entries`. Grouping decided here; the renderer draws
-   *  exactly what this says. */
+  /** Beams as `entries` indices. Grouping decided here; renderer just draws. */
   readonly beamGroups: readonly (readonly number[])[];
 }
 
@@ -75,13 +99,12 @@ export interface Score {
   readonly measures: readonly Measure[];
 }
 
-/** A note value: base duration plus dots. */
 interface NoteValue {
   readonly duration: Duration;
   readonly dots: number;
 }
 
-/** Steps a value occupies. Each dot adds half of what came before. */
+/** Steps a value occupies; each dot adds half the previous. */
 function valueSteps({ duration, dots }: NoteValue): number {
   let steps = STEPS_PER_DURATION[duration];
   let dotted = steps;
@@ -97,10 +120,9 @@ export function entrySteps(entry: Entry): number {
 }
 
 /**
- * Every value fitting inside a beat, keyed by length in steps. The beat ceiling
- * keeps this total and unambiguous — one spelling per length, none unspellable,
- * so nothing ever needs a tie. Built from the vocabulary so it follows the
- * constants if the grid's resolution changes.
+ * Every value fitting a beat, keyed by step length. Beat ceiling makes it total
+ * and unambiguous — one spelling per length, so no ties. Built from the
+ * constants, so it follows a resolution change.
  */
 const VALUES_BY_STEPS: ReadonlyMap<number, NoteValue> = new Map(
   (['quarter', 'eighth', 'sixteenth'] as const)
@@ -115,7 +137,7 @@ function valueSpanning(steps: number): NoteValue {
   return value;
 }
 
-/** Derived from the top-to-bottom table, since a chord reads low to high. */
+/** Chords read low to high; the table is top to bottom. */
 const INSTRUMENTS_LOW_TO_HIGH = [...INSTRUMENTS].reverse();
 
 export function toScore(pattern: Pattern): Score {
@@ -132,22 +154,20 @@ export function toScore(pattern: Pattern): Score {
 }
 
 /**
- * What a beam can join. Quarters and the whole rest carry no flag to replace; a
- * dot changes length but not the flag, so dotted values beam like undotted.
+ * What a beam can join. Quarters/whole rests have no flag to replace; a dot
+ * changes length not flag, so dotted beams like undotted.
  */
 const BEAMABLE: ReadonlySet<Duration> = new Set<Duration>(['eighth', 'sixteenth']);
 
-/** Beams replace flags, and only notes carry flags. */
+/** Beams replace flags; only notes have flags. */
 function isBeamable(entry: Entry): boolean {
   return entry.kind === 'note' && BEAMABLE.has(entry.duration);
 }
 
 type VoiceContent = Pick<ScoreVoice, 'entries' | 'beamGroups'>;
 
-/**
- * One voice's measure, filled end to end: every step is a hit or a rest, so each
- * voice accounts for the whole measure independently of the other.
- */
+/** One voice's measure, filled end to end — every step a hit or rest, so each
+ *  voice accounts for the measure independently. */
 function voiceContent(
   pattern: Pattern,
   measure: number,
@@ -157,14 +177,12 @@ function voiceContent(
   const instruments = INSTRUMENTS_LOW_TO_HIGH.filter((instrument) => instrument.voice === voice);
 
   const firstStep = measure * STEPS_PER_BAR;
-  // Each step holds this voice's stroke there, or nothing: silence is the
-  // absence of a stroke, never a stroke of nothing.
+  // Silence is the absence of a stroke, never a stroke of nothing.
   const strokes = Array.from({ length: STEPS_PER_BAR }, (_, stepInBar) =>
     strokeAt(pattern, instruments, firstStep + stepInBar),
   );
 
-  // Conventional spelling for an empty measure: one whole rest, not four
-  // quarters — at this voice's rest position, not the renderer's default.
+  // Empty measure: one whole rest at this voice's position, not four quarters.
   if (strokes.every((stroke) => stroke === undefined)) {
     return {
       entries: [
@@ -177,16 +195,14 @@ function voiceContent(
   const entries: Entry[] = [];
   const beamGroups: number[][] = [];
 
-  // One beat at a time, so nothing crosses a beat boundary — and since beats
-  // tile the measure, nothing crosses the barline. Beams gathered in the same
-  // pass, which is what keeps a beam inside one beat.
+  // One beat at a time: nothing crosses a beat, hence nor the barline. Beams
+  // gathered in the same pass, which keeps each beam inside one beat.
   for (let beatStart = 0; beatStart < STEPS_PER_BAR; beatStart += STEPS_PER_BEAT) {
     const beatEnd = beatStart + STEPS_PER_BEAT;
     const beatFirstEntry = entries.length;
 
     for (let stepInBar = beatStart; stepInBar < beatEnd;) {
-      // Notes and silence alike: hold until this voice's next stroke, or until
-      // the beat runs out.
+      // Hold until this voice's next stroke, or the beat's end.
       let next = stepInBar + 1;
       while (next < beatEnd && strokes[next] === undefined) next += 1;
 
@@ -196,14 +212,13 @@ function voiceContent(
 
       entries.push(
         stroke !== undefined
-          ? { kind: 'note', startStep, duration, dots, noteheads: stroke }
+          ? { kind: 'note', startStep, duration, dots, ...stroke }
           : { kind: 'rest', startStep, duration, dots, position: restPosition },
       );
       stepInBar = next;
     }
 
-    // A lone flagged note has nothing to join, so it keeps its flag and no group
-    // is recorded.
+    // A lone flagged note keeps its flag; no group recorded.
     const group = entries
       .slice(beatFirstEntry)
       .flatMap((entry, offset) => (isBeamable(entry) ? [beatFirstEntry + offset] : []));
@@ -213,14 +228,58 @@ function voiceContent(
   return { entries, beamGroups };
 }
 
-/** What this voice strikes on one step, low to high, or nothing. */
+/** One instrument's share of a stroke. */
+interface Struck {
+  readonly instrument: Instrument;
+  readonly articulation: Articulation;
+}
+
+/**
+ * What this voice strikes on one step, low to high, or nothing.
+ *
+ * A mark lands where its meaning does: an accent is the stroke's (a stem cannot
+ * be half struck harder), a ghost's parens are one head's (they say which drum).
+ */
 function strokeAt(
   pattern: Pattern,
   instruments: readonly Instrument[],
   step: number,
 ): Stroke | undefined {
-  const heads = instruments
-    .filter((instrument) => isHit(pattern, instrument.id, step))
-    .map(({ position, notehead }) => ({ position, type: notehead }));
-  return heads.length > 0 ? heads : undefined;
+  const struck: Struck[] = instruments.map((instrument) => ({
+    instrument,
+    articulation: articulationAt(pattern, instrument.id, step),
+  }));
+  const heads = struck.filter(({ articulation }) => articulation !== 'empty');
+  if (heads.length === 0) return undefined;
+
+  return {
+    noteheads: heads.map(({ instrument, articulation }) =>
+      headOf(instrument, articulation === 'ghost'),
+    ),
+    accented: heads.some(({ articulation }) => articulation === 'accent'),
+    graces: gracesOf(heads),
+  };
+}
+
+function headOf(instrument: Instrument, parenthesised = false): Notehead {
+  return { position: instrument.position, type: instrument.notehead, parenthesised };
+}
+
+/**
+ * Grace notes leading into a stroke, earliest first. Read off each grace hit's
+ * lead: equal leads share a slot and so a stem, drawing two ornamented drums as
+ * one gesture. The word "flam" never reaches the page — a slot count does.
+ */
+function gracesOf(heads: readonly Struck[]): GraceSlot[] {
+  const led = heads.flatMap(({ instrument, articulation }) =>
+    hitsOf(articulation)
+      .filter(({ leads }) => leads > 0)
+      .map(({ leads }) => ({ instrument, leads })),
+  );
+
+  return [...new Set(led.map(({ leads }) => leads))]
+    .sort((a, b) => b - a)
+    .map((slot) =>
+      led.filter(({ leads }) => leads === slot).map(({ instrument }) => headOf(instrument)),
+    );
 }

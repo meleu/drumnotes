@@ -1,33 +1,52 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Articulation } from './pattern.js';
 import {
+  ARTICULATION_CHOICES,
+  ARTICULATIONS,
   BARS,
   DEFAULT_TEMPO,
+  DYNAMICS,
   INSTRUMENTS,
+  MAX_LEADS,
   MAX_TEMPO,
   MIN_TEMPO,
   STEPS_PER_BAR,
   TOTAL_STEPS,
+  anythingWritten,
+  articulationAt,
   barOfStep,
   clampTempo,
   defaultPattern,
   emptyPattern,
   gridBars,
-  hasHits,
-  instrumentsAt,
+  hitsAt,
+  hitsOf,
+  isWritten,
   toggleStep,
+  withArticulation,
+  withNothingWritten,
   withTempo,
-  withoutHits,
 } from './pattern.js';
 
-/** The steps a lane sounds on, bar-relative, per bar. */
-function hitsPerBar(lane: readonly boolean[]): number[][] {
+/** Steps a lane is written on, bar-relative, per bar. */
+function hitsPerBar(lane: readonly Articulation[]): number[][] {
   return Array.from({ length: BARS }, (_, bar) =>
     lane
       .slice(bar * STEPS_PER_BAR, (bar + 1) * STEPS_PER_BAR)
-      .flatMap((filled, step) => (filled ? [step] : [])),
+      .flatMap((articulation, step) => (articulation === 'empty' ? [] : [step])),
   );
 }
+
+function isSilent(lane: readonly Articulation[]): boolean {
+  return lane.every((articulation) => articulation === 'empty');
+}
+
+describe('ARTICULATIONS', () => {
+  it('is the whole vocabulary a cell can hold, silence first', () => {
+    expect(ARTICULATIONS).toEqual(['empty', 'normal', 'accent', 'ghost', 'flam', 'drag']);
+  });
+});
 
 describe('emptyPattern', () => {
   it('has one silent lane per instrument, spanning every step in the pattern', () => {
@@ -36,7 +55,7 @@ describe('emptyPattern', () => {
     expect(Object.keys(pattern.lanes)).toEqual(INSTRUMENTS.map((i) => i.id));
     for (const { id } of INSTRUMENTS) {
       expect(pattern.lanes[id]).toHaveLength(TOTAL_STEPS);
-      expect(pattern.lanes[id].some(Boolean)).toBe(false);
+      expect(isSilent(pattern.lanes[id])).toBe(true);
     }
   });
 
@@ -50,6 +69,14 @@ describe('emptyPattern', () => {
 });
 
 describe('defaultPattern', () => {
+  it('writes every cell of the landing groove as a plain hit', () => {
+    const { lanes } = defaultPattern();
+
+    for (const { id } of INSTRUMENTS) {
+      expect(new Set(lanes[id])).toEqual(new Set<Articulation>(['empty', 'normal']));
+    }
+  });
+
   it('is a straight eighth-note rock beat, the same in every bar', () => {
     const { lanes } = defaultPattern();
 
@@ -101,13 +128,59 @@ describe('gridBars', () => {
   });
 });
 
-describe('toggleStep', () => {
-  it('fills an empty step and clears a filled one', () => {
-    const filled = toggleStep(emptyPattern(), 'snare', 4);
-    expect(filled.lanes.snare[4]).toBe(true);
+describe('articulationAt', () => {
+  it('reads what a cell holds', () => {
+    expect(articulationAt(defaultPattern(), 'snare', 4)).toBe('normal');
+    expect(articulationAt(defaultPattern(), 'snare', 5)).toBe('empty');
+  });
+});
 
-    const cleared = toggleStep(filled, 'snare', 4);
-    expect(cleared.lanes.snare[4]).toBe(false);
+describe('ARTICULATION_CHOICES', () => {
+  it('offers the whole vocabulary, in the order the cell holds it', () => {
+    expect(ARTICULATION_CHOICES.map(({ id }) => id)).toEqual([...ARTICULATIONS]);
+  });
+
+  it('offers each articulation at most once, and none the pattern cannot hold', () => {
+    const offered = ARTICULATION_CHOICES.map(({ id }) => id);
+
+    expect(new Set(offered).size).toBe(offered.length);
+    for (const id of offered) expect(ARTICULATIONS).toContain(id);
+  });
+
+  it('draws every written articulation with a mark of its own', () => {
+    const marked = ARTICULATION_CHOICES.filter(({ id }) => !['empty', 'normal'].includes(id));
+    const marks = marked.map(({ mark }) => mark);
+
+    expect(marks.every((mark) => mark !== undefined)).toBe(true);
+    expect(new Set(marks).size).toBe(marks.length);
+  });
+
+  it('names every choice it offers', () => {
+    for (const { name } of ARTICULATION_CHOICES) expect(name).not.toBe('');
+  });
+});
+
+describe('isWritten', () => {
+  it('is true of every articulation but silence', () => {
+    for (const articulation of ARTICULATIONS) {
+      const pattern = withArticulation(emptyPattern(), 'snare', 4, articulation);
+
+      expect(isWritten(pattern, 'snare', 4)).toBe(articulation !== 'empty');
+    }
+  });
+});
+
+describe('toggleStep', () => {
+  it('writes a plain hit on an empty step', () => {
+    expect(articulationAt(toggleStep(emptyPattern(), 'snare', 4), 'snare', 4)).toBe('normal');
+  });
+
+  it('rubs out a written step, whatever it held', () => {
+    for (const articulation of ARTICULATIONS.filter((value) => value !== 'empty')) {
+      const written = withArticulation(emptyPattern(), 'snare', 4, articulation);
+
+      expect(articulationAt(toggleStep(written, 'snare', 4), 'snare', 4)).toBe('empty');
+    }
   });
 
   it('returns a new pattern and leaves the input untouched', () => {
@@ -116,7 +189,7 @@ describe('toggleStep', () => {
 
     expect(after).not.toBe(before);
     expect(after.lanes.kick).not.toBe(before.lanes.kick);
-    expect(before.lanes.kick[0]).toBe(false);
+    expect(before.lanes.kick[0]).toBe('empty');
   });
 
   it('leaves the other lanes and every other step alone', () => {
@@ -125,8 +198,34 @@ describe('toggleStep', () => {
 
     expect(after.lanes.hihat).toEqual(before.lanes.hihat);
     expect(after.lanes.kick).toEqual(before.lanes.kick);
-    expect(after.lanes.snare.filter(Boolean)).toHaveLength(1);
+    expect(after.lanes.snare.filter((cell) => cell !== 'empty')).toHaveLength(1);
     expect(after.tempo).toBe(before.tempo);
+  });
+});
+
+describe('withArticulation', () => {
+  it('sets any articulation of the vocabulary on a cell', () => {
+    for (const articulation of ARTICULATIONS) {
+      const pattern = withArticulation(defaultPattern(), 'hihat', 3, articulation);
+
+      expect(articulationAt(pattern, 'hihat', 3)).toBe(articulation);
+    }
+  });
+
+  it('replaces whatever the cell held, silence included', () => {
+    const accented = withArticulation(emptyPattern(), 'kick', 8, 'accent');
+
+    expect(articulationAt(withArticulation(accented, 'kick', 8, 'ghost'), 'kick', 8)).toBe('ghost');
+    expect(articulationAt(withArticulation(accented, 'kick', 8, 'empty'), 'kick', 8)).toBe('empty');
+  });
+
+  it('returns a new pattern and leaves the input untouched', () => {
+    const before = emptyPattern();
+    const after = withArticulation(before, 'kick', 0, 'flam');
+
+    expect(after).not.toBe(before);
+    expect(after.lanes.snare).toBe(before.lanes.snare);
+    expect(before.lanes.kick[0]).toBe('empty');
   });
 });
 
@@ -170,50 +269,150 @@ describe('withTempo', () => {
   });
 });
 
-describe('hasHits', () => {
+describe('anythingWritten', () => {
   it('tells a written pattern from a silent one', () => {
-    expect(hasHits(defaultPattern())).toBe(true);
-    expect(hasHits(emptyPattern())).toBe(false);
+    expect(anythingWritten(defaultPattern())).toBe(true);
+    expect(anythingWritten(emptyPattern())).toBe(false);
   });
 
-  it('counts a single hit in any lane as written', () => {
+  it('counts a single cell of any articulation in any lane as written', () => {
     for (const { id } of INSTRUMENTS) {
-      expect(hasHits(toggleStep(emptyPattern(), id, TOTAL_STEPS - 1))).toBe(true);
+      for (const articulation of ARTICULATIONS.filter((value) => value !== 'empty')) {
+        const pattern = withArticulation(emptyPattern(), id, TOTAL_STEPS - 1, articulation);
+
+        expect(anythingWritten(pattern)).toBe(true);
+      }
     }
   });
 });
 
-describe('withoutHits', () => {
-  it('silences every lane while the tempo plays on', () => {
-    const before = withTempo(defaultPattern(), 140);
-    const after = withoutHits(before);
+describe('withNothingWritten', () => {
+  it('empties every cell of every articulation while the tempo plays on', () => {
+    const before = ARTICULATIONS.reduce(
+      (pattern, articulation, index) => withArticulation(pattern, 'snare', index, articulation),
+      withTempo(defaultPattern(), 140),
+    );
+    const after = withNothingWritten(before);
 
     for (const { id } of INSTRUMENTS) {
       expect(after.lanes[id]).toHaveLength(TOTAL_STEPS);
-      expect(after.lanes[id].some(Boolean)).toBe(false);
+      expect(isSilent(after.lanes[id])).toBe(true);
     }
     expect(after.tempo).toBe(140);
   });
 
   it('returns a new pattern and leaves the input untouched', () => {
     const before = defaultPattern();
-    const after = withoutHits(before);
+    const after = withNothingWritten(before);
 
     expect(after).not.toBe(before);
-    expect(before.lanes.hihat.some(Boolean)).toBe(true);
+    expect(isSilent(before.lanes.hihat)).toBe(false);
   });
 });
 
-describe('instrumentsAt', () => {
-  it('names everything written on a step, in row order', () => {
+describe('hitsAt', () => {
+  it('plays everything written on a step, in row order', () => {
     const pattern = defaultPattern();
 
-    expect(instrumentsAt(pattern, 0)).toEqual(['hihat', 'kick']);
-    expect(instrumentsAt(pattern, 4)).toEqual(['hihat', 'snare']);
+    expect(hitsAt(pattern, 0)).toEqual([
+      { instrument: 'hihat', leads: 0, dynamic: 'plain' },
+      { instrument: 'kick', leads: 0, dynamic: 'plain' },
+    ]);
+    expect(hitsAt(pattern, 4)).toEqual([
+      { instrument: 'hihat', leads: 0, dynamic: 'plain' },
+      { instrument: 'snare', leads: 0, dynamic: 'plain' },
+    ]);
   });
 
-  it('names nothing on a silent step', () => {
-    expect(instrumentsAt(emptyPattern(), 3)).toEqual([]);
+  it('plays an accent at its own dynamic', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'accent');
+
+    expect(hitsAt(pattern, 4)).toEqual([{ instrument: 'snare', leads: 0, dynamic: 'hardest' }]);
+  });
+
+  it('plays a ghost note at its own dynamic', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'ghost');
+
+    expect(hitsAt(pattern, 4)).toEqual([{ instrument: 'snare', leads: 0, dynamic: 'softest' }]);
+  });
+
+  it('leads a flam with a grace hit, and lands the hit itself on the step', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'flam');
+
+    // Both belong to step 4; how far ahead is the schedule's arithmetic.
+    expect(hitsAt(pattern, 4)).toEqual([
+      { instrument: 'snare', leads: 1, dynamic: 'softest' },
+      { instrument: 'snare', leads: 0, dynamic: 'hard' },
+    ]);
+  });
+
+  it('leads a drag with two grace hits, and lands the hit itself on the step', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'drag');
+
+    // One lead further out than a flam: two grace hits, the second where the
+    // flam's only one would have been.
+    expect(hitsAt(pattern, 4)).toEqual([
+      { instrument: 'snare', leads: 2, dynamic: 'softest' },
+      { instrument: 'snare', leads: 1, dynamic: 'softest' },
+      { instrument: 'snare', leads: 0, dynamic: 'hard' },
+    ]);
+  });
+
+  it('plays nothing on a silent step', () => {
+    expect(hitsAt(emptyPattern(), 3)).toEqual([]);
+  });
+});
+
+describe('DYNAMICS', () => {
+  it('runs from softest to hardest', () => {
+    expect(DYNAMICS).toEqual(['softest', 'plain', 'hard', 'hardest']);
+  });
+});
+
+describe('hitsOf', () => {
+  it('plays silence as no hit at all', () => {
+    expect(hitsOf('empty')).toEqual([]);
+  });
+
+  it('plays a plain hit on the step, plainly', () => {
+    expect(hitsOf('normal')).toEqual([{ leads: 0, dynamic: 'plain' }]);
+  });
+
+  it('plays an accent on the step, at the hardest recording', () => {
+    expect(hitsOf('accent')).toEqual([{ leads: 0, dynamic: 'hardest' }]);
+  });
+
+  it('plays a ghost note on the step, at the softest recording', () => {
+    expect(hitsOf('ghost')).toEqual([{ leads: 0, dynamic: 'softest' }]);
+  });
+
+  it('leads an ornament with grace hits at the softest recording, earliest first', () => {
+    for (const ornament of ['flam', 'drag'] as const) {
+      const hits = hitsOf(ornament);
+      const graces = hits.slice(0, -1);
+
+      expect(graces.map(({ leads }) => leads)).toEqual(
+        graces.map((_, index) => graces.length - index),
+      );
+      for (const grace of graces) expect(grace.dynamic).toBe('softest');
+      expect(hits.at(-1)).toEqual({ leads: 0, dynamic: 'hard' });
+    }
+
+    // A drag is led by two: the count tells them apart.
+    expect(hitsOf('drag')).toHaveLength(hitsOf('flam').length + 1);
+  });
+
+  it('reaches back no further than a drag does', () => {
+    expect(MAX_LEADS).toBe(2);
+  });
+
+  it('names a dynamic for every hit of every articulation', () => {
+    for (const articulation of ARTICULATIONS) {
+      for (const hit of hitsOf(articulation)) {
+        expect(DYNAMICS).toContain(hit.dynamic);
+        expect(hit.leads).toBeGreaterThanOrEqual(0);
+      }
+    }
   });
 });
 

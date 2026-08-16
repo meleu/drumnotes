@@ -8,11 +8,11 @@ import {
   defaultPattern,
   emptyPattern,
   toggleStep,
+  withArticulation,
 } from './pattern.js';
 import type { Duration, Entry, NoteEntry, ScoreVoice } from './score.js';
 import { entrySteps, toScore } from './score.js';
 
-/** A pattern from absolute step indices. */
 function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pattern {
   return Object.entries(hits).reduce(
     (pattern, [id, steps]) =>
@@ -21,7 +21,6 @@ function patternWith(hits: Partial<Record<InstrumentId, readonly number[]>>): Pa
   );
 }
 
-/** The first measure's voice, by id. */
 function firstMeasureVoice(pattern: Pattern, id: 'hands' | 'feet'): ScoreVoice {
   const voice = toScore(pattern).measures[0]!.voices.find((candidate) => candidate.id === id);
   if (!voice) throw new Error(`no ${id} voice`);
@@ -43,6 +42,13 @@ const SAMPLE_PATTERNS: Record<string, Pattern> = {
     kick: [0, 3, 10],
   }),
   offbeats: patternWith({ hihat: [1, 5, 9, 13], kick: [15] }),
+  // Grace notes steal no time, so this must spell as the plain groove does.
+  ornamented: withArticulation(
+    patternWith({ hihat: [0, 4, 8, 12], snare: [4, 12] }),
+    'snare',
+    4,
+    'flam',
+  ),
   // One bar silent, one not: whole rest and beat rule meet.
   secondBarOnly: patternWith({ snare: [STEPS_PER_BAR + 5], kick: [STEPS_PER_BAR + 12] }),
 };
@@ -81,8 +87,8 @@ describe('toScore', () => {
     expect(notes).toHaveLength(1);
     // Low to high, as drawn.
     expect(notes[0]!.noteheads).toEqual([
-      { position: 'c/5', type: 'normal' },
-      { position: 'g/5', type: 'cross' },
+      { position: 'c/5', type: 'normal', parenthesised: false },
+      { position: 'g/5', type: 'cross', parenthesised: false },
     ]);
   });
 
@@ -92,11 +98,11 @@ describe('toScore', () => {
     const feet = notesOf(firstMeasureVoice(pattern, 'feet'));
 
     expect(hands.map((note) => note.noteheads)).toEqual([
-      [{ position: 'g/5', type: 'cross' }], // hi-hat: above top line
-      [{ position: 'c/5', type: 'normal' }], // snare: 3rd space
+      [{ position: 'g/5', type: 'cross', parenthesised: false }], // hi-hat: above top line
+      [{ position: 'c/5', type: 'normal', parenthesised: false }], // snare: 3rd space
     ]);
     expect(feet.map((note) => note.noteheads)).toEqual([
-      [{ position: 'f/4', type: 'normal' }], // kick: 1st space
+      [{ position: 'f/4', type: 'normal', parenthesised: false }], // kick: 1st space
     ]);
   });
 
@@ -160,8 +166,186 @@ describe('toScore', () => {
   });
 });
 
-/** Entries spelled as read: `16`, `8`, `8.`, `q`, `w`, `r` for a rest. Short
- *  enough that a beat's spelling fits one line of the case tables below. */
+describe('accents', () => {
+  it('leaves a plain stroke unaccented', () => {
+    const notes = notesOf(firstMeasureVoice(patternWith({ snare: [4] }), 'hands'));
+
+    expect(notes[0]!.accented).toBe(false);
+  });
+
+  it('accents the stroke an accented cell belongs to', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'accent');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.accented).toBe(true);
+  });
+
+  it('accents a stroke once, however few of its heads asked for it', () => {
+    // Struck together, one accented: one stroke, one stem, one mark — it belongs
+    // to the stroke, not a head (ADR 0005).
+    const pattern = withArticulation(patternWith({ hihat: [4], snare: [4] }), 'snare', 4, 'accent');
+
+    const [stroke] = notesOf(firstMeasureVoice(pattern, 'hands'));
+    expect(stroke!.noteheads).toHaveLength(2);
+    expect(stroke!.accented).toBe(true);
+  });
+
+  it("keeps each voice's accents to itself", () => {
+    const pattern = withArticulation(patternWith({ snare: [4] }), 'kick', 4, 'accent');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.accented).toBe(false);
+    expect(notesOf(firstMeasureVoice(pattern, 'feet'))[0]!.accented).toBe(true);
+  });
+
+  it('changes nothing about what the measure is worth', () => {
+    const plain = patternWith({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12] });
+    const accented = withArticulation(plain, 'hihat', 4, 'accent');
+
+    expect(spellAll(firstMeasureVoice(accented, 'hands').entries)).toBe(
+      spellAll(firstMeasureVoice(plain, 'hands').entries),
+    );
+  });
+});
+
+describe('ghost notes', () => {
+  it('leaves a plain head bare', () => {
+    const notes = notesOf(firstMeasureVoice(patternWith({ snare: [4] }), 'hands'));
+
+    expect(notes[0]!.noteheads).toEqual([
+      { position: 'c/5', type: 'normal', parenthesised: false },
+    ]);
+  });
+
+  it('parenthesises the head a ghosted cell is drawn as', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'ghost');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.noteheads).toEqual([
+      { position: 'c/5', type: 'normal', parenthesised: true },
+    ]);
+  });
+
+  it('parenthesises only the ghosted head of a stroke, leaving the rest bare', () => {
+    // Struck together, snare ghosted: unlike an accent the mark names its own
+    // instrument, so the other head keeps nothing of it.
+    const pattern = withArticulation(patternWith({ hihat: [4], snare: [4] }), 'snare', 4, 'ghost');
+
+    const [stroke] = notesOf(firstMeasureVoice(pattern, 'hands'));
+    expect(stroke!.noteheads).toEqual([
+      { position: 'c/5', type: 'normal', parenthesised: true },
+      { position: 'g/5', type: 'cross', parenthesised: false },
+    ]);
+    // Stroke untouched: a ghost is not a stem mark.
+    expect(stroke!.accented).toBe(false);
+  });
+
+  it('changes nothing about what the measure is worth', () => {
+    const plain = patternWith({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12] });
+    const ghosted = withArticulation(plain, 'snare', 4, 'ghost');
+
+    expect(spellAll(firstMeasureVoice(ghosted, 'hands').entries)).toBe(
+      spellAll(firstMeasureVoice(plain, 'hands').entries),
+    );
+  });
+});
+
+describe('grace notes', () => {
+  it('leads a plain stroke with nothing', () => {
+    const notes = notesOf(firstMeasureVoice(patternWith({ snare: [4] }), 'hands'));
+
+    expect(notes[0]!.graces).toEqual([]);
+  });
+
+  it('leads a flammed stroke with one grace note', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'flam');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [{ position: 'c/5', type: 'normal', parenthesised: false }],
+    ]);
+  });
+
+  it('leads a dragged stroke with two grace notes, on slots of their own', () => {
+    const pattern = withArticulation(emptyPattern(), 'snare', 4, 'drag');
+
+    // Two slots, not one chord of two: a lead apart, so they are drawn one after
+    // the other, each on its own stem.
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [{ position: 'c/5', type: 'normal', parenthesised: false }],
+      [{ position: 'c/5', type: 'normal', parenthesised: false }],
+    ]);
+  });
+
+  it("draws a grace note at its own instrument's position and notehead", () => {
+    // Struck together, only the hi-hat flammed: the grace note is a cross above
+    // the staff, and the snare leads nothing.
+    const pattern = withArticulation(patternWith({ hihat: [4], snare: [4] }), 'hihat', 4, 'flam');
+
+    const [stroke] = notesOf(firstMeasureVoice(pattern, 'hands'));
+    expect(stroke!.graces).toEqual([[{ position: 'g/5', type: 'cross', parenthesised: false }]]);
+    expect(stroke!.noteheads).toHaveLength(2);
+  });
+
+  it('gathers heads sounding the same distance ahead onto one slot', () => {
+    // Flammed together: their grace hits share a moment, so one gesture — a
+    // chord on one stem — not two implying a sequence nobody plays.
+    const struck = patternWith({ hihat: [4], snare: [4] });
+    const pattern = withArticulation(
+      withArticulation(struck, 'hihat', 4, 'flam'),
+      'snare',
+      4,
+      'flam',
+    );
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [
+        { position: 'c/5', type: 'normal', parenthesised: false },
+        { position: 'g/5', type: 'cross', parenthesised: false },
+      ],
+    ]);
+  });
+
+  it('lines a flam and a drag up on the slots they each sound on', () => {
+    // Drag leads by two slots, flam by one: the drag's first grace hit is alone,
+    // the second is the moment they share.
+    const struck = patternWith({ hihat: [4], snare: [4] });
+    const pattern = withArticulation(
+      withArticulation(struck, 'hihat', 4, 'drag'),
+      'snare',
+      4,
+      'flam',
+    );
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([
+      [{ position: 'g/5', type: 'cross', parenthesised: false }],
+      [
+        { position: 'c/5', type: 'normal', parenthesised: false },
+        { position: 'g/5', type: 'cross', parenthesised: false },
+      ],
+    ]);
+  });
+
+  it('leads each voice with its own ornaments and nothing of the other', () => {
+    const pattern = withArticulation(patternWith({ snare: [4] }), 'kick', 4, 'flam');
+
+    expect(notesOf(firstMeasureVoice(pattern, 'hands'))[0]!.graces).toEqual([]);
+    expect(notesOf(firstMeasureVoice(pattern, 'feet'))[0]!.graces).toEqual([
+      [{ position: 'f/4', type: 'normal', parenthesised: false }],
+    ]);
+  });
+
+  it('changes nothing about what the measure is worth', () => {
+    const plain = patternWith({ hihat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12] });
+
+    for (const ornament of ['flam', 'drag'] as const) {
+      const ornamented = withArticulation(plain, 'snare', 4, ornament);
+
+      expect(spellAll(firstMeasureVoice(ornamented, 'hands').entries)).toBe(
+        spellAll(firstMeasureVoice(plain, 'hands').entries),
+      );
+    }
+  });
+});
+
+/** Entries as read: `16`, `8`, `8.`, `q`, `w`, `r` for a rest. Short enough
+ *  that a beat's spelling fits one line of the tables below. */
 const SPELLINGS: Record<Duration, string> = {
   whole: 'w',
   quarter: 'q',
@@ -179,12 +363,10 @@ function spellAll(entries: readonly Entry[]): string {
 
 describe('durations', () => {
   /**
-   * All sixteen subsets of a beat's four steps, with the spelling each must
-   * produce — exhaustive by construction.
-   *
-   * Read off beat 1 of the hands voice. The sentinel snare on the last step
-   * keeps the measure from being silent, so the whole rest never stands in for
-   * a beat's own answer.
+   * All sixteen subsets of a beat's four steps and the spelling each must
+   * produce — exhaustive by construction. Read off beat 1 of the hands voice;
+   * the sentinel snare on the last step keeps the measure from being silent, so
+   * the whole rest never stands in for a beat's answer.
    */
   const SENTINEL = STEPS_PER_BAR - 1;
   const beatCases: readonly (readonly [hits: readonly number[], spelling: string])[] = [
@@ -244,8 +426,8 @@ describe('durations', () => {
           for (const entry of voice.entries) {
             expect(`${where}: ${entry.startStep}`).toBe(`${where}: ${step}`);
             step += entrySteps(entry);
-            // Nothing outlasts its beat, so nothing reaches a barline. The
-            // whole rest is the exception: an entirely empty measure.
+            // Nothing outlasts its beat, so nothing reaches a barline —
+            // except the whole rest of an entirely empty measure.
             if (entry.duration !== 'whole') {
               const beatEnd = (Math.floor(entry.startStep / STEPS_PER_BEAT) + 1) * STEPS_PER_BEAT;
               expect(`${where}: ${step}`).toBe(`${where}: ${Math.min(step, beatEnd)}`);
@@ -261,12 +443,11 @@ describe('durations', () => {
 
 describe('beaming', () => {
   /**
-   * The same sixteen subsets, read the other way: the groups each must produce.
-   * Indices are into the voice's entries; beat 1 starts at 0, so they read as
-   * positions within the beat.
-   *
-   * The sentinel lands on the last sixteenth of beat 4, written `8.r 16` — a
-   * lone sixteenth, never a group. So everything below is beat 1's doing.
+   * The same sixteen subsets read the other way: the groups each must produce.
+   * Indices into the voice's entries; beat 1 starts at 0, so they read as
+   * positions within the beat. The sentinel lands on beat 4's last sixteenth,
+   * written `8.r 16` — a lone sixteenth, never a group — so everything below is
+   * beat 1's doing.
    */
   const SENTINEL = STEPS_PER_BAR - 1;
   const beamCases: readonly (readonly [

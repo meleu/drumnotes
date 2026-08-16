@@ -1,10 +1,12 @@
+import { readdirSync } from 'node:fs';
+import { basename } from 'node:path';
 import { expect, test } from 'vitest';
 
-import { INSTRUMENTS } from '../core/pattern.js';
-import { createDrumKit } from './audio.js';
+import type { Dynamic, InstrumentId } from '../core/pattern.js';
+import { DYNAMICS, INSTRUMENTS } from '../core/pattern.js';
+import { SAMPLE_URLS, createDrumKit } from './audio.js';
 
-/** Enough Web Audio to exercise the kit in node. The real `AudioContext` has
- *  the same shape; the casts are the seam to the stand-in. */
+/** Enough Web Audio to exercise the kit in node; casts are the seam. */
 class FakeSource {
   buffer: AudioBuffer | null = null;
   connectedTo: unknown = null;
@@ -60,11 +62,93 @@ class FakeContext {
   }
 }
 
-const SOURCES = {
-  hihat: '/samples/hihat.wav',
-  snare: '/samples/snare.wav',
-  kick: '/samples/kick.wav',
-};
+/** One url per instrument per rung, as the real table is shaped. */
+const SOURCES = Object.fromEntries(
+  INSTRUMENTS.map(({ id }) => [
+    id,
+    Object.fromEntries(DYNAMICS.map((dynamic) => [dynamic, `/samples/${id}-${dynamic}.wav`])),
+  ]),
+) as Record<InstrumentId, Record<Dynamic, string>>;
+
+const SAMPLE_COUNT = INSTRUMENTS.length * DYNAMICS.length;
+
+/** Where the kit is committed, and all the app may reference. */
+const KIT_DIR = 'src/assets/samples/GMRockKit';
+
+/**
+ * The kit as committed: four rungs per instrument the app plays or may yet play,
+ * plus the closed hi-hat's `-Soft`, its plain rung.
+ */
+const KIT_INSTRUMENTS = [
+  'HatClosed',
+  'HatOpen',
+  'HatPedal',
+  'Snare',
+  'Kick',
+  'Ride',
+  'Crash',
+  'Tom1',
+  'Tom2',
+  'TomFloor',
+];
+const KIT_RUNGS = ['Softest', 'Med', 'Hard', 'Hardest'];
+
+test("commits the whole kit, under the kit's own filenames", () => {
+  const expected = [
+    ...KIT_INSTRUMENTS.flatMap((id) => KIT_RUNGS.map((rung) => `${id}-${rung}.wav`)),
+    'HatClosed-Soft.wav',
+  ];
+
+  expect(readdirSync(KIT_DIR).toSorted()).toEqual(expected.toSorted());
+});
+
+test('references a subset of what is committed, so the build carries no more', () => {
+  const committed = new Set(readdirSync(KIT_DIR));
+  const referenced = Object.values(SAMPLE_URLS).flatMap((rungs) =>
+    Object.values(rungs).map((url) => basename(url)),
+  );
+
+  // Static imports, one per rung: unreferenced files stay out of the bundle,
+  // where a directory glob would drag all forty-one in.
+  expect(referenced).toHaveLength(INSTRUMENTS.length * DYNAMICS.length);
+  expect(new Set(referenced).size).toBe(referenced.length);
+  for (const file of referenced) expect(committed).toContain(file);
+  expect(referenced.length).toBeLessThan(committed.size);
+});
+
+test('names a recording for every instrument at every rung', () => {
+  for (const { id } of INSTRUMENTS) {
+    for (const dynamic of DYNAMICS) {
+      expect(SAMPLE_URLS[id][dynamic], `${id} at ${dynamic}`).toMatch(/\.wav$/);
+    }
+  }
+});
+
+test('reads the closed hi-hat plainly as Soft, the one instrument that does', () => {
+  // -Med closed hi-hat is louder than the groove wants; -Soft is the plain rung
+  // here and nowhere else. A fact about these files, hence not in the core.
+  expect(SAMPLE_URLS.hihat.plain).toMatch(/HatClosed-Soft[-.]/);
+  expect(SAMPLE_URLS.snare.plain).toMatch(/Snare-Med[-.]/);
+  expect(SAMPLE_URLS.kick.plain).toMatch(/Kick-Med[-.]/);
+});
+
+test('reads the hardest rung the same way for every instrument, hi-hat included', () => {
+  expect(SAMPLE_URLS.hihat.hardest).toMatch(/HatClosed-Hardest[-.]/);
+  expect(SAMPLE_URLS.snare.hardest).toMatch(/Snare-Hardest[-.]/);
+  expect(SAMPLE_URLS.kick.hardest).toMatch(/Kick-Hardest[-.]/);
+});
+
+test('sounds the recording asked for, not another rung of the same drum', async () => {
+  const context = new FakeContext();
+  const kit = createDrumKit(context.asContext(), SOURCES, context.fetchSample);
+  await kit.ready;
+
+  kit.play('snare', 'plain');
+  kit.play('snare', 'hardest');
+
+  const [plain, hardest] = context.sources;
+  expect(plain?.buffer).not.toBe(hardest?.buffer);
+});
 
 test('decodes every sample exactly once', async () => {
   const context = new FakeContext();
@@ -72,8 +156,12 @@ test('decodes every sample exactly once', async () => {
   const kit = createDrumKit(context.asContext(), SOURCES, context.fetchSample);
   await kit.ready;
 
-  expect(context.fetched.toSorted()).toEqual(Object.values(SOURCES).toSorted());
-  expect(context.decoded).toHaveLength(INSTRUMENTS.length);
+  expect(context.fetched.toSorted()).toEqual(
+    Object.values(SOURCES)
+      .flatMap((rungs) => Object.values(rungs))
+      .toSorted(),
+  );
+  expect(context.decoded).toHaveLength(SAMPLE_COUNT);
 });
 
 test('reuses one decoded buffer across hits, through a fresh source node each time', async () => {
@@ -81,10 +169,10 @@ test('reuses one decoded buffer across hits, through a fresh source node each ti
   const kit = createDrumKit(context.asContext(), SOURCES, context.fetchSample);
   await kit.ready;
 
-  kit.play('snare');
-  kit.play('snare');
+  kit.play('snare', 'plain');
+  kit.play('snare', 'plain');
 
-  expect(context.decoded).toHaveLength(INSTRUMENTS.length);
+  expect(context.decoded).toHaveLength(SAMPLE_COUNT);
   expect(context.sources).toHaveLength(2);
   const [first, second] = context.sources;
   expect(first).not.toBe(second);
@@ -96,7 +184,7 @@ test('starts the hit at once rather than at a scheduled time', async () => {
   const kit = createDrumKit(context.asContext(), SOURCES, context.fetchSample);
   await kit.ready;
 
-  kit.play('kick');
+  kit.play('kick', 'plain');
 
   expect(context.sources[0]?.startedAt).toBeUndefined();
   expect(context.sources[0]?.connectedTo).toBe(context.destination);
@@ -106,7 +194,7 @@ test('stays silent when asked for an instrument that has not decoded yet', () =>
   const context = new FakeContext();
   const kit = createDrumKit(context.asContext(), SOURCES, context.fetchSample);
 
-  kit.play('hihat');
+  kit.play('hihat', 'plain');
 
   expect(context.sources).toHaveLength(0);
 });
@@ -116,7 +204,7 @@ test('sounds a scheduled hit at the time it was given', async () => {
   const kit = createDrumKit(context.asContext(), SOURCES, context.fetchSample);
   await kit.ready;
 
-  kit.play('hihat', 12.5);
+  kit.play('hihat', 'plain', 12.5);
 
   expect(context.sources[0]?.startedAt).toBe(12.5);
 });
@@ -135,8 +223,8 @@ test('cancels hits that have not sounded yet and lets the ringing ones ring', as
   await kit.ready;
 
   context.currentTime = 1;
-  kit.play('kick', 0.9);
-  kit.play('snare', 1.4);
+  kit.play('kick', 'plain', 0.9);
+  kit.play('snare', 'plain', 1.4);
 
   kit.cancelPending();
 
@@ -150,7 +238,7 @@ test('forgets a hit once it has ended, so cancelling never reaches a spent node'
   const kit = createDrumKit(context.asContext(), SOURCES, context.fetchSample);
   await kit.ready;
 
-  kit.play('snare', 5);
+  kit.play('snare', 'plain', 5);
   context.sources[0]?.onended?.();
   context.currentTime = 1;
 

@@ -3,52 +3,118 @@ import { describe, expect, test } from 'vitest';
 import { EXPORT_WIDTH } from './export.js';
 import type { StaffLayout } from './layout.js';
 import { exportStaffLayout, placeMeasures, staffLayoutFor, staffSize } from './layout.js';
-import type { Score } from './score.js';
+import { STEPS_PER_BAR } from './pattern.js';
+import type { Measure, Score } from './score.js';
 
-/** Layout reads nothing but the measure count, so the measures can be empty. */
+/** Plain measures: layout reads only the count and what's ornamented. */
 function scoreOf(measures: number): Score {
   return { measures: Array.from({ length: measures }, (_, index) => ({ index, voices: [] })) };
 }
 
-/** Wider than any minimum this staff has, so the container is never the
- *  constraint. */
+/**
+ * A measure of sixteenths, one voice per argument, each given as the grace slots
+ * leading its stroke on every step. Layout reads nothing else off an entry.
+ */
+function measureOf(...voices: readonly (readonly number[])[]): Measure {
+  return {
+    index: 0,
+    voices: voices.map((slots, voiceIndex) => ({
+      id: voiceIndex === 0 ? 'hands' : 'feet',
+      stem: voiceIndex === 0 ? 'up' : 'down',
+      beamGroups: [],
+      entries: slots.map((count, step) => ({
+        kind: 'note',
+        startStep: step,
+        duration: 'sixteenth',
+        dots: 0,
+        noteheads: [],
+        accented: false,
+        graces: Array.from({ length: count }, () => []),
+      })),
+    })),
+  };
+}
+
+/** A bar of one articulation, as grace slots: 0 plain, 1 flam, 2 drag. */
+function everyStep(slots: number): readonly number[] {
+  return Array.from({ length: STEPS_PER_BAR }, () => slots);
+}
+
+function scoreWith(...measures: readonly Measure[]): Score {
+  return { measures: measures.map((measure, index) => ({ ...measure, index })) };
+}
+
+/** Wider than any minimum here, so the container never constrains. */
 const ROOMY = 5000;
 
 describe('staffLayoutFor', () => {
   test('keeps every measure on one system when there is room', () => {
-    expect(staffLayoutFor(ROOMY, 4)).toEqual({ width: ROOMY, measuresPerSystem: 4 });
+    expect(staffLayoutFor(ROOMY, scoreOf(4))).toEqual({ width: ROOMY, measuresPerSystem: 4 });
   });
 
   test('wraps to one measure a system in a container only one is legible in', () => {
-    // What a lone measure is drawn at when the container offers nothing: the
-    // narrowest one system can be, and so too narrow for two.
-    const oneMeasure = staffLayoutFor(0, 1).width;
+    // Narrowest one system can be, hence too narrow for two.
+    const oneMeasure = staffLayoutFor(0, scoreOf(1)).width;
 
-    expect(staffLayoutFor(oneMeasure, 2).measuresPerSystem).toBe(1);
+    expect(staffLayoutFor(oneMeasure, scoreOf(2)).measuresPerSystem).toBe(1);
   });
 
   test('floors at one measure a system, however narrow the container', () => {
-    expect(staffLayoutFor(1, 4).measuresPerSystem).toBe(1);
+    expect(staffLayoutFor(1, scoreOf(4)).measuresPerSystem).toBe(1);
   });
 
   test('stops following the container down, so the staff scales rather than clips', () => {
-    const cramped = staffLayoutFor(50, 2);
+    const cramped = staffLayoutFor(50, scoreOf(2));
 
     expect(cramped.width).toBeGreaterThan(50);
-    // Below the floor the container stops mattering at all.
-    expect(staffLayoutFor(10, 2).width).toBe(cramped.width);
+    // Below the floor the container stops mattering.
+    expect(staffLayoutFor(10, scoreOf(2)).width).toBe(cramped.width);
   });
 
   test('is happy in a container of the width it asked for', () => {
-    const floored = staffLayoutFor(50, 2);
+    const floored = staffLayoutFor(50, scoreOf(2));
 
-    expect(staffLayoutFor(floored.width, 2)).toEqual(floored);
+    expect(staffLayoutFor(floored.width, scoreOf(2))).toEqual(floored);
   });
 
   test('never returns a width narrower than the container it was given', () => {
     for (const containerWidth of [0, 100, 400, 700, 1000, 2000]) {
-      expect(staffLayoutFor(containerWidth, 4).width).toBeGreaterThanOrEqual(containerWidth);
+      expect(staffLayoutFor(containerWidth, scoreOf(4)).width).toBeGreaterThanOrEqual(
+        containerWidth,
+      );
     }
+  });
+
+  test('asks for more room the more a measure is ornamented', () => {
+    // Narrowest each is legible at, container out of the way.
+    const widths = [0, 1, 2].map(
+      (slots) => staffLayoutFor(0, scoreWith(measureOf(everyStep(slots)))).width,
+    );
+
+    expect(widths[1]!).toBeGreaterThan(widths[0]!);
+    expect(widths[2]!).toBeGreaterThan(widths[1]!);
+  });
+
+  test('charges a step for the busier voice on it, not for both', () => {
+    const oneVoice = scoreWith(measureOf(everyStep(2)));
+    const both = scoreWith(measureOf(everyStep(2), everyStep(2)));
+
+    // Both voices' graces on a step stack, so the second costs no width.
+    expect(staffLayoutFor(0, both).width).toBe(staffLayoutFor(0, oneVoice).width);
+  });
+
+  test('wraps sooner when the measures are ornamented than when they are plain', () => {
+    const plain = scoreWith(measureOf(everyStep(0)), measureOf(everyStep(0)));
+    // Twice a lone measure — more than a system of two needs, since clef and
+    // time signature are paid once.
+    const room = 2 * staffLayoutFor(0, plain).width;
+
+    // Room for two plain measures holds only one of drags.
+    expect(staffLayoutFor(room, plain).measuresPerSystem).toBe(2);
+    expect(
+      staffLayoutFor(room, scoreWith(measureOf(everyStep(2)), measureOf(everyStep(2))))
+        .measuresPerSystem,
+    ).toBe(1);
   });
 });
 
@@ -85,10 +151,21 @@ describe('placeMeasures', () => {
     const opensThePiece = placed[0]!.width - placed[1]!.width;
     const opensASystem = placed[2]!.width - placed[3]!.width;
 
-    // A clef costs the measure that carries it...
+    // A clef costs the measure carrying it...
     expect(opensASystem).toBeGreaterThan(0);
-    // ...and the first measure of all pays for the time signature on top.
+    // ...and the first measure pays the time signature on top.
     expect(opensThePiece).toBeGreaterThan(opensASystem);
+  });
+
+  test('gives an ornamented measure more of the system than the plain one beside it', () => {
+    const [plain, ornamented] = placeMeasures(
+      scoreWith(measureOf(everyStep(0)), measureOf(everyStep(2))),
+      layout,
+    );
+
+    // More even though the plain one opens the system and is paid clef plus
+    // time signature: the drags must be drawn somewhere.
+    expect(ornamented!.width).toBeGreaterThan(plain!.width);
   });
 
   test('spends the whole width: a full system plus both margins', () => {
@@ -104,7 +181,7 @@ describe('placeMeasures', () => {
       const placed = placeMeasures(scoreOf(3), { width: 1000, measuresPerSystem });
 
       expect(placed).toHaveLength(3);
-      // One a system: each starts at the margin, one band below the last.
+      // One per system: each at the margin, one band below the last.
       expect(placed.map(({ x }) => x)).toEqual([placed[0]!.x, placed[0]!.x, placed[0]!.x]);
       expect(placed[1]!.y).toBe(placed[0]!.y + placed[0]!.height);
       expect(placed[2]!.y).toBe(placed[1]!.y + placed[1]!.height);
@@ -128,11 +205,20 @@ describe('staffSize', () => {
 
 describe('exportStaffLayout', () => {
   test('puts the whole score on one system at the export width, whatever the viewport', () => {
-    for (const measures of [1, 2, 8]) {
+    for (const measures of [1, 2, 3]) {
       expect(exportStaffLayout(scoreOf(measures))).toEqual({
         width: EXPORT_WIDTH,
         measuresPerSystem: measures,
       });
     }
+  });
+
+  test('widens for music the export width cannot hold, rather than cutting it off', () => {
+    const dragged = scoreWith(measureOf(everyStep(2)), measureOf(everyStep(2)));
+
+    const { width, measuresPerSystem } = exportStaffLayout(dragged);
+    expect(width).toBeGreaterThan(EXPORT_WIDTH);
+    // Still one system: wider picture, not taller.
+    expect(measuresPerSystem).toBe(dragged.measures.length);
   });
 });
