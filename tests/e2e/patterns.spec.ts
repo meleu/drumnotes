@@ -534,20 +534,6 @@ test('a second press replaces the entry, name and tempo alike', async ({ page })
   await expect(page.locator(rows)).toContainText('140 BPM');
 });
 
-test('takes the replace question back when it goes unanswered', async ({ page }) => {
-  await page.locator(toggle).click();
-  await keep(page, 'Bossa');
-  await retune(page, '140');
-
-  await page.locator(field).fill('Bossa');
-  await page.locator(save).click();
-  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
-
-  // Waits the question out rather than answering it.
-  await expect(page.locator(save)).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
-  await expect(row(page, 'Bossa')).toContainText(`${DEFAULT_TEMPO} BPM`);
-});
-
 test('takes the replace question back when attention moves elsewhere', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');

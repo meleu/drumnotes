@@ -54,33 +54,19 @@
   const QUESTION_MS = 5000;
 
   /* Overwriting a kept groove costs two presses, like every other act with
-     nothing behind it. Armed by name, not a flag: editing the field to a free
-     name takes the question back, so it can never be answered against a name
-     other than the one it was put about. */
-  let askedOver = $state<string | null>(null);
-  let withdrawSave: ReturnType<typeof setTimeout> | undefined;
+     nothing behind it — but only where a groove is there to lose, so a free
+     name still keeps outright. The question is about the name being kept, and
+     it is asked about the name typed now, so editing the field to something
+     free puts Save back with nothing here to say so. */
+  const replacement = new Question();
 
   const taken = $derived(libraryState.holds(typed));
-  const replacing = $derived(askedOver !== null && taken && sameName(askedOver, typed));
+  const replacing = $derived(replacement.asking(typed));
 
   /* Takes a copy of the grid. Panel stays open so the new row is seen arriving
      — under the name as typed, since a replacement adopts the new spelling. */
   function pressSave(): void {
-    if (taken && !replacing) {
-      askedOver = typed;
-      clearTimeout(withdrawSave);
-      withdrawSave = setTimeout(forgetSave, QUESTION_MS);
-      return;
-    }
-    forgetSave();
-    libraryState.keep(typed, patternState.current);
-  }
-
-  /** Also on blur, as with every question here: attention elsewhere is an
-   *  answer of sorts. */
-  function forgetSave(): void {
-    askedOver = null;
-    clearTimeout(withdrawSave);
+    replacement.press(typed, taken, () => libraryState.keep(typed, patternState.current));
   }
 
   /* Which row the grid is — derived from the grid, so it goes out the moment a
@@ -200,11 +186,11 @@
           type="button"
           class="save"
           data-patterns="save"
-          data-state={replacing ? 'asking' : 'idle'}
-          aria-label={replacing ? `Replace ${typed}? Press again to confirm` : 'Save'}
+          data-state={stateOf(replacing)}
+          aria-label={replacing ? askingName(`Replace ${typed}`) : 'Save'}
           disabled={!keepable}
           onclick={pressSave}
-          onblur={forgetSave}
+          onblur={() => replacement.withdraw()}
         >
           {replacing ? 'Replace?' : 'Save'}
         </button>
