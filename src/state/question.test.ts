@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Question } from './question.svelte.js';
+import { ABOUT_NOTHING, Question } from './question.svelte.js';
 
 /** An act whose running is not what the test is about. */
 function noop(): void {}
@@ -79,6 +79,16 @@ describe('asking about', () => {
     question.press('Bossa', true, noop);
 
     expect(question.asking('Funk')).toBe(false);
+  });
+
+  it('stands about nothing at all until something is asked about', () => {
+    const question = new Question();
+
+    expect(question.asking(ABOUT_NOTHING)).toBe(false);
+
+    question.press(ABOUT_NOTHING, true, noop);
+
+    expect(question.asking(ABOUT_NOTHING)).toBe(true);
   });
 
   it('reads two subjects differing only in case as one subject', () => {
