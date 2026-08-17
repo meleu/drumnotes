@@ -43,14 +43,6 @@
     touch-action: manipulation;
   }
 
-  /* Asking looks like what it is about to do. */
-  .clear[data-state='asking'] {
-    border-color: #b91c1c;
-    background: #fee2e2;
-    color: #991b1b;
-    font-weight: 600;
-  }
-
   .clear:disabled {
     opacity: 0.5;
     cursor: default;

@@ -233,7 +233,7 @@
 
 <style>
   .toggle,
-  .keep button {
+  .save {
     padding: 0.6rem 0.9rem;
     border: 1px solid #d1d5db;
     border-radius: 6px;
@@ -243,7 +243,7 @@
     touch-action: manipulation;
   }
 
-  .keep button:disabled {
+  .save:disabled {
     opacity: 0.5;
     cursor: default;
   }
@@ -252,14 +252,6 @@
     /* Wide enough for either label, so the row does not shuffle when the
        question comes up. */
     min-width: 6rem;
-  }
-
-  /* Asking looks like what it is about to do. */
-  .save[data-state='asking'] {
-    border-color: #b91c1c;
-    background: #fee2e2;
-    color: #991b1b;
-    font-weight: 600;
   }
 
   .panel {
@@ -324,14 +316,20 @@
     touch-action: manipulation;
   }
 
-  .load:hover {
+  /* Answering the pointer is the idle look. A standing question outranks it:
+     the tint says what the next press does, and a hovering finger — the one
+     about to press — must not wash it off. */
+  .load[data-state='idle']:hover {
     background: #f9fafb;
   }
 
-  /* Asking looks like what it is about to do, in the tempo's slot, so the row
-     keeps its shape while the question stands. */
+  /* Takes the tint and nothing else, unlike the three controls shaped like
+     buttons: a whole row reddened and emboldened would pull its own text about,
+     and the question is already said in the tempo's slot. Puts the ink and the
+     weight back to the row's own, so asking and idle read alike. */
   .load[data-state='asking'] {
-    background: #fee2e2;
+    color: revert;
+    font-weight: inherit;
   }
 
   .question {
@@ -354,14 +352,6 @@
     font-size: 0.8125rem;
     cursor: pointer;
     touch-action: manipulation;
-  }
-
-  /* Asking looks like what it is about to do. */
-  .delete[data-state='asking'] {
-    border-color: #b91c1c;
-    background: #fee2e2;
-    color: #991b1b;
-    font-weight: 600;
   }
 
   .tempo,

@@ -11,3 +11,17 @@
 body {
   margin: 0;
 }
+
+/* One concept, one look: what a standing question wears, said here rather than
+   in each control, so four controls cannot drift into four looks for the thing
+   they all report as `asking`.
+
+   Qualified by `:root` only to carry weight: Svelte scopes a component's
+   selectors by adding a class to them, so a bare attribute would lose to the
+   look each control draws for itself. */
+:root button[data-state='asking'] {
+  border-color: #b91c1c;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 600;
+}
