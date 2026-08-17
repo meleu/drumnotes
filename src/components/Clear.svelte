@@ -1,34 +1,18 @@
 <script lang="ts">
   import { anythingWritten } from '../core/pattern.js';
   import { patternState } from '../state/pattern.svelte.js';
+  import { ABOUT_NOTHING, Question, askingName, stateOf } from '../state/question.svelte.js';
   import { session } from '../state/session.svelte.js';
 
   const written = $derived(anythingWritten(patternState.current));
 
   // Erasing has nothing behind it — no undo, autosave straight to storage — so
   // two presses. The question lives in the button, not a dialog: same place,
-  // same finger, nothing to dismiss if the answer is no.
-  let asking = $state(false);
-  const QUESTION_MS = 5000;
-  let withdraw: ReturnType<typeof setTimeout> | undefined;
-
-  function press(): void {
-    if (asking) {
-      forget();
-      session.clear();
-      return;
-    }
-    asking = true;
-    clearTimeout(withdraw);
-    withdraw = setTimeout(forget, QUESTION_MS);
-  }
-
-  // Also on blur: attention elsewhere is an answer, and an armed button left
-  // lying around is what the question guards against.
-  function forget(): void {
-    asking = false;
-    clearTimeout(withdraw);
-  }
+  // same finger, nothing to dismiss if the answer is no. It is about the whole
+  // grid rather than any one thing kept, so there is no subject to name.
+  const question = new Question();
+  const asking = $derived(question.asking(ABOUT_NOTHING));
+  const phrase = 'Clear the pattern';
 </script>
 
 <!-- Dead on an already-silent pattern: a control that can only be a no-op
@@ -37,11 +21,11 @@
 <button
   type="button"
   class="clear"
-  data-state={asking ? 'asking' : 'idle'}
-  aria-label={asking ? 'Clear the pattern? Press again to confirm' : 'Clear the pattern'}
+  data-state={stateOf(asking)}
+  aria-label={asking ? askingName(phrase) : phrase}
   disabled={!written}
-  onclick={press}
-  onblur={forget}
+  onclick={() => question.press(ABOUT_NOTHING, true, () => session.clear())}
+  onblur={() => question.withdraw()}
 >
   {asking ? 'Sure?' : 'Clear'}
 </button>
