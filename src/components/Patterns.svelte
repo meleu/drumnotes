@@ -7,6 +7,7 @@
   import { anythingWritten } from '../core/pattern.js';
   import { libraryState } from '../state/library.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
+  import { Question, askingName, stateOf } from '../state/question.svelte.js';
   import { session } from '../state/session.svelte.js';
 
   /* A disclosure, not a dialog: opens under the controls row and pushes the
@@ -128,22 +129,17 @@
   }
 
   /* Deleting has nothing behind it either — no undo, rows as wide as a thumb —
-     so two presses, like clearing. Armed by name, not a flag: only the row
-     asked about is armed, and asking about another takes the first back. */
-  let asked = $state<string | null>(null);
-  let withdraw: ReturnType<typeof setTimeout> | undefined;
+     so two presses, like clearing. The question is about the row's name, so only
+     the row asked about is armed and asking about another takes the first back.
+     Nothing at the call site says so: one question armed by one subject is. */
+  const deletion = new Question();
 
-  function press(name: string): void {
-    if (asked === name) {
-      forget();
+  function pressDelete(name: string): void {
+    deletion.press(name, true, () => {
       const at = entries.findIndex((entry) => sameName(entry.name, name));
       libraryState.remove(name);
       void tick().then(() => handOn(at));
-      return;
-    }
-    asked = name;
-    clearTimeout(withdraw);
-    withdraw = setTimeout(forget, QUESTION_MS);
+    });
   }
 
   /* Where the keyboard goes once its row is gone: the row that took its place,
@@ -153,13 +149,6 @@
     const controls = list ? [...list.querySelectorAll<HTMLButtonElement>('.delete')] : [];
     const next = controls[Math.min(at, controls.length - 1)];
     (next ?? named)?.focus();
-  }
-
-  /* Also on blur: attention elsewhere is an answer, and an armed control left
-     lying around is what the question guards against. */
-  function forget(): void {
-    asked = null;
-    clearTimeout(withdraw);
   }
 </script>
 
@@ -226,6 +215,7 @@
       {:else}
         <ul class="rows" data-patterns="rows" bind:this={list}>
           {#each entries as entry (entry.name)}
+            {@const dropping = deletion.asking(entry.name)}
             <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
               <!-- Loading is the whole width the delete control leaves, so the
                  target is as wide as the panel and a thumb cannot miss it.
@@ -252,14 +242,12 @@
                 type="button"
                 class="delete"
                 data-patterns="delete"
-                data-state={asked === entry.name ? 'asking' : 'idle'}
-                aria-label={asked === entry.name
-                  ? `Delete ${entry.name}? Press again to confirm`
-                  : `Delete ${entry.name}`}
-                onclick={() => press(entry.name)}
-                onblur={forget}
+                data-state={stateOf(dropping)}
+                aria-label={dropping ? askingName(`Delete ${entry.name}`) : `Delete ${entry.name}`}
+                onclick={() => pressDelete(entry.name)}
+                onblur={() => deletion.withdraw()}
               >
-                {asked === entry.name ? 'Sure?' : 'Delete'}
+                {dropping ? 'Sure?' : 'Delete'}
               </button>
             </li>
           {/each}

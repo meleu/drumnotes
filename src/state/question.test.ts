@@ -73,6 +73,14 @@ describe('press', () => {
 });
 
 describe('asking about', () => {
+  it('stands about the subject asked about and no other', () => {
+    const question = new Question();
+
+    question.press('Bossa', true, noop);
+
+    expect(question.asking('Funk')).toBe(false);
+  });
+
   it('reads two subjects differing only in case as one subject', () => {
     const question = new Question();
     let acted = false;

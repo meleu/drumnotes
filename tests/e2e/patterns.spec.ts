@@ -362,18 +362,9 @@ test('deleting leaves the groove on the grid and its tempo alone', async ({ page
   await expect(page.locator(tempoField)).toHaveValue('140');
 });
 
-test('takes the question back when it goes unanswered', async ({ page }) => {
-  await page.locator(toggle).click();
-  await keep(page, 'Bossa');
-
-  await remove(page, 'Bossa').click();
-  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
-
-  // Waits the question out rather than answering it.
-  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
-  await expect(row(page, 'Bossa')).toBeVisible();
-});
-
+/* Withdrawal after the wait is the Question module's rule, covered on a fake
+   clock in `src/state/question.test.ts`. What only a browser can show is that
+   real focus leaving really does take the question back. */
 test('takes the question back when attention moves elsewhere', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');
