@@ -50,9 +50,6 @@
      empty grid for the same reason. */
   const keepable = $derived(typed !== '' && anythingWritten(patternState.current));
 
-  /** How long a question stands before it is taken back. */
-  const QUESTION_MS = 5000;
-
   /* Overwriting a kept groove costs two presses, like every other act with
      nothing behind it — but only where a groove is there to lose, so a free
      name still keeps outright. The question is about the name being kept, and
@@ -79,14 +76,15 @@
      question would interrupt about nothing. Unkept hits are worth a press. */
   const atStake = $derived(onGrid === null && anythingWritten(patternState.current));
 
-  let askedFor = $state<string | null>(null);
-  let withdrawLoad: ReturnType<typeof setTimeout> | undefined;
+  /* The question is about the row, so what it says names the row: an answer can
+     never be given about a groove other than the one asked about. */
+  const loading = new Question();
 
   /* Reads the same heard as seen: mark and question both go in the label, since
      neither is in the button's text. */
   function loadLabel(entry: Entry): string {
     const row = `${entry.name}, ${entry.pattern.tempo} BPM`;
-    if (askedFor === entry.name) return `Load ${row} over unkept work? Press again to confirm`;
+    if (loading.asking(entry.name)) return askingName(`Load ${row} over unkept work`);
     return onGrid === entry.name ? `${row}, on the grid` : `Load ${row}`;
   }
 
@@ -94,24 +92,13 @@
      pattern autosaves as current through the same funnel an edit uses. Then the
      panel closes, returning the drummer to the grid and staff. */
   function pressLoad(entry: Entry): void {
-    if (atStake && askedFor !== entry.name) {
-      askedFor = entry.name;
-      clearTimeout(withdrawLoad);
-      withdrawLoad = setTimeout(forgetLoad, QUESTION_MS);
-      return;
-    }
-    forgetLoad();
-    session.load(entry.pattern);
-    open = false;
-    /* The panel under the finger has gone, so focus returns to the control that
-       opened it — the one press that would open it again. */
-    void tick().then(() => control?.focus());
-  }
-
-  /** Also on blur, as with every other question here. */
-  function forgetLoad(): void {
-    askedFor = null;
-    clearTimeout(withdrawLoad);
+    loading.press(entry.name, atStake, () => {
+      session.load(entry.pattern);
+      open = false;
+      /* The panel under the finger has gone, so focus returns to the control
+         that opened it — the one press that would open it again. */
+      void tick().then(() => control?.focus());
+    });
   }
 
   /* Deleting has nothing behind it either — no undo, rows as wide as a thumb —
@@ -201,6 +188,7 @@
       {:else}
         <ul class="rows" data-patterns="rows" bind:this={list}>
           {#each entries as entry (entry.name)}
+            {@const taking = loading.asking(entry.name)}
             {@const dropping = deletion.asking(entry.name)}
             <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
               <!-- Loading is the whole width the delete control leaves, so the
@@ -212,13 +200,13 @@
                 type="button"
                 class="load"
                 data-patterns="load"
-                data-state={askedFor === entry.name ? 'asking' : 'idle'}
+                data-state={stateOf(taking)}
                 aria-label={loadLabel(entry)}
                 onclick={() => pressLoad(entry)}
-                onblur={forgetLoad}
+                onblur={() => loading.withdraw()}
               >
                 <span class="name">{entry.name}</span>
-                {#if askedFor === entry.name}
+                {#if taking}
                   <span class="question">Sure?</span>
                 {:else}
                   <span class="tempo">{entry.pattern.tempo} BPM</span>

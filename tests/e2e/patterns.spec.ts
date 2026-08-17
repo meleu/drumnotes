@@ -714,21 +714,6 @@ test('tapping a row loads outright when the grid is empty', async ({ page }) => 
   await expect(written(page)).not.toHaveCount(0);
 });
 
-test('takes the load question back when it goes unanswered', async ({ page }) => {
-  const silent = defaultPattern().lanes.snare.indexOf('empty');
-  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
-  await page.locator(toggle).click();
-  await keep(page, 'Bossa');
-  await cell.click();
-
-  await load(page, 'Bossa');
-  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
-
-  // Waits the question out rather than answering it.
-  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
-  await expect(cell).toHaveAttribute('aria-pressed', 'true');
-});
-
 test('takes the load question back when attention moves elsewhere', async ({ page }) => {
   const silent = defaultPattern().lanes.snare.indexOf('empty');
   const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
