@@ -314,6 +314,28 @@ export function withNothingWritten(pattern: Pattern): Pattern {
   return { ...pattern, lanes: emptyPattern().lanes };
 }
 
+/**
+ * Whether two patterns are the same document — the same groove, struck the same
+ * way, at the same tempo. Compared by value, never by identity: a pattern loaded
+ * off the library is a different object from the one that was kept, and they are
+ * still the same pattern.
+ *
+ * Both the tempo and how each cell is struck count. Retuning, or accenting a hit
+ * that was plain, makes a different pattern of the same groove — which is why
+ * either alone is enough to say the grid has diverged from what was kept.
+ */
+export function samePattern(one: Pattern, other: Pattern): boolean {
+  if (one.tempo !== other.tempo) return false;
+  return INSTRUMENTS.every(({ id }) => {
+    const lane = one.lanes[id];
+    const against = other.lanes[id];
+    return (
+      lane.length === against.length &&
+      lane.every((articulation, step) => articulation === against[step])
+    );
+  });
+}
+
 /** One cell's articulation into a new `Pattern`; input untouched. */
 export function withArticulation(
   pattern: Pattern,

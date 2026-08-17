@@ -2,7 +2,6 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
-import { serialisePattern } from '../../src/core/codec.js';
 import type { Pattern } from '../../src/core/pattern.js';
 import {
   BARS,
@@ -13,6 +12,7 @@ import {
   withArticulation,
 } from '../../src/core/pattern.js';
 import { loopDuration, stepDuration } from '../../src/core/schedule.js';
+import { storedApp } from './support/store.js';
 
 /* Middling: a bar passes inside a test, yet a step lasts several polls so the
    playhead can be watched, not inferred. */
@@ -33,7 +33,7 @@ async function load(page: Page, pattern: Pattern = defaultPattern()): Promise<vo
   await page.goto('/');
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
-    [STORAGE_KEY, serialisePattern({ ...pattern, tempo: TEMPO })],
+    [STORAGE_KEY, storedApp({ ...pattern, tempo: TEMPO })],
   );
   await page.reload();
   await expect(page.locator(transport)).toBeEnabled();

@@ -4,6 +4,8 @@ import { expect, test } from '@playwright/test';
 import { INSTRUMENTS, defaultPattern } from '../../src/core/pattern.js';
 
 const clear = '.clear';
+const transport = '.transport';
+const lit = '.cell.playing';
 
 /** Cells the grid shows written, across every instrument. */
 function written(page: Page) {
@@ -89,6 +91,19 @@ test('clearing keeps the tempo the groove was played at', async ({ page }) => {
 
   await expect(written(page)).toHaveCount(0);
   await expect(tempo).toHaveValue('140');
+});
+
+/* A change of what is played, not an edit to what is playing: the loop stops
+   rather than turning into a silent pulse. */
+test('stops the transport and clears the playhead', async ({ page }) => {
+  await expect(page.locator(transport)).toBeEnabled();
+  await page.locator(transport).click();
+  await expect(page.locator(lit)).not.toHaveCount(0);
+
+  await clearPattern(page);
+
+  await expect(page.locator(transport)).toHaveAttribute('data-state', 'stopped');
+  await expect(page.locator(lit)).toHaveCount(0);
 });
 
 test('goes dead when there is nothing left to rub out', async ({ page }) => {

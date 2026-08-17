@@ -2,7 +2,6 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/adapters/storage.js';
-import { serialisePattern } from '../../src/core/codec.js';
 import {
   DEFAULT_TEMPO,
   MAX_TEMPO,
@@ -13,6 +12,7 @@ import {
 } from '../../src/core/pattern.js';
 import { stepDuration } from '../../src/core/schedule.js';
 import { audioLog, instrumentAudio } from './support/audio-log.js';
+import { storedApp } from './support/store.js';
 
 const field = 'input[aria-label="Tempo in beats per minute"]';
 const transport = '.transport';
@@ -66,7 +66,7 @@ test('changes the rate mid-playback without stopping', async ({ page }) => {
     ([key, stored]) => localStorage.setItem(key!, stored!),
     [
       STORAGE_KEY,
-      serialisePattern(
+      storedApp(
         [...Array(TOTAL_STEPS).keys()].reduce(
           (pattern, step) => toggleStep(pattern, 'hihat', step),
           { ...emptyPattern(), tempo: MIN_TEMPO },

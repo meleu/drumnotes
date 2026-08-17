@@ -23,6 +23,7 @@ import {
   hitsAt,
   hitsOf,
   isWritten,
+  samePattern,
   toggleStep,
   withArticulation,
   withNothingWritten,
@@ -307,6 +308,38 @@ describe('withNothingWritten', () => {
 
     expect(after).not.toBe(before);
     expect(isSilent(before.lanes.hihat)).toBe(false);
+  });
+});
+
+describe('samePattern', () => {
+  it('holds of two patterns built the same way, which are separate values', () => {
+    expect(samePattern(defaultPattern(), defaultPattern())).toBe(true);
+  });
+
+  it('fails when only the tempo differs, the tempo being part of the pattern', () => {
+    expect(samePattern(defaultPattern(), withTempo(defaultPattern(), 140))).toBe(false);
+  });
+
+  it('fails on a single cell, in any lane', () => {
+    for (const { id } of INSTRUMENTS) {
+      const changed = toggleStep(defaultPattern(), id, TOTAL_STEPS - 1);
+
+      expect(samePattern(defaultPattern(), changed)).toBe(false);
+    }
+  });
+
+  it('fails on a written cell struck differently, the groove being unchanged', () => {
+    const step = defaultPattern().lanes.snare.indexOf('normal');
+    const accented = withArticulation(defaultPattern(), 'snare', step, 'accent');
+
+    expect(samePattern(defaultPattern(), accented)).toBe(false);
+  });
+
+  it('holds again once the changed cell is put back', () => {
+    const there = toggleStep(defaultPattern(), 'snare', 0);
+    const back = toggleStep(there, 'snare', 0);
+
+    expect(samePattern(defaultPattern(), back)).toBe(true);
   });
 });
 
