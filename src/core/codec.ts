@@ -1,19 +1,18 @@
 /**
- * Persistence codec: the whole store ↔ text. Pure — strings, not storage.
+ * Persistence codec: whole store ↔ text. Pure — strings, not storage.
  *
- * The store is one object holding the pattern on the grid and the library
- * beside it. Its shape is fixed and carries no version of its own; the version
- * rides on each stored pattern, so a later instrument or dynamics change is one
- * bump plus a per-entry upgrade or drop, never a wholesale migration, and a
- * mixed-version library stays readable. The version is checked in one named
- * step, `atCurrentVersion`, which is where that upgrade will go.
+ * One object holding the grid pattern and the library. Its shape is fixed and
+ * unversioned; the version rides on each stored pattern, so an instrument or
+ * dynamics change is one bump plus a per-entry upgrade or drop, never a
+ * wholesale migration, and a mixed-version library stays readable. Checked in
+ * one named step, `cellReaderFor`, which is where that upgrade will go.
  *
  * Two decoding contracts, deliberately different:
  *
- * - The **current pattern decodes totally**. Anything unreadable resolves to the
- *   default pattern, because the grid must show something.
- * - A **library entry decodes partially**. Anything unreadable yields nothing and
- *   the entry is simply absent, so every row listed is a row that will load.
+ * - **Current pattern decodes totally**: unreadable falls back to the default
+ *   pattern, because the grid must show something.
+ * - **Library entry decodes partially**: unreadable yields nothing and the entry
+ *   is absent, so every row listed is a row that will load.
  *
  * Neither ever throws.
  */
@@ -36,7 +35,7 @@ export const SCHEMA_VERSION = 2;
 /** Cells were booleans; rest of the payload unchanged. */
 const BOOLEAN_CELLS_VERSION = 1;
 
-/** Everything kept: the pattern on the grid, and the patterns kept by name. */
+/** Everything kept: the grid pattern, and the patterns kept by name. */
 export interface Store {
   readonly current: Pattern;
   readonly library: Library;
@@ -72,14 +71,14 @@ export function parseStore(text: string | null | undefined): Store {
   };
 }
 
-/** The current pattern is stored as just another entry, so it and the library
- *  entries decode through one path and cannot drift apart. */
+/** Current pattern stored as just another entry, so it and library entries
+ *  decode through one path and cannot drift apart. */
 function storedPattern(pattern: Pattern): StoredPattern {
   return { version: SCHEMA_VERSION, tempo: pattern.tempo, lanes: pattern.lanes };
 }
 
-/** Entries that cannot be read are left out rather than mangled; the next write
- *  persists the pruned map. */
+/** Unreadable entries left out rather than mangled; next write persists the
+ *  pruned map. */
 function readLibrary(value: unknown): Library {
   if (!isRecord(value)) return {};
 
@@ -91,7 +90,7 @@ function readLibrary(value: unknown): Library {
   return library;
 }
 
-/** The partial decode: one stored pattern, or nothing at all. */
+/** The partial decode: one stored pattern, or nothing. */
 function readPattern(value: unknown): Pattern | undefined {
   if (!isRecord(value)) return undefined;
 
@@ -115,17 +114,17 @@ const CELL_READERS: ReadonlyMap<number, (value: unknown) => Articulation | undef
 
 /**
  * The version step: how to read this payload's cells, or nothing when this
- * build cannot read them at all. Every step after it reads the current shape
- * and only the current shape, and may do so because this one has run.
+ * build cannot read them. Every later step reads the current shape only, and
+ * may do so because this one has run.
  *
- * A version left behind lives on as a cell reader rather than a migration pass,
- * because that is the whole of what has ever changed between versions. Were a
- * bump to move something else — a new instrument, a lane length — this is where
- * the payload would be brought forward first, and the reader chosen after.
+ * Old versions live on as cell readers, not migration passes, because cells are
+ * all that has ever changed between versions. Were a bump to move something
+ * else — a new instrument, a lane length — the payload would be brought forward
+ * here first, and the reader chosen after.
  *
- * That is what keeps a library readable across a bump: without it, `readLanes`'
- * exact-lane-count check would reject every pattern kept before the change, and
- * a drummer would open the app to an empty library.
+ * This is what keeps a library readable across a bump: without it, `readLanes`'
+ * exact-lane-count check would reject every pre-change pattern and the drummer
+ * would open the app to an empty library.
  */
 function cellReaderFor(
   version: unknown,
@@ -154,8 +153,8 @@ function isInRange(tempo: number): boolean {
   return tempo >= MIN_TEMPO && tempo <= MAX_TEMPO;
 }
 
-/** Unknown name rejects the payload, not resolves to silence: an unreadable
- *  lane should not be half-played. */
+/** Unknown name rejects the payload rather than resolving to silence: an
+ *  unreadable lane should not be half-played. */
 function readArticulation(value: unknown): Articulation | undefined {
   return ARTICULATIONS.find((articulation) => articulation === value);
 }
@@ -166,8 +165,8 @@ function liftBoolean(value: unknown): Articulation | undefined {
   return value ? 'normal' : 'empty';
 }
 
-/** Exactly one lane per known instrument: an unknown id, a missing lane or a
- *  wrong length rejects the whole payload. */
+/** Exactly one lane per known instrument: unknown id, missing lane or wrong
+ *  length rejects the whole payload. */
 function readLanes(
   value: unknown,
   readCell: (cell: unknown) => Articulation | undefined,

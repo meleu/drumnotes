@@ -9,66 +9,61 @@
   import { patternState } from '../state/pattern.svelte.js';
   import { session } from '../state/session.svelte.js';
 
-  /* A disclosure, not a dialog: the panel opens under the controls row and
-     pushes the grid down, so nothing is covered and nothing has to be
-     dismissed. Closed when the app opens — the interface looks exactly as it
-     did until the library is asked for. */
+  /* A disclosure, not a dialog: opens under the controls row and pushes the
+     grid down, so nothing is covered and nothing has to be dismissed. Closed at
+     app open — the interface is unchanged until the library is asked for. */
   let open = $state(false);
   const PANEL_ID = 'patterns-panel';
 
-  /* Every act here that answers a question destroys the control that was
-     pressed — the panel closes over a load, the row goes on a delete — and a
-     browser hands the keyboard back to the top of the document when the thing
-     holding it disappears. These are where attention is put instead, so it is
-     never dropped. */
+  /* Answering a question destroys the control that was pressed — the panel
+     closes over a load, the row goes on a delete — and the browser then hands
+     the keyboard back to the top of the document. Focus goes here instead. */
   let control = $state<HTMLButtonElement>();
   let named = $state<HTMLInputElement>();
   let list = $state<HTMLUListElement>();
 
-  /* Asked once, and decides what the panel holds rather than what is greyed
-     out: a store that will not keep anything never starts, so a field and a
-     Save button would be an invitation to press something that cannot work. */
+  /* Asked once; decides what the panel holds, not what is greyed out. A store
+     that keeps nothing never starts, so a field and Save would invite pressing
+     something that cannot work. */
   const storable = canKeep();
 
   let name = $state('');
 
   const entries = $derived(libraryState.entries);
 
-  /* The panel opens with a free name already in the field, so keeping a groove
-     costs one press when none has been thought of. Set on opening rather than
-     derived: from then on the field is the drummer's to type in, and a
-     suggestion that rewrote itself under them would be worse than none. */
+  /* Opens with a free name already in the field, so keeping costs one press
+     when no name was thought of. Set on opening, not derived: the field is the
+     drummer's from then on, and a suggestion rewriting itself under them would
+     be worse than none. */
   function toggleOpen(): void {
     open = !open;
     if (open) name = libraryState.freeName;
   }
 
-  /* What the drummer typed, less the whitespace around it: the name is kept and
-     shown as it reads, not as it was padded. */
+  /* Typed, less surrounding whitespace: kept and shown as it reads, not as it
+     was padded. */
   const typed = $derived(name.trim());
 
-  /* Dead in the two cases where pressing it could only do harm: nothing is ever
-     kept under no name at all, and the library does not fill with silence. The
-     second matches Clear, which is dead on an empty grid for the same reason. */
+  /* Dead where pressing could only harm: nothing is kept under no name, and the
+     library does not fill with silence. The second matches Clear, dead on an
+     empty grid for the same reason. */
   const keepable = $derived(typed !== '' && anythingWritten(patternState.current));
 
   /** How long a question stands before it is taken back. */
   const QUESTION_MS = 5000;
 
-  /* A name already kept holds a groove the drummer meant to keep, so writing
-     over one costs two presses like every other act with nothing behind it.
-     What is armed is the name the question was asked about, not a flag: editing
-     the field to a free name takes the question back, so it can never be
-     answered against a name other than the one it was put about. */
+  /* Overwriting a kept groove costs two presses, like every other act with
+     nothing behind it. Armed by name, not a flag: editing the field to a free
+     name takes the question back, so it can never be answered against a name
+     other than the one it was put about. */
   let askedOver = $state<string | null>(null);
   let withdrawSave: ReturnType<typeof setTimeout> | undefined;
 
   const taken = $derived(libraryState.holds(typed));
   const replacing = $derived(askedOver !== null && taken && sameName(askedOver, typed));
 
-  /* Save takes a copy of what is on the grid. The panel stays open afterwards,
-     so the new row can be seen arriving — under the name as typed, since a
-     replacement adopts the spelling that replaced it. */
+  /* Takes a copy of the grid. Panel stays open so the new row is seen arriving
+     — under the name as typed, since a replacement adopts the new spelling. */
   function pressSave(): void {
     if (taken && !replacing) {
       askedOver = typed;
@@ -80,40 +75,37 @@
     libraryState.keep(typed, patternState.current);
   }
 
-  /** Also on blur, as with every other question here: attention elsewhere is an
+  /** Also on blur, as with every question here: attention elsewhere is an
    *  answer of sorts. */
   function forgetSave(): void {
     askedOver = null;
     clearTimeout(withdrawSave);
   }
 
-  /* Which row is the pattern on the grid — derived from the grid itself, so it
-     goes out the moment a cell or the tempo changes and comes back on its own
-     when the change is undone. Nothing is remembered, so nothing can go stale. */
+  /* Which row the grid is — derived from the grid, so it goes out the moment a
+     cell or the tempo changes and comes back when that is undone. Nothing
+     remembered, so nothing can go stale. */
   const onGrid = $derived(libraryState.onGrid);
 
-  /* Loading throws the grid away, so it asks — but only when there is something
-     to lose. A grid that is itself kept can be had back by loading it again,
-     and an empty grid holds nothing, so in both cases the question would be an
-     interruption about nothing. Unkept hits are the case worth a press. */
+  /* Loading throws the grid away, so it asks — but only with something to lose.
+     A kept grid can be loaded again and an empty one holds nothing, so either
+     question would interrupt about nothing. Unkept hits are worth a press. */
   const atStake = $derived(onGrid === null && anythingWritten(patternState.current));
 
   let askedFor = $state<string | null>(null);
   let withdrawLoad: ReturnType<typeof setTimeout> | undefined;
 
-  /* The row reads the same heard as seen: the mark and the question are both
-     written into the label, since neither is in the text of the button. */
+  /* Reads the same heard as seen: mark and question both go in the label, since
+     neither is in the button's text. */
   function loadLabel(entry: Entry): string {
     const row = `${entry.name}, ${entry.pattern.tempo} BPM`;
     if (askedFor === entry.name) return `Load ${row} over unkept work? Press again to confirm`;
     return onGrid === entry.name ? `${row}, on the grid` : `Load ${row}`;
   }
 
-  /* Loading goes the other way, through the session seam: a wholesale
-     replacement stops the loop, and the pattern autosaves as the current one
-     through the same funnel an edit does. Then the panel closes: it has done
-     its job, and the drummer is returned to the grid and staff they came here
-     to work on. */
+  /* Through the session seam: a wholesale replacement stops the loop, and the
+     pattern autosaves as current through the same funnel an edit uses. Then the
+     panel closes, returning the drummer to the grid and staff. */
   function pressLoad(entry: Entry): void {
     if (atStake && askedFor !== entry.name) {
       askedFor = entry.name;
@@ -124,8 +116,8 @@
     forgetLoad();
     session.load(entry.pattern);
     open = false;
-    /* The panel that was under the finger has gone, so attention goes back to
-       the control that opened it — the one press that would open it again. */
+    /* The panel under the finger has gone, so focus returns to the control that
+       opened it — the one press that would open it again. */
     void tick().then(() => control?.focus());
   }
 
@@ -135,10 +127,9 @@
     clearTimeout(withdrawLoad);
   }
 
-  /* Deleting has nothing behind it either — no undo, and the rows are as wide
-     as a thumb — so it costs two presses, the same as clearing does. The
-     question is a name rather than a flag: only the row it was asked about is
-     armed, and asking about another takes the first back. */
+  /* Deleting has nothing behind it either — no undo, rows as wide as a thumb —
+     so two presses, like clearing. Armed by name, not a flag: only the row
+     asked about is armed, and asking about another takes the first back. */
   let asked = $state<string | null>(null);
   let withdraw: ReturnType<typeof setTimeout> | undefined;
 
@@ -155,18 +146,17 @@
     withdraw = setTimeout(forget, QUESTION_MS);
   }
 
-  /* Where the keyboard goes once the row it was on is gone: to the row that
-     took its place, so a second deletion is another press rather than another
-     tab walk, and back to the field when the last row has been dropped and
-     there is nowhere in the list to be. */
+  /* Where the keyboard goes once its row is gone: the row that took its place,
+     so a second deletion is another press rather than another tab walk — and
+     back to the field once the last row is dropped. */
   function handOn(at: number): void {
     const controls = list ? [...list.querySelectorAll<HTMLButtonElement>('.delete')] : [];
     const next = controls[Math.min(at, controls.length - 1)];
     (next ?? named)?.focus();
   }
 
-  /* Also on blur: attention elsewhere is an answer of sorts, and an armed
-     control left lying around is exactly what the question guards against. */
+  /* Also on blur: attention elsewhere is an answer, and an armed control left
+     lying around is what the question guards against. */
   function forget(): void {
     asked = null;
     clearTimeout(withdraw);
@@ -297,7 +287,7 @@
   }
 
   .save {
-    /* Held wide enough for either label, so the row does not shuffle when the
+    /* Wide enough for either label, so the row does not shuffle when the
        question comes up. */
     min-width: 6rem;
   }
@@ -311,8 +301,8 @@
   }
 
   .panel {
-    /* Laid out after every other control in the row, and wide enough to force
-       its own line: the row keeps its order, the panel sits under all of it. */
+    /* Last in the row and wide enough to force its own line: the row keeps its
+       order, the panel sits under all of it. */
     order: 1;
     flex-basis: 100%;
     padding: 0.75rem;
@@ -349,10 +339,9 @@
     border-top: 1px solid #f3f4f6;
   }
 
-  /* Sized to the row rather than to its text: the whole line is the target.
-     No shorter than the controls in the row above, so a thumb finds it as
-     easily on a phone; the line it holds is centred in whatever height that
-     leaves, and centred again when a long name wraps it onto two. */
+  /* Sized to the row, not its text: the whole line is the target. No shorter
+     than the controls above, so a thumb finds it on a phone; its text stays
+     centred in whatever height that leaves, and when a long name wraps. */
   .load {
     display: flex;
     flex: 1;
@@ -377,8 +366,8 @@
     background: #f9fafb;
   }
 
-  /* Asking looks like what it is about to do, in the slot the tempo was in, so
-     the row keeps its shape while the question stands. */
+  /* Asking looks like what it is about to do, in the tempo's slot, so the row
+     keeps its shape while the question stands. */
   .load[data-state='asking'] {
     background: #fee2e2;
   }
@@ -390,8 +379,8 @@
   }
 
   .delete {
-    /* Held wide enough for either label, so the row does not shuffle when the
-       question comes up, and no shorter than the control it sits beside. */
+    /* Wide enough for either label, so the row does not shuffle when the
+       question comes up, and no shorter than the control beside it. */
     min-width: 4.5rem;
     min-height: 2.75rem;
     flex: none;
@@ -420,17 +409,15 @@
     color: #6b7280;
   }
 
-  /* Where the drummer is in their own library, said by weight and a tint rather
-     than in words: the row stands out from the ones around it without
-     announcing itself, and nothing shifts as the mark comes and goes. */
+  /* Where the drummer is in their library, said by weight and tint rather than
+     words: stands out without announcing itself, and nothing shifts as the mark
+     comes and goes. */
   .row[data-on-grid='true'] .name {
     font-weight: 600;
   }
 
-  /* A name is the drummer's own word for their music and may run to forty
-     characters of it without a space to break at. It breaks wherever it has to
-     rather than pushing the panel — and the page with it — wider than the
-     phone it is being read on. */
+  /* A name may run forty characters with no space to break at. Breaks anywhere
+     rather than pushing the panel — and the page — wider than the phone. */
   .name {
     overflow-wrap: anywhere;
   }
@@ -439,7 +426,7 @@
     background: #f3f4f6;
   }
 
-  /* Still answers to the pointer, a shade further on than it already sits. */
+  /* Still answers the pointer, a shade further on than it already sits. */
   .row[data-on-grid='true'] .load:hover {
     background: #e5e7eb;
   }
@@ -448,7 +435,7 @@
     margin: 0.75rem 0 0;
   }
 
-  /* Alone in the panel, so it does not hang off a row that is not there. */
+  /* Alone in the panel, so it does not hang off an absent row. */
   .blocked {
     margin: 0;
   }

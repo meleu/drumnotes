@@ -6,8 +6,8 @@
   const written = $derived(anythingWritten(patternState.current));
 
   // Erasing has nothing behind it — no undo, autosave straight to storage — so
-  // it costs two presses. The question lives in the button, not a dialog: same
-  // place, same finger, nothing to dismiss if the answer is no.
+  // two presses. The question lives in the button, not a dialog: same place,
+  // same finger, nothing to dismiss if the answer is no.
   let asking = $state(false);
   const QUESTION_MS = 5000;
   let withdraw: ReturnType<typeof setTimeout> | undefined;
@@ -24,7 +24,7 @@
   }
 
   // Also on blur: attention elsewhere is an answer, and an armed button left
-  // lying around is what the question protects against.
+  // lying around is what the question guards against.
   function forget(): void {
     asking = false;
     clearTimeout(withdraw);

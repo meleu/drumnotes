@@ -47,8 +47,8 @@ function storeWith(current: unknown): string {
   return JSON.stringify({ current, library: {} });
 }
 
-/** A serialised store holding whatever is offered as its library, entry by
- *  entry, over a readable current pattern. */
+/** A serialised store holding whatever library entries are offered, over a
+ *  readable current pattern. */
 function storeWithLibrary(library: Record<string, unknown>): string {
   return JSON.stringify({ current: payload(), library });
 }
@@ -84,8 +84,8 @@ const unreadableStores: [name: string, stored: string | null][] = [
   ['a store with no current pattern', '{}'],
 ];
 
-/** Every way one stored pattern can be unreadable. Both contracts are held
- *  against this same list, so neither can quietly stop checking something. */
+/** Every way one stored pattern can be unreadable. Both contracts run against
+ *  this list, so neither can quietly stop checking something. */
 const unreadablePatterns: [name: string, stored: unknown][] = [
   ['nothing at all', undefined],
   ['a pattern that is not an object', 'a groove'],
@@ -202,8 +202,8 @@ describe('a version 1 stored pattern', () => {
     expect(current.lanes.kick[4]).toBe('empty');
   });
 
-  // What versioning each entry rather than the store is for: a library kept
-  // before the vocabulary grew still lists, and still loads.
+  // Why entries carry the version, not the store: a library kept before the
+  // vocabulary grew still lists, and still loads.
   it('is lifted in the library too, beside an entry at the current version', () => {
     const text = storeWithLibrary({
       Rock: version1({ kick: [3] }),
@@ -247,8 +247,8 @@ describe('parseStore', () => {
   });
 });
 
-/** The two contracts held against one list of rot, so the difference between
- *  them is the only thing these tests can be reading. */
+/** Both contracts against one list of rot, so their difference is the only
+ *  thing these tests read. */
 describe('the two decoding contracts, side by side', () => {
   it.each(unreadablePatterns)('leaves a library entry out given %s', (_name, entry) => {
     expect(namesIn(storeWithLibrary({ Bossa: entry }))).toEqual([]);

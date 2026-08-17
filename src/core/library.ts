@@ -1,18 +1,18 @@
 /**
- * The library: patterns kept by name. A pure immutable value, like the patterns
- * it holds — no storage, no runes, no DOM.
+ * Patterns kept by name. Pure immutable value, like the patterns it holds — no
+ * storage, no runes, no DOM.
  *
- * The name is the identity. There are no generated ids and no renaming, so
- * saving under a name already kept replaces what was there.
+ * The name is the identity: no generated ids, no renaming, so saving under a
+ * name already kept replaces it.
  */
 
 import type { Pattern } from './pattern.js';
 import { samePattern } from './pattern.js';
 
-/** Name to pattern. The name is stored exactly as it was typed. */
+/** Name to pattern. Name stored exactly as typed. */
 export type Library = Readonly<Record<string, Pattern>>;
 
-/** One row of the library: the name, and the pattern kept under it. */
+/** One row: the name, and the pattern kept under it. */
 export interface Entry {
   readonly name: string;
   readonly pattern: Pattern;
@@ -23,31 +23,26 @@ export function emptyLibrary(): Library {
 }
 
 /**
- * Two names are one identity when they differ only in case: `bossa` and `Bossa`
- * name the same pattern. Folding decides identity only — never appearance, so
- * the name a drummer typed is the name they are shown.
+ * Case-only difference is one identity: `bossa` and `Bossa` name the same
+ * pattern. Folding decides identity only, never appearance — the drummer is
+ * shown the name they typed.
  */
 export function sameName(one: string, other: string): boolean {
   return one.toLowerCase() === other.toLowerCase();
 }
 
 /**
- * The library with `pattern` kept under `name`, replacing whatever that name
- * already held. Input untouched.
- *
- * A replacement adopts the new spelling rather than the old one: the name
- * travels with the pattern it names.
+ * Library with `pattern` under `name`, replacing whatever that name held. Input
+ * untouched. A replacement adopts the new spelling: the name travels with the
+ * pattern it names.
  */
 export function keep(library: Library, name: string, pattern: Pattern): Library {
   return { ...remove(library, name), [name]: pattern };
 }
 
 /**
- * The library without whatever `name` held. Input untouched, and a name that was
- * never kept is not an error — the library is already as asked for.
- *
- * Removal goes by identity like everything else, so a row can be dropped under
- * any spelling of the name it is shown under.
+ * Library without whatever `name` held. Input untouched; an unkept name is not
+ * an error. By identity, so a row drops under any spelling of its name.
  */
 export function remove(library: Library, name: string): Library {
   const kept: Record<string, Pattern> = {};
@@ -58,28 +53,23 @@ export function remove(library: Library, name: string): Library {
 }
 
 /**
- * Whether a name is already an identity in the library — what a save has to ask
- * about before it writes over a groove the drummer meant to keep, and what the
- * series below has to step over.
+ * Whether a name is already an identity here — what a save asks before
+ * overwriting a kept groove, and what the series below steps over.
  */
 export function holds(library: Library, name: string): boolean {
   return Object.keys(library).some((existing) => sameName(existing, name));
 }
 
-/** The most a name may run to. Long enough to describe the music, short enough
- *  that a row stays a row. */
+/** Long enough to describe the music, short enough that a row stays a row. */
 export const MAX_NAME_LENGTH = 40;
 
 /** What an unnamed groove is offered, numbered from one. */
 const SERIES = 'Pattern';
 
 /**
- * The lowest `Pattern N` not already kept — the first gap, not the highest
- * number plus one, so a library of `Pattern 9` and `Pattern 10` offers
- * `Pattern 1` rather than counting ever upwards.
- *
- * The search cannot run away: one of the first `size + 1` numbers must be free,
- * whatever else the library holds.
+ * Lowest unkept `Pattern N` — first gap, not highest plus one, so a library of
+ * `Pattern 9` and `Pattern 10` offers `Pattern 1` rather than counting upwards.
+ * Terminates: one of the first `size + 1` numbers must be free.
  */
 export function freeName(library: Library): string {
   for (let number = 1; ; number += 1) {
@@ -89,21 +79,17 @@ export function freeName(library: Library): string {
 }
 
 /**
- * Names in the order a drummer would count them: runs of digits compare as
- * numbers, so `Pattern 2` comes before `Pattern 10`, and case is ignored, so
- * `bossa` sits with `Bossa` rather than in a lower-case district at the end.
- *
- * The locale is pinned rather than left to the browser: the order rows appear
- * in is part of what the app does, and it should not change because the machine
- * it runs on is set up differently.
+ * Counting order: digit runs compare as numbers (`Pattern 2` before
+ * `Pattern 10`), case ignored (`bossa` sits with `Bossa`). Locale pinned rather
+ * than left to the browser — row order is part of what the app does, not of the
+ * machine it runs on.
  */
 const byName = new Intl.Collator('en', { numeric: true, sensitivity: 'accent' });
 
 /**
- * The entries, in name order — the only order there is. Sorting here rather
- * than at the call site means a list can never be rendered unsorted, and it
- * also settles the order the stored map happens to have been written in, which
- * a JavaScript object does not keep faithfully once a name is all digits.
+ * Entries in name order — the only order there is. Sorting here, not at the
+ * call site, means a list can never render unsorted, and it settles the stored
+ * map's own order, which a JS object mangles once a name is all digits.
  */
 export function entriesOf(library: Library): readonly Entry[] {
   return Object.entries(library)
@@ -112,17 +98,14 @@ export function entriesOf(library: Library): readonly Entry[] {
 }
 
 /**
- * The name this library keeps that exact pattern under, or nothing at all when
- * it keeps no such pattern. The search is by value, so the copy on the grid
- * finds the copy that was kept.
+ * Name this library keeps that exact pattern under, else null. By value, so the
+ * grid's copy finds the kept copy.
  *
- * This is the whole of "is the grid already kept?": derived on every ask rather
- * than remembered, so a changed cell shows as a divergence the moment it is
- * made and there is no dirty flag to keep honest.
+ * The whole of "is the grid already kept?": derived per ask, not remembered, so
+ * a changed cell diverges at once and there's no dirty flag to keep honest.
  *
- * Searching the listed order rather than the stored one means an answer that
- * does not depend on what was saved when — and so, when the same groove is kept
- * under two names, the same single row is named every time.
+ * Searching listed order, not stored order, keeps the answer independent of
+ * save times — one groove under two names always names the same row.
  */
 export function nameOf(library: Library, pattern: Pattern): string | null {
   return entriesOf(library).find((entry) => samePattern(entry.pattern, pattern))?.name ?? null;

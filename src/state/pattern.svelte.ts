@@ -22,8 +22,8 @@ class PatternState {
     return this.#pattern;
   }
 
-  /** Flips one cell, returning what it now holds, so the caller can sound
-   *  exactly that without asking twice. */
+  /** Flips one cell, returning what it now holds, so the caller can sound that
+   *  without asking twice. */
   toggle(instrument: InstrumentId, step: number): Articulation {
     const next = toggleStep(this.#pattern, instrument, step);
     this.#commit(next);
@@ -31,29 +31,28 @@ class PatternState {
   }
 
   /** Writes one cell outright, returning what it now holds, so the caller can
-   *  audition it without asking twice. `empty` sounds as nothing. */
+   *  audition it without asking twice. `empty` sounds nothing. */
   write(instrument: InstrumentId, step: number, articulation: Articulation): Articulation {
     const next = withArticulation(this.#pattern, instrument, step, articulation);
     this.#commit(next);
     return articulationAt(next, instrument, step);
   }
 
-  /** Puts a whole pattern on the grid, tempo and all — how a kept groove is
-   *  loaded. The pattern is an immutable value, so the caller's copy and this
-   *  one cannot diverge into each other: editing here never reaches there. */
+  /** Puts a whole pattern on the grid, tempo and all — how a kept groove loads.
+   *  Immutable value, so editing here never reaches the caller's copy. */
   replace(pattern: Pattern): void {
     this.#commit(pattern);
   }
 
   /** Rubs out the groove, keeping the tempo. Playback is not this layer's
-   *  business: like `replace`, this is a wholesale change, and the session seam
-   *  stops the loop before calling it. */
+   *  business: like `replace`, a wholesale change, so the session seam stops
+   *  the loop before calling it. */
   clear(): void {
     this.#commit(withNothingWritten(this.#pattern));
   }
 
-  /** Tempo via the core's clamp: asked-for and played may differ, so read it
-   *  back rather than trusting what was sent. */
+  /** Tempo via the core's clamp: asked-for and played may differ, so read back
+   *  rather than trust what was sent. */
   setTempo(tempo: number): void {
     this.#commit(withTempo(this.#pattern, tempo));
   }

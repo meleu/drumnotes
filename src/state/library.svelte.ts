@@ -8,9 +8,9 @@ import { patternState } from './pattern.svelte.js';
  * Reactive edge of the library. Runes live here and nowhere else; the core
  * never sees this.
  *
- * The library is replaced, never mutated, so `$state.raw`. Every replacement
- * funnels through one setter, which also persists, so a new kind of change
- * cannot forget to write.
+ * Replaced, never mutated, hence `$state.raw`. Every replacement funnels
+ * through one setter, which also persists, so a new kind of change cannot
+ * forget to write.
  */
 class LibraryState {
   #library = $state.raw<Library>(loadStore().library);
@@ -20,39 +20,36 @@ class LibraryState {
     return entriesOf(this.#library);
   }
 
-  /** A name in the `Pattern N` series that nothing is kept under, for the field
-   *  to open carrying. */
+  /** An unkept `Pattern N` name, for the field to open carrying. */
   get freeName(): string {
     return freeName(this.#library);
   }
 
   /**
-   * The row the pattern on the grid is, or nothing when the grid holds
-   * something kept nowhere. Read rather than stored, so it answers the moment a
-   * cell changes and there is no dirty flag to keep honest.
+   * The row the grid's pattern is, else null. Derived, not stored, so it
+   * answers the moment a cell changes and there's no dirty flag to keep honest.
    *
-   * Reaching across to the pattern is what makes this a single answer: the mark
-   * on a row and the question a load has to ask are the same comparison, and so
-   * cannot come apart.
+   * Reaching across to the pattern is what makes it one answer: the row's mark
+   * and the question a load asks are the same comparison, so cannot come apart.
    */
   get onGrid(): string | null {
     return nameOf(this.#library, patternState.current);
   }
 
-  /** Whether a name is already kept, case aside — so a save can ask before it
-   *  writes over a groove rather than replacing it silently. */
+  /** Whether a name is already kept, case aside — so a save can ask before
+   *  overwriting rather than replacing silently. */
   holds(name: string): boolean {
     return holds(this.#library, name);
   }
 
-  /** Keeps a copy of a pattern under a name, replacing whatever that name held.
-   *  The value is immutable, so editing the grid afterwards cannot reach it. */
+  /** Keeps a pattern under a name, replacing whatever it held. Immutable value,
+   *  so later grid edits cannot reach it. */
   keep(name: string, pattern: Pattern): void {
     this.#replace(keep(this.#library, name, pattern));
   }
 
-  /** Drops what a name held. The pattern on the grid is a copy and is not
-   *  touched, whether or not it came from the row being dropped. */
+  /** Drops what a name held. The grid holds a copy, untouched even if it came
+   *  from the dropped row. */
   remove(name: string): void {
     this.#replace(remove(this.#library, name));
   }

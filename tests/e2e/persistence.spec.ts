@@ -51,8 +51,8 @@ test('an edit survives a reload', async ({ page }) => {
 
 test('a groove stored before articulations existed loads unchanged', async ({ page }) => {
   await page.goto('/');
-  // The current pattern exactly as v1.0.0 wrote one: same groove, cells as
-  // booleans, carried in the store the library brought with it.
+  // The current pattern exactly as v1.0.0 wrote one: same groove, boolean
+  // cells, carried in the store the library brought with it.
   const stored = JSON.stringify({
     current: {
       version: 1,
@@ -74,8 +74,8 @@ test('a groove stored before articulations existed loads unchanged', async ({ pa
 });
 
 test('the abandoned pattern key is deleted at startup and never read', async ({ page }) => {
-  // A readable payload of the shape that key held, deliberately unlike the
-  // default: if anything read it, the grid would show a silent kick lane.
+  // A readable payload of that key's shape, deliberately unlike the default: if
+  // anything read it, the grid would show a silent kick lane.
   const abandoned = JSON.stringify({
     version: SCHEMA_VERSION,
     tempo: 200,

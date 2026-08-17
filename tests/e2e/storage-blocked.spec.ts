@@ -24,9 +24,9 @@ declare global {
 }
 
 /**
- * A browser that refuses the store the way a real one does: touching
- * `localStorage` at all throws, rather than any one call failing. Installed
- * before any app code runs, so the app has never seen it working.
+ * Refuses the store the way a real browser does: touching `localStorage` at all
+ * throws, rather than one call failing. Installed before any app code runs, so
+ * the app has never seen it working.
  */
 async function blockStorage(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -47,8 +47,8 @@ function written(page: Page) {
   return page.locator('button[data-instrument][aria-pressed="true"]');
 }
 
-/** A kick cell the default groove leaves silent, named by its step so it can be
- *  found again once it has been written. */
+/** A kick cell the default groove leaves silent, named by step so it can be
+ *  found again once written. */
 function silentCell(page: Page) {
   const step = defaultPattern().lanes.kick.indexOf('empty');
   return page.locator(`button[data-instrument="kick"][data-step="${step}"]`);

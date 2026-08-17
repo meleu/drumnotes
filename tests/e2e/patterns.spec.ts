@@ -34,20 +34,17 @@ async function keep(page: Page, name: string): Promise<void> {
   await page.locator(save).click();
 }
 
-/** The control that puts a row back on the grid, which asks first when there is
- *  unkept work to lose. */
+/** Puts a row back on the grid; asks first when unkept work would be lost. */
 function loader(page: Page, name: string) {
   return row(page, name).locator('[data-patterns="load"]');
 }
 
-/** What it takes to put a kept pattern back on the grid when nothing is at
- *  stake: the grid is empty, or is itself something kept. */
+/** Loads a kept pattern when nothing is at stake: grid empty, or itself kept. */
 async function load(page: Page, name: string): Promise<void> {
   await loader(page, name).click();
 }
 
-/** The same, over work that is kept nowhere: the first press asks, the second
- *  answers. */
+/** The same over work kept nowhere: first press asks, second answers. */
 async function loadOver(page: Page, name: string): Promise<void> {
   await load(page, name);
   await load(page, name);
@@ -69,8 +66,8 @@ async function seed(page: Page, stored: string): Promise<void> {
   await page.reload();
 }
 
-/** A store holding one entry this build can read beside two it cannot: rot
- *  where a pattern should be, and a pattern kept by a later version. */
+/** One readable entry beside two unreadable: rot where a pattern should be, and
+ *  a pattern kept by a later version. */
 function withRottedEntries(): string {
   const library = kept(emptyLibrary(), 'Bossa', defaultPattern());
   return withUnreadable(storedApp(defaultPattern(), library), {
@@ -79,8 +76,8 @@ function withRottedEntries(): string {
   });
 }
 
-/** The names the store itself holds — where a dropped entry would show up again
- *  if it had not really gone. */
+/** Names the store itself holds — where a dropped entry would reappear if it
+ *  had not really gone. */
 async function storedNames(page: Page): Promise<string[]> {
   return page.evaluate((key) => {
     const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
@@ -90,15 +87,15 @@ async function storedNames(page: Page): Promise<string[]> {
   }, STORAGE_KEY);
 }
 
-/** Puts attention back above every control, so a tab walk starts where a
- *  drummer arriving at the page by keyboard would start. */
+/** Puts focus above every control, so a tab walk starts where a drummer
+ *  arriving by keyboard would. */
 async function startOver(page: Page): Promise<void> {
   await page.locator('h1').click();
   await expect(page.locator('h1')).toBeVisible();
 }
 
-/** Tabs forward until the control has focus, so the way to it is exercised
- *  rather than assumed. Throws rather than hanging if it is never reached. */
+/** Tabs forward until the control has focus, exercising the way to it rather
+ *  than assuming it. Throws rather than hanging if never reached. */
 async function tabTo(page: Page, selector: string): Promise<void> {
   const focused = () => page.locator(selector).evaluate((node) => node === document.activeElement);
   for (let presses = 0; presses < 40; presses += 1) {
@@ -192,8 +189,8 @@ test('saving leaves the groove on the grid alone', async ({ page }) => {
   await expect(page.locator(tempoField)).toHaveValue(String(DEFAULT_TEMPO));
 });
 
-/* Saving copies out; it changes nothing that is being played. The loop runs on
-   through it, unlike a load or a clear. */
+/* Saving copies out, changing nothing that is playing: the loop runs on,
+   unlike a load or a clear. */
 test('saving leaves playback running', async ({ page }) => {
   await page.locator(toggle).click();
   await expect(page.locator(transport)).toBeEnabled();
@@ -316,8 +313,8 @@ test('a cell tap and a save both land: neither write loses the other', async ({ 
   await expect(row(page, 'Bossa')).toBeVisible();
 });
 
-/* A kept groove cannot be got back once it is gone, and the rows are as wide as
-   a thumb: deleting costs two presses, the same as clearing does. */
+/* A dropped groove cannot be got back, and rows are as wide as a thumb:
+   deleting costs two presses, like clearing. */
 test('one press asks rather than deleting the row', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');
@@ -347,8 +344,8 @@ test('a second press drops the row, and it stays gone across a reload', async ({
   await expect(row(page, 'Funk')).toBeVisible();
 });
 
-/* What was saved is a copy, so dropping it reaches nothing on the grid — not
-   even when the grid is playing the very groove being deleted. */
+/* What was saved is a copy, so dropping it reaches nothing on the grid — even
+   when the grid is playing the very groove being deleted. */
 test('deleting leaves the groove on the grid and its tempo alone', async ({ page }) => {
   await retune(page, '140');
   const hits = await written(page).count();
@@ -411,9 +408,8 @@ test('asking about one row does not arm another', async ({ page }) => {
   await expect(row(page, 'Funk')).toBeVisible();
 });
 
-/* Keeping a groove costs one press when no name has been thought of yet: the
-   field arrives carrying a name that is free, so the one-press path never runs
-   into a question. */
+/* Keeping costs one press when no name was thought of: the field arrives
+   carrying a free name, so that path never hits a question. */
 test('the field arrives carrying the first unused name in the series', async ({ page }) => {
   await page.locator(toggle).click();
 
@@ -428,8 +424,8 @@ test('the suggestion is selected, so typing a real name replaces it', async ({ p
   await expect(page.locator(field)).toHaveValue('Bossa');
 });
 
-/* The whole point of the suggestion: press Patterns, press Save, and the groove
-   is kept. Reopening moves the series on rather than offering a taken name. */
+/* The point of the suggestion: press Patterns, press Save, groove kept.
+   Reopening moves the series on rather than offering a taken name. */
 test('keeping the suggested name and reopening offers the next one', async ({ page }) => {
   await page.locator(toggle).click();
   await page.locator(save).click();
@@ -460,8 +456,8 @@ test('a name is trimmed before it is kept', async ({ page }) => {
   await expect(listed(page)).toHaveText(['Bossa']);
 });
 
-/* Save is dead in the two cases where it could only do harm: nothing would be
-   kept under no name at all, and the library does not fill with empty grooves. */
+/* Save is dead where it could only harm: nothing kept under no name, and no
+   library full of empty grooves. */
 test('Save is dead while the field holds nothing but whitespace', async ({ page }) => {
   await page.locator(toggle).click();
   await expect(page.locator(save)).toBeEnabled();
@@ -492,8 +488,8 @@ test('Save is dead while the grid is silent, and comes back with a hit', async (
   await expect(page.locator(save)).toBeEnabled();
 });
 
-/* A name already kept holds a groove the drummer meant to keep, so writing over
-   it costs the same two presses that clearing and deleting do. */
+/* A kept name holds a groove meant to be kept, so overwriting costs the same
+   two presses clearing and deleting do. */
 test('saving over a kept name asks rather than writing over it', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');
@@ -518,8 +514,8 @@ test('a free name still keeps in one press, with nothing to answer', async ({ pa
   await expect(listed(page)).toHaveText(['Bossa']);
 });
 
-/* Names are one identity whatever their case, so a second spelling asks about
-   the row it would write over rather than quietly making another. */
+/* One identity whatever the case, so a second spelling asks about the row it
+   would overwrite rather than quietly making another. */
 test('a name differing only in case counts as kept, and asks too', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');
@@ -576,8 +572,8 @@ test('takes the replace question back when attention moves elsewhere', async ({ 
   await expect(row(page, 'Bossa')).toContainText(`${DEFAULT_TEMPO} BPM`);
 });
 
-/* A question is asked about a name, not about the button, so it cannot be
-   answered against a name other than the one it was put about. */
+/* The question is about a name, not the button, so it cannot be answered
+   against a different name. */
 test('naming something free while the question stands puts Save back', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');
@@ -596,8 +592,8 @@ test('naming something free while the question stands puts Save back', async ({ 
   await expect(listed(page)).toHaveText(['Bossa', 'Funk']);
 });
 
-/* A pattern is always in the same place, so it can be found by reading rather
-   than by hunting through the order things happened to be saved in. */
+/* A pattern is always in the same place, found by reading rather than hunting
+   through save order. */
 test('lists the rows in the order a drummer would count them', async ({ page }) => {
   await page.locator(toggle).click();
 
@@ -619,9 +615,8 @@ test('a new row arrives in its place in the list, not at the end', async ({ page
   await expect(listed(page)).toHaveText(['Bossa', 'Funk', 'Samba']);
 });
 
-/* The row holding what is on the grid says so, so a drummer can tell where they
-   are in their own library. Nothing is remembered: the answer is the pattern
-   compared against the ones kept, every time it is asked for. */
+/* The row holding the grid says so, so a drummer can tell where they are.
+   Nothing remembered: the pattern is compared against the kept ones each ask. */
 test('saving marks the row that was just saved', async ({ page }) => {
   await page.locator(toggle).click();
 
@@ -648,8 +643,8 @@ test('loading marks the row that was just loaded', async ({ page }) => {
   await expect(row(page, 'Funk')).toHaveAttribute('data-on-grid', 'false');
 });
 
-/* The mark is a comparison, not a memory, so a single cell takes it off at
-   once — that divergence is the thing the drummer is being shown. */
+/* The mark is a comparison, not a memory, so one cell takes it off at once —
+   that divergence is what the drummer is being shown. */
 test('changing a cell takes the mark off, and putting it back brings it again', async ({
   page,
 }) => {
@@ -693,9 +688,8 @@ test('never marks more than one row, even when a groove is kept twice', async ({
   await expect(page.locator(`${rows}[data-on-grid="true"]`)).toHaveCount(1);
 });
 
-/* Loading throws away whatever is on the grid, so it asks when that is worth
-   something: hits that are kept nowhere. The same comparison that marks a row
-   decides it, so the two can never disagree. */
+/* Loading throws the grid away, so it asks when that is worth something: hits
+   kept nowhere. Decided by the comparison that marks a row, so both agree. */
 test('tapping a row asks before loading over work kept nowhere', async ({ page }) => {
   const silent = defaultPattern().lanes.snare.indexOf('empty');
   const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
@@ -832,9 +826,8 @@ test('a wholly unreadable store opens on the default groove with nothing kept', 
   await expect(page.locator(rows)).toHaveCount(0);
 });
 
-/* The library is no more a pointer's feature than the grid is: every act it
-   offers can be done with a keyboard alone, both presses of every question
-   included. */
+/* No more a pointer's feature than the grid: every act works from the keyboard
+   alone, both presses of every question included. */
 test('keeps a groove without a pointer', async ({ page }) => {
   await tabTo(page, toggle);
   await page.keyboard.press('Enter');
@@ -886,9 +879,9 @@ test('drops a row without a pointer, question and all', async ({ page }) => {
   await expect(row(page, 'Bossa')).toHaveCount(0);
 });
 
-/* A control that vanishes under the finger takes the keyboard's place in the
-   page with it, and attention lands back at the top of the document. Both acts
-   that remove what was just pressed hand focus on deliberately. */
+/* A control vanishing under the finger takes the keyboard's place with it, and
+   focus lands at the top of the document. Both acts that remove what was just
+   pressed hand focus on deliberately. */
 test('closing the panel after a load hands focus back to the Patterns control', async ({
   page,
 }) => {
@@ -923,8 +916,8 @@ test('dropping the last row leaves focus in the field, with nowhere else to be',
   await expect(page.locator(field)).toBeFocused();
 });
 
-/* The library is not a desktop feature. Everything in the panel has to be
-   readable and hittable on the narrowest phone the grid already serves. */
+/* Not a desktop feature: everything in the panel must be readable and hittable
+   on the narrowest phone the grid already serves. */
 const PHONE = { width: 390, height: 800 };
 
 test('the panel fits a phone, however long a name it is holding', async ({ page }) => {
@@ -951,8 +944,8 @@ test('the row keeps its two controls apart at a phone width', async ({ page }) =
   expect(loading!.x + loading!.width).toBeLessThanOrEqual(dropping!.x);
 });
 
-/* A thumb is a thumb wherever it lands: the rows are no smaller a target than
-   the controls in the row above them already are. */
+/* A thumb is a thumb wherever it lands: rows are no smaller a target than the
+   controls in the row above. */
 test('the panel is as tappable as the controls already in the row', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.locator(toggle).click();
@@ -965,7 +958,7 @@ test('the panel is as tappable as the controls already in the row', async ({ pag
   }
 });
 
-/* The mark on a row is drawn, not written, so a reader that cannot see it is
+/* The row's mark is drawn, not written, so a reader that cannot see it is
    told in words instead — along with everything else the row says. */
 test('every row says its name, its tempo and whether it is the one on the grid', async ({
   page,

@@ -145,7 +145,7 @@ test('marks a flammed cell with the letter drummers write it as', async ({ page 
   await page.reload();
 
   // A grace note shrunk into a cell is a smudge; the letter is what a drummer
-  // pencils over the stroke instead.
+  // pencils over the stroke.
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
   ).toHaveText('f');
@@ -171,8 +171,8 @@ test('marks a dragged cell with a letter of its own, not the one a flam wears', 
   await expect(
     page.locator(`button[data-instrument="snare"][data-step="${step}"] .mark`),
   ).toHaveText('d');
-  // And distinct from the ornament beside it, the one a drag is easiest to
-  // mistake for: two grace-note figures confuse where two letters do not.
+  // And distinct from the ornament beside it, easiest to mistake a drag for:
+  // two grace-note figures confuse where two letters do not.
   await expect(
     page.locator(`button[data-instrument="hihat"][data-step="${flammed}"] .mark`),
   ).toHaveText('f');
@@ -232,7 +232,7 @@ test('keeps an accented cell marked as the playhead lights its column', async ({
   await expect(cell).toHaveClass(/playing/);
 
   // A written cell keeps its colour under the playhead, so the mark keeps the
-  // one ground it was drawn to read against.
+  // ground it was drawn to read against.
   await expect(cell.locator('.mark')).toHaveText('>');
   const [markColour, cellColour] = await cell.evaluate((node) => [
     getComputedStyle(node.querySelector('.mark')!).color,
@@ -249,7 +249,7 @@ test('draws the six articulations as six distinguishable cells at phone size', a
   await page.setViewportSize({ width: 320, height: 640 });
 
   // Six cells of one row, none opening a beat: those are drawn differently on
-  // purpose, and would be told apart by that rather than by what they hold.
+  // purpose, so they'd be told apart by that rather than by what they hold.
   const steps = [1, 2, 3, 5, 6, 7];
   const pattern = ARTICULATIONS.reduce(
     (next, articulation, index) => withArticulation(next, 'snare', steps[index]!, articulation),
@@ -282,8 +282,8 @@ test('draws the six articulations as six distinguishable cells at phone size', a
       }),
     );
 
-    /** Share of the cell the two differ over. Row by row across what they have
-     *  in common, since a cell can land a pixel wider than its neighbour. */
+    /** Share of the cell the two differ over. Row by row across their common
+     *  area, since a cell can land a pixel wider than its neighbour. */
     const apart = (one: ImageData, other: ImageData): number => {
       const width = Math.min(one.width, other.width);
       const height = Math.min(one.height, other.height);

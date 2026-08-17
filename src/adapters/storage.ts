@@ -1,15 +1,13 @@
 /**
- * The only place that knows where the store lives. Shape checking is the
- * codec's; this just moves a string in and out and swallows storage errors — a
- * blocked or full store means unsaved, never broken.
+ * Only place that knows where the store lives. Shape checking is the codec's;
+ * this moves a string in and out and swallows storage errors — blocked or full
+ * means unsaved, never broken.
  *
- * The last-written store is held in memory and each write is merged into it, so
- * the autosave that fires on every cell tap and a library write cannot clobber
- * one another, and neither re-reads the store to find out what the other did.
+ * Last-written store held in memory, every write merged into it, so per-cell
+ * autosave and library writes cannot clobber each other and neither re-reads.
  *
- * Whether the store works at all is settled once, at startup, so the interface
- * can say up front what it cannot offer instead of finding out a write at a
- * time.
+ * Usability settled once at startup, so the interface can say up front what it
+ * cannot offer.
  */
 
 import type { Store } from '../core/codec.js';
@@ -17,12 +15,11 @@ import { parseStore, serialiseStore } from '../core/codec.js';
 import type { Library } from '../core/library.js';
 import type { Pattern } from '../core/pattern.js';
 
-/** Everything kept: the pattern on the grid and the library beside it. */
+/** Everything kept: grid pattern plus library. */
 export const STORAGE_KEY = 'drumnotes:store';
 
-/** Where the single autosaved pattern lived before the library. Deleted once at
- *  startup and never read: there were no users, so there is nothing to
- *  migrate. */
+/** Pre-library autosave key. Deleted at startup, never read: no users existed,
+ *  so nothing to migrate. */
 const ABANDONED_KEY = 'drumnotes:pattern';
 
 /** Written and taken straight back out, only to find out whether it can be. */
@@ -33,20 +30,20 @@ const usable = probe();
 let held: Store = start();
 
 /**
- * Whether this browser will keep anything at all. Asked once, at startup: a
- * store that refuses — private browsing, a site-data setting, a full quota —
- * does not relent mid-session, so asking again per write would only cost time
- * and could answer differently for no reason the drummer could see.
+ * Whether this browser keeps anything at all. Asked once at startup: a refusing
+ * store — private browsing, site-data setting, full quota — does not relent
+ * mid-session, so per-write asking would only cost time and could flip for no
+ * visible reason.
  *
- * Decides whether the library's controls exist rather than whether they are
- * enabled, as `canCopyImage` already does for the clipboard.
+ * Decides whether the library's controls exist, not whether they are enabled,
+ * as `canCopyImage` does for the clipboard.
  */
 export function canKeep(): boolean {
   return usable;
 }
 
-/* A round trip rather than a look: a store can be readable and still refuse a
-   write, and a write is the thing being promised. */
+/* Round trip, not a look: a readable store can still refuse a write, and the
+   write is what's promised. */
 function probe(): boolean {
   try {
     localStorage.setItem(PROBE_KEY, '');
@@ -62,7 +59,7 @@ function start(): Store {
   return parseStore(read());
 }
 
-/** What was there when the app opened — read once, then kept in memory. */
+/** What was there at app open — read once, then kept in memory. */
 export function loadStore(): Store {
   return held;
 }
@@ -96,6 +93,6 @@ function forget(key: string): void {
   try {
     localStorage.removeItem(key);
   } catch {
-    // Nothing to do about a store that will not even let go of a key.
+    // Nothing to do about a store that won't let go of a key.
   }
 }

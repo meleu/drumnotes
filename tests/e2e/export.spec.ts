@@ -96,8 +96,8 @@ async function load(page: Page, viewport: { width: number; height: number }): Pr
 const WIDE = { width: 1280, height: 900 };
 const PHONE = { width: 390, height: 900 };
 
-/** Rewrites the stored groove and reloads onto it, rather than clicking it in
- *  cell by cell. */
+/** Rewrites the stored groove and reloads onto it, rather than clicking cell by
+ *  cell. */
 async function rewrite(page: Page, pattern: Pattern): Promise<void> {
   await page.evaluate(
     ([key, stored]) => localStorage.setItem(key!, stored!),
@@ -159,7 +159,7 @@ test('actually draws the notation, and redraws it after an edit', async ({ page 
   const before = await inspect((await exportPng(page)).bytes, page);
   expect(before.ink).toBeGreaterThan(0);
 
-  // One more notehead, one more patch of ink: the export follows the pattern —
+  // One more notehead, one more patch of ink: the export follows the pattern,
   // and has ink at all.
   await page.locator('button[data-instrument="snare"][data-step="1"]').click();
 
@@ -237,8 +237,7 @@ test.describe('the copy affordance', () => {
 
     await page.locator(copy).click();
 
-    // The confirmation waits on the write resolving, so this covers the round
-    // trip.
+    // The confirmation waits on the write resolving: covers the round trip.
     await expect(page.locator(copy)).toHaveText('Copied');
     expect(errors).toEqual([]);
   });

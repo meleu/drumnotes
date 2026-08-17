@@ -4,18 +4,17 @@ import { emptyLibrary } from '../../../src/core/library.js';
 import type { Pattern } from '../../../src/core/pattern.js';
 
 /**
- * A serialised store, for seeding storage: the pattern the app should open on,
- * and the library beside it. Written through the codec, so a test never has to
- * know the stored shape.
+ * A serialised store for seeding storage: the pattern the app opens on, plus
+ * the library. Written through the codec, so a test never knows the shape.
  */
 export function storedApp(current: Pattern, library: Library = emptyLibrary()): string {
   return serialiseStore({ current, library });
 }
 
 /**
- * The same store with library entries spliced in that the codec would never
- * write — rot, or a version this build does not read. Going round the codec is
- * the point: nothing else can put in front of the app an entry it cannot read.
+ * Same store with library entries spliced in that the codec would never write —
+ * rot, or an unreadable version. Going round the codec is the point: nothing
+ * else can put an unreadable entry in front of the app.
  */
 export function withUnreadable(stored: string, entries: Readonly<Record<string, unknown>>): string {
   const store = JSON.parse(stored) as { library: Record<string, unknown> };

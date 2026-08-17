@@ -93,8 +93,8 @@ test('clearing keeps the tempo the groove was played at', async ({ page }) => {
   await expect(tempo).toHaveValue('140');
 });
 
-/* Rubbing the groove out is a change of what is being played, not an edit to
-   what is playing: the loop stops rather than turning into a silent pulse. */
+/* A change of what is played, not an edit to what is playing: the loop stops
+   rather than turning into a silent pulse. */
 test('stops the transport and clears the playhead', async ({ page }) => {
   await expect(page.locator(transport)).toBeEnabled();
   await page.locator(transport).click();

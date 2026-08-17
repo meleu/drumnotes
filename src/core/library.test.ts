@@ -162,8 +162,8 @@ describe('nameOf', () => {
     expect(nameOf(library, emptyPattern())).toBe('Funk');
   });
 
-  /* Nothing stops the same groove being kept twice under two names, and the row
-     marked has to be the same one every time it is asked about. */
+  /* Nothing stops one groove being kept under two names, and the marked row
+     must be the same every time. */
   it('names only the first in listed order when two entries are the same pattern', () => {
     const library = keep(
       keep(emptyLibrary(), 'Samba', defaultPattern()),
@@ -175,7 +175,7 @@ describe('nameOf', () => {
   });
 });
 
-/** A library holding one pattern under each name, saved in the order given. */
+/** One pattern per name, saved in the order given. */
 function libraryOf(...kept: string[]): ReturnType<typeof emptyLibrary> {
   return kept.reduce((library, name) => keep(library, name, defaultPattern()), emptyLibrary());
 }
