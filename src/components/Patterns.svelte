@@ -332,10 +332,10 @@
     font-weight: inherit;
   }
 
+  /* Small enough to sit in the tempo's slot; its ink and weight are the
+     question's own, said once in the global sheet. */
   .question {
     font-size: 0.8125rem;
-    font-weight: 600;
-    color: #991b1b;
   }
 
   .delete {

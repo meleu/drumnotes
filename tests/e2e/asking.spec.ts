@@ -80,4 +80,10 @@ test('the Row takes the tint alone, and keeps its shape', async ({ page }) => {
   expect(asking.tint).toBe(ASKING.tint);
   expect(asking.ink).toBe(idle.ink);
   expect(asking.weight).toBe(idle.weight);
+
+  // The word standing in the tempo's slot is where the Row says it in ink, and
+  // it is the question's ink, not one of its own.
+  const word = await look(page, `${loader} .question`);
+  expect(word.ink).toBe(ASKING.ink);
+  expect(word.weight).toBe(ASKING.weight);
 });
