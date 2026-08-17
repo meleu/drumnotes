@@ -7,6 +7,7 @@
   import { anythingWritten } from '../core/pattern.js';
   import { libraryState } from '../state/library.svelte.js';
   import { patternState } from '../state/pattern.svelte.js';
+  import { Question, askingName, stateOf } from '../state/question.svelte.js';
   import { session } from '../state/session.svelte.js';
 
   /* A disclosure, not a dialog: opens under the controls row and pushes the
@@ -49,37 +50,20 @@
      empty grid for the same reason. */
   const keepable = $derived(typed !== '' && anythingWritten(patternState.current));
 
-  /** How long a question stands before it is taken back. */
-  const QUESTION_MS = 5000;
-
   /* Overwriting a kept groove costs two presses, like every other act with
-     nothing behind it. Armed by name, not a flag: editing the field to a free
-     name takes the question back, so it can never be answered against a name
-     other than the one it was put about. */
-  let askedOver = $state<string | null>(null);
-  let withdrawSave: ReturnType<typeof setTimeout> | undefined;
+     nothing behind it — but only where a groove is there to lose, so a free
+     name still keeps outright. The question is about the name being kept, and
+     it is asked about the name typed now, so editing the field to something
+     free puts Save back with nothing here to say so. */
+  const replacement = new Question();
 
   const taken = $derived(libraryState.holds(typed));
-  const replacing = $derived(askedOver !== null && taken && sameName(askedOver, typed));
+  const replacing = $derived(replacement.asking(typed));
 
   /* Takes a copy of the grid. Panel stays open so the new row is seen arriving
      — under the name as typed, since a replacement adopts the new spelling. */
   function pressSave(): void {
-    if (taken && !replacing) {
-      askedOver = typed;
-      clearTimeout(withdrawSave);
-      withdrawSave = setTimeout(forgetSave, QUESTION_MS);
-      return;
-    }
-    forgetSave();
-    libraryState.keep(typed, patternState.current);
-  }
-
-  /** Also on blur, as with every question here: attention elsewhere is an
-   *  answer of sorts. */
-  function forgetSave(): void {
-    askedOver = null;
-    clearTimeout(withdrawSave);
+    replacement.press(typed, taken, () => libraryState.keep(typed, patternState.current));
   }
 
   /* Which row the grid is — derived from the grid, so it goes out the moment a
@@ -92,14 +76,15 @@
      question would interrupt about nothing. Unkept hits are worth a press. */
   const atStake = $derived(onGrid === null && anythingWritten(patternState.current));
 
-  let askedFor = $state<string | null>(null);
-  let withdrawLoad: ReturnType<typeof setTimeout> | undefined;
+  /* The question is about the row, so what it says names the row: an answer can
+     never be given about a groove other than the one asked about. */
+  const loading = new Question();
 
   /* Reads the same heard as seen: mark and question both go in the label, since
      neither is in the button's text. */
   function loadLabel(entry: Entry): string {
     const row = `${entry.name}, ${entry.pattern.tempo} BPM`;
-    if (askedFor === entry.name) return `Load ${row} over unkept work? Press again to confirm`;
+    if (loading.asking(entry.name)) return askingName(`Load ${row} over unkept work`);
     return onGrid === entry.name ? `${row}, on the grid` : `Load ${row}`;
   }
 
@@ -107,43 +92,27 @@
      pattern autosaves as current through the same funnel an edit uses. Then the
      panel closes, returning the drummer to the grid and staff. */
   function pressLoad(entry: Entry): void {
-    if (atStake && askedFor !== entry.name) {
-      askedFor = entry.name;
-      clearTimeout(withdrawLoad);
-      withdrawLoad = setTimeout(forgetLoad, QUESTION_MS);
-      return;
-    }
-    forgetLoad();
-    session.load(entry.pattern);
-    open = false;
-    /* The panel under the finger has gone, so focus returns to the control that
-       opened it — the one press that would open it again. */
-    void tick().then(() => control?.focus());
-  }
-
-  /** Also on blur, as with every other question here. */
-  function forgetLoad(): void {
-    askedFor = null;
-    clearTimeout(withdrawLoad);
+    loading.press(entry.name, atStake, () => {
+      session.load(entry.pattern);
+      open = false;
+      /* The panel under the finger has gone, so focus returns to the control
+         that opened it — the one press that would open it again. */
+      void tick().then(() => control?.focus());
+    });
   }
 
   /* Deleting has nothing behind it either — no undo, rows as wide as a thumb —
-     so two presses, like clearing. Armed by name, not a flag: only the row
-     asked about is armed, and asking about another takes the first back. */
-  let asked = $state<string | null>(null);
-  let withdraw: ReturnType<typeof setTimeout> | undefined;
+     so two presses, like clearing. The question is about the row's name, so only
+     the row asked about is armed and asking about another takes the first back.
+     Nothing at the call site says so: one question armed by one subject is. */
+  const deletion = new Question();
 
-  function press(name: string): void {
-    if (asked === name) {
-      forget();
+  function pressDelete(name: string): void {
+    deletion.press(name, true, () => {
       const at = entries.findIndex((entry) => sameName(entry.name, name));
       libraryState.remove(name);
       void tick().then(() => handOn(at));
-      return;
-    }
-    asked = name;
-    clearTimeout(withdraw);
-    withdraw = setTimeout(forget, QUESTION_MS);
+    });
   }
 
   /* Where the keyboard goes once its row is gone: the row that took its place,
@@ -153,13 +122,6 @@
     const controls = list ? [...list.querySelectorAll<HTMLButtonElement>('.delete')] : [];
     const next = controls[Math.min(at, controls.length - 1)];
     (next ?? named)?.focus();
-  }
-
-  /* Also on blur: attention elsewhere is an answer, and an armed control left
-     lying around is what the question guards against. */
-  function forget(): void {
-    asked = null;
-    clearTimeout(withdraw);
   }
 </script>
 
@@ -211,11 +173,11 @@
           type="button"
           class="save"
           data-patterns="save"
-          data-state={replacing ? 'asking' : 'idle'}
-          aria-label={replacing ? `Replace ${typed}? Press again to confirm` : 'Save'}
+          data-state={stateOf(replacing)}
+          aria-label={replacing ? askingName(`Replace ${typed}`) : 'Save'}
           disabled={!keepable}
           onclick={pressSave}
-          onblur={forgetSave}
+          onblur={() => replacement.withdraw()}
         >
           {replacing ? 'Replace?' : 'Save'}
         </button>
@@ -226,6 +188,8 @@
       {:else}
         <ul class="rows" data-patterns="rows" bind:this={list}>
           {#each entries as entry (entry.name)}
+            {@const taking = loading.asking(entry.name)}
+            {@const dropping = deletion.asking(entry.name)}
             <li class="row" data-pattern={entry.name} data-on-grid={onGrid === entry.name}>
               <!-- Loading is the whole width the delete control leaves, so the
                  target is as wide as the panel and a thumb cannot miss it.
@@ -236,13 +200,13 @@
                 type="button"
                 class="load"
                 data-patterns="load"
-                data-state={askedFor === entry.name ? 'asking' : 'idle'}
+                data-state={stateOf(taking)}
                 aria-label={loadLabel(entry)}
                 onclick={() => pressLoad(entry)}
-                onblur={forgetLoad}
+                onblur={() => loading.withdraw()}
               >
                 <span class="name">{entry.name}</span>
-                {#if askedFor === entry.name}
+                {#if taking}
                   <span class="question">Sure?</span>
                 {:else}
                   <span class="tempo">{entry.pattern.tempo} BPM</span>
@@ -252,14 +216,12 @@
                 type="button"
                 class="delete"
                 data-patterns="delete"
-                data-state={asked === entry.name ? 'asking' : 'idle'}
-                aria-label={asked === entry.name
-                  ? `Delete ${entry.name}? Press again to confirm`
-                  : `Delete ${entry.name}`}
-                onclick={() => press(entry.name)}
-                onblur={forget}
+                data-state={stateOf(dropping)}
+                aria-label={dropping ? askingName(`Delete ${entry.name}`) : `Delete ${entry.name}`}
+                onclick={() => pressDelete(entry.name)}
+                onblur={() => deletion.withdraw()}
               >
-                {asked === entry.name ? 'Sure?' : 'Delete'}
+                {dropping ? 'Sure?' : 'Delete'}
               </button>
             </li>
           {/each}
@@ -271,7 +233,7 @@
 
 <style>
   .toggle,
-  .keep button {
+  .save {
     padding: 0.6rem 0.9rem;
     border: 1px solid #d1d5db;
     border-radius: 6px;
@@ -281,7 +243,7 @@
     touch-action: manipulation;
   }
 
-  .keep button:disabled {
+  .save:disabled {
     opacity: 0.5;
     cursor: default;
   }
@@ -290,14 +252,6 @@
     /* Wide enough for either label, so the row does not shuffle when the
        question comes up. */
     min-width: 6rem;
-  }
-
-  /* Asking looks like what it is about to do. */
-  .save[data-state='asking'] {
-    border-color: #b91c1c;
-    background: #fee2e2;
-    color: #991b1b;
-    font-weight: 600;
   }
 
   .panel {
@@ -362,20 +316,26 @@
     touch-action: manipulation;
   }
 
-  .load:hover {
+  /* Answering the pointer is the idle look. A standing question outranks it:
+     the tint says what the next press does, and a hovering finger — the one
+     about to press — must not wash it off. */
+  .load[data-state='idle']:hover {
     background: #f9fafb;
   }
 
-  /* Asking looks like what it is about to do, in the tempo's slot, so the row
-     keeps its shape while the question stands. */
+  /* Takes the tint and nothing else, unlike the three controls shaped like
+     buttons: a whole row reddened and emboldened would pull its own text about,
+     and the question is already said in the tempo's slot. Puts the ink and the
+     weight back to the row's own, so asking and idle read alike. */
   .load[data-state='asking'] {
-    background: #fee2e2;
+    color: revert;
+    font-weight: inherit;
   }
 
+  /* Small enough to sit in the tempo's slot; its ink and weight are the
+     question's own, said once in the global sheet. */
   .question {
     font-size: 0.8125rem;
-    font-weight: 600;
-    color: #991b1b;
   }
 
   .delete {
@@ -392,14 +352,6 @@
     font-size: 0.8125rem;
     cursor: pointer;
     touch-action: manipulation;
-  }
-
-  /* Asking looks like what it is about to do. */
-  .delete[data-state='asking'] {
-    border-color: #b91c1c;
-    background: #fee2e2;
-    color: #991b1b;
-    font-weight: 600;
   }
 
   .tempo,

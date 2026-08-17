@@ -362,18 +362,9 @@ test('deleting leaves the groove on the grid and its tempo alone', async ({ page
   await expect(page.locator(tempoField)).toHaveValue('140');
 });
 
-test('takes the question back when it goes unanswered', async ({ page }) => {
-  await page.locator(toggle).click();
-  await keep(page, 'Bossa');
-
-  await remove(page, 'Bossa').click();
-  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
-
-  // Waits the question out rather than answering it.
-  await expect(remove(page, 'Bossa')).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
-  await expect(row(page, 'Bossa')).toBeVisible();
-});
-
+/* Withdrawal after the wait is the Question module's rule, covered on a fake
+   clock in `src/state/question.test.ts`. What only a browser can show is that
+   real focus leaving really does take the question back. */
 test('takes the question back when attention moves elsewhere', async ({ page }) => {
   await page.locator(toggle).click();
   await keep(page, 'Bossa');
@@ -541,20 +532,6 @@ test('a second press replaces the entry, name and tempo alike', async ({ page })
   await expect(listed(page)).toHaveText(['bossa']);
   await expect(page.locator(rows)).toHaveCount(1);
   await expect(page.locator(rows)).toContainText('140 BPM');
-});
-
-test('takes the replace question back when it goes unanswered', async ({ page }) => {
-  await page.locator(toggle).click();
-  await keep(page, 'Bossa');
-  await retune(page, '140');
-
-  await page.locator(field).fill('Bossa');
-  await page.locator(save).click();
-  await expect(page.locator(save)).toHaveAttribute('data-state', 'asking');
-
-  // Waits the question out rather than answering it.
-  await expect(page.locator(save)).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
-  await expect(row(page, 'Bossa')).toContainText(`${DEFAULT_TEMPO} BPM`);
 });
 
 test('takes the replace question back when attention moves elsewhere', async ({ page }) => {
@@ -735,21 +712,6 @@ test('tapping a row loads outright when the grid is empty', async ({ page }) => 
 
   await expect(page.locator(panel)).toHaveCount(0);
   await expect(written(page)).not.toHaveCount(0);
-});
-
-test('takes the load question back when it goes unanswered', async ({ page }) => {
-  const silent = defaultPattern().lanes.snare.indexOf('empty');
-  const cell = page.locator(`button[data-instrument="snare"][data-step="${silent}"]`);
-  await page.locator(toggle).click();
-  await keep(page, 'Bossa');
-  await cell.click();
-
-  await load(page, 'Bossa');
-  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'asking');
-
-  // Waits the question out rather than answering it.
-  await expect(loader(page, 'Bossa')).toHaveAttribute('data-state', 'idle', { timeout: 15000 });
-  await expect(cell).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('takes the load question back when attention moves elsewhere', async ({ page }) => {

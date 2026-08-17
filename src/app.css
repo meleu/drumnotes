@@ -11,3 +11,26 @@
 body {
   margin: 0;
 }
+
+/* One concept, one look: what a standing question wears, said here rather than
+   in each control, so four controls cannot drift into four looks for the thing
+   they all report as `asking`.
+
+   Qualified by `:root` only to carry weight: Svelte scopes a component's
+   selectors by adding a class to them, so a bare attribute would lose to the
+   look each control draws for itself. */
+
+/* The ink and weight a question is written in: on the control that asks, and on
+   the word a control sets inside itself where it leaves its own text plain. */
+:root button[data-state='asking'],
+:root button[data-state='asking'] .question {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+/* The border and tint a control shaped like a button takes with them. The Row
+   is a line rather than a button, so it takes the tint alone. */
+:root button[data-state='asking'] {
+  border-color: #b91c1c;
+  background: #fee2e2;
+}

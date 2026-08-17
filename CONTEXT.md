@@ -296,4 +296,9 @@ row, keeping over a name already used, and loading over work kept nowhere. The q
 lives in the control that was pressed rather than in a dialog, reports itself as
 `data-state`, says in its accessible name what the next press will do, takes itself back
 after a few seconds unanswered, and is withdrawn when attention moves elsewhere.
+A question is always _about_ a subject — the Name of the Row being dropped or loaded, the
+Name being kept over, or nothing at all where the control acts on the whole grid — and it
+can only be answered about the subject it was asked about. Its rules live in one place,
+`src/state/question.svelte.ts`; a control supplies the subject, whether asking is warranted,
+and the act to run once answered.
 _Avoid_: dialog, modal, prompt, alert, are-you-sure
